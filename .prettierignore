@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+src/generated
+package-lock.json
+*.docx
+
+# Human-authored planning docs and files managed by tools
+CLAUDE.md
+AGENTS.md
+docs

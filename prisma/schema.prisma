@@ -1,0 +1,11 @@
+// Prisma schema for the Water Investment Summit Secure Project Portal.
+// Models follow docs/PLAN.md section 5 and are added in M2.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
