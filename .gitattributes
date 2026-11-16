@@ -1,0 +1,16 @@
+# Keep LF line endings on every platform so Prettier and CI agree with Windows checkouts.
+* text=auto eol=lf
+
+# Binary files: never convert.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.zip binary
+*.woff binary
+*.woff2 binary
