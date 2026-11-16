@@ -52,4 +52,4 @@ tests/e2e/           Playwright specs
 
 ## Secrets
 
-`.env.example` lists every variable. Real values for staging and production live in Azure Key Vault. Never commit `.env`.
+`.env.example` lists every variable. Real values for staging and production live only on the server, in a root-only `.env` file. Never commit `.env`.
