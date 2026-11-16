@@ -1,5 +1,6 @@
 // Prisma schema for the Water Investment Summit Secure Project Portal.
-// Models follow docs/PLAN.md section 5 and are added in M2.
+// Models and field names follow docs/PLAN.md section 5 (data model v0.2) exactly.
+// Ask before renaming or restructuring anything here.
 
 generator client {
   provider = "prisma-client"
@@ -8,4 +9,349 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums (the bracketed values in PLAN section 5)
+// ---------------------------------------------------------------------------
+
+/// Not bracketed in the PLAN; ACTIVE countries take part in the current Summit.
+enum CountryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MembershipRole {
+  FOCAL_POINT
+  MEMBER
+}
+
+enum ProjectTier {
+  TIER1
+  TIER2
+}
+
+enum ProjectType {
+  SUMMIT_PIPELINE
+  OTHER_PROPONENT
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum DocumentKind {
+  TEASER
+  EXTRA
+  DATAROOM
+}
+
+/// Not bracketed in the PLAN; result of the ClamAV scan. A file is visible only when CLEAN.
+enum ScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  FAILED
+}
+
+enum UserRole {
+  PLATFORM_ADMIN
+  SUMMIT_ADMIN
+  COUNTRY
+  INVESTOR
+}
+
+enum UserStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  DEACTIVATED
+}
+
+enum MeetingRequestType {
+  MEETING
+  INFO
+}
+
+enum MeetingRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+enum SlotStatus {
+  OPEN
+  HELD
+  BOOKED
+}
+
+enum GrantScope {
+  EXTRA
+}
+
+// ---------------------------------------------------------------------------
+// Countries and people
+// ---------------------------------------------------------------------------
+
+model Country {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  iso3      String        @unique @db.Char(3)
+  status    CountryStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  memberships CountryMembership[]
+  projects    Project[]
+  invitations Invitation[]
+}
+
+/// Links a COUNTRY user to the country workspace they belong to.
+model CountryMembership {
+  userId    String
+  countryId String
+  role      MembershipRole
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, countryId])
+  @@index([countryId])
+}
+
+/// Application user. Better Auth (M3) adds its own session, account and verification tables that
+/// reference User.id, plus any fields it needs (for example emailVerified); keep id a string.
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String
+  organisation    String?
+  jobTitle        String?
+  role            UserRole
+  status          UserStatus @default(PENDING_APPROVAL)
+  mfaEnabled      Boolean    @default(false)
+  termsAcceptedAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  memberships         CountryMembership[]
+  documentsUploaded   Document[]          @relation("DocumentUploadedBy")
+  acknowledgements    Acknowledgement[]
+  invitationsSent     Invitation[]        @relation("InvitationInvitedBy")
+  meetingRequests     MeetingRequest[]    @relation("MeetingRequestRequester")
+  meetingDecisions    MeetingRequest[]    @relation("MeetingRequestDecidedBy")
+  projectGrants       ProjectGrant[]      @relation("ProjectGrantUser")
+  projectGrantsIssued ProjectGrant[]      @relation("ProjectGrantGrantedBy")
+  auditEvents         AuditEvent[]
+
+  @@index([role, status])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  role        UserRole
+  countryId   String?
+  /// SHA-256 of the one-time token sent by email; the token itself is never stored.
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  createdAt   DateTime  @default(now())
+
+  country   Country? @relation(fields: [countryId], references: [id])
+  invitedBy User     @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([countryId])
+  @@index([invitedById])
+}
+
+// ---------------------------------------------------------------------------
+// Projects, documents and acknowledgements
+// ---------------------------------------------------------------------------
+
+model Project {
+  id                String        @id @default(cuid())
+  countryId         String
+  name              String
+  sector            String
+  tier              ProjectTier
+  projectType       ProjectType   @default(SUMMIT_PIPELINE)
+  pppModel          String?
+  sizeMinUsd        Decimal?      @db.Decimal(16, 2)
+  sizeMaxUsd        Decimal?      @db.Decimal(16, 2)
+  tenderTimeline    String?
+  documentsPrepared String?
+  feedbackSought    String?
+  revenueModel      String?
+  counterparty      String?
+  lat               Float?
+  lon               Float?
+  status            ProjectStatus @default(DRAFT)
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  country          Country           @relation(fields: [countryId], references: [id])
+  documents        Document[]
+  acknowledgements Acknowledgement[]
+  meetingRequests  MeetingRequest[]
+  grants           ProjectGrant[]
+
+  @@index([countryId, status])
+  @@index([status, tier])
+  @@index([sector])
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  projectId      String
+  kind           DocumentKind
+  title          String
+  filename       String
+  version        Int          @default(1)
+  docDate        DateTime?    @db.Date
+  allowDownload  Boolean      @default(false)
+  /// Object key in the private bucket. Never a public URL.
+  blobKey        String       @unique
+  sha256         String       @db.Char(64)
+  sizeBytes      Int
+  scanStatus     ScanStatus   @default(PENDING)
+  uploadedById   String
+  uploadedAt     DateTime     @default(now())
+  /// Set when a newer version replaces this one.
+  supersededById String?      @unique
+
+  project          Project           @relation(fields: [projectId], references: [id])
+  uploadedBy       User              @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  supersededBy     Document?         @relation("DocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes       Document?         @relation("DocumentSupersededBy")
+  acknowledgements Acknowledgement[]
+
+  @@index([projectId, kind])
+  @@index([uploadedById])
+}
+
+/// Confidentiality acknowledgement given before publishing. A project cannot be published without one.
+model Acknowledgement {
+  id                String   @id @default(cuid())
+  projectId         String
+  documentId        String
+  userId            String
+  textVersion       String
+  acceptedAt        DateTime @default(now())
+  ip                String?
+  /// True when a Summit admin acknowledged for the country (evidence: the country's email).
+  onBehalfOfCountry Boolean  @default(false)
+  evidenceNote      String?
+
+  project  Project  @relation(fields: [projectId], references: [id])
+  document Document @relation(fields: [documentId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([documentId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Meeting requests, rooms and slots (F7, F8, F10)
+// ---------------------------------------------------------------------------
+
+model MeetingRequest {
+  id              String               @id @default(cuid())
+  projectId       String
+  requesterId     String
+  type            MeetingRequestType
+  message         String?
+  rank            Int?
+  status          MeetingRequestStatus @default(PENDING)
+  decidedById     String?
+  /// True when a Summit admin decided for the country.
+  decidedOnBehalf Boolean              @default(false)
+  decidedAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id])
+  requester User    @relation("MeetingRequestRequester", fields: [requesterId], references: [id])
+  decidedBy User?   @relation("MeetingRequestDecidedBy", fields: [decidedById], references: [id])
+  slot      Slot?
+
+  @@index([projectId, status])
+  @@index([requesterId])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  capacity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots Slot[]
+}
+
+model Slot {
+  id               String     @id @default(cuid())
+  roomId           String
+  startsAt         DateTime
+  endsAt           DateTime
+  status           SlotStatus @default(OPEN)
+  meetingRequestId String?    @unique
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  room           Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  meetingRequest MeetingRequest? @relation(fields: [meetingRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([roomId, startsAt])
+  @@index([startsAt])
+}
+
+// ---------------------------------------------------------------------------
+// Grants and audit (F11, audit log)
+// ---------------------------------------------------------------------------
+
+/// Explicit, expiring access to extra material on one project for one user.
+model ProjectGrant {
+  id          String     @id @default(cuid())
+  userId      String
+  projectId   String
+  scope       GrantScope
+  grantedById String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime   @default(now())
+
+  user      User    @relation("ProjectGrantUser", fields: [userId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+  grantedBy User    @relation("ProjectGrantGrantedBy", fields: [grantedById], references: [id])
+
+  @@index([userId, projectId])
+  @@index([projectId])
+}
+
+/// Append-only audit trail. actorId is empty for failed logins and system actions.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  ip         String?
+  userAgent  String?
+  at         DateTime @default(now())
+  metadata   Json?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([at])
+  @@index([actorId, at])
+  @@index([entityType, entityId])
 }

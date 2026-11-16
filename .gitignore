@@ -48,6 +48,9 @@ next-env.d.ts
 # prisma generated client
 /src/generated/
 
+# local file storage (seed placeholder PDFs)
+/.data/
+
 # playwright
 /test-results/
 /playwright-report/
