@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
+import { appConfig } from "@/lib/config";
 import "./globals.css";
 
-const geistSans = Geist({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
 });
@@ -13,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Water Investment Summit Project Portal",
+  title: `${appConfig.name} | ${appConfig.tagline}`,
   description:
-    "Secure, invitation-only project portal for the Water Investment Summit.",
+    "Invitation-only portal where countries share water project teasers with invited investors and operators ahead of the Water Investment Summit.",
   robots: { index: false, follow: false },
 };
 
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       dir="ltr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Inter,Arial,sans-serif;background:#e9eef0;color:#1d2b2a}
+.screen{width:1440px;height:900px;background:#f6f8f8;position:relative;overflow:hidden;margin-bottom:40px}
+.top{height:64px;background:#0f3b44;color:#fff;display:flex;align-items:center;padding:0 36px;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:.2px}
+.drop{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:linear-gradient(135deg,#5fd0d6,#1f8fa3)}
+.sub{font-size:12px;opacity:.75;font-weight:400;margin-left:6px;border-left:1px solid #ffffff55;padding-left:12px}
+.nav{margin-left:auto;display:flex;gap:26px;font-size:14px;opacity:.9;align-items:center}
+.btn{background:#1f8fa3;color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;display:inline-block}
+.btn.ghost{background:transparent;border:1px solid #1f8fa3;color:#1f8fa3}
+.btn.light{background:#fff;color:#0f3b44}
+.btn.sm{padding:7px 14px;font-size:13px}
+.btn.amber{background:#c98a1b}
+.stamp{position:absolute;bottom:14px;right:24px;font-size:11px;color:#7a8a8a;background:#fff;padding:4px 10px;border-radius:12px;border:1px solid #dde4e4}
+.hero{height:420px;background:linear-gradient(120deg,#0f3b44 0%,#16596a 55%,#1f8fa3 100%);color:#fff;padding:70px 80px;position:relative}
+.hero h1{font-size:44px;line-height:1.15;max-width:760px;font-weight:700}
+.hero p{font-size:18px;max-width:700px;margin:20px 0 30px;opacity:.9;line-height:1.5}
+.pill{display:inline-block;background:#ffffff22;border:1px solid #ffffff44;padding:6px 14px;border-radius:20px;font-size:13px;margin-bottom:22px}
+.wave{position:absolute;right:60px;top:60px;width:420px;height:300px;opacity:.25}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:40px 80px}
+.c{background:#fff;border-radius:12px;padding:26px;border:1px solid #e1e8e8}
+.c .n{color:#1f8fa3;font-weight:700;font-size:13px;margin-bottom:8px}
+.c h3{font-size:18px;margin-bottom:8px}.c p{font-size:14px;color:#4b5b5a;line-height:1.5}
+.logos{display:flex;gap:18px;padding:0 80px;align-items:center;font-size:12px;color:#6b7b7a}
+.lg{width:150px;height:46px;border:1.5px dashed #b7c4c4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#8a9a9a;font-size:12px;background:#fff}
+.wrap{display:flex;height:836px}
+.side{width:250px;background:#fff;border-right:1px solid #e1e8e8;padding:24px 18px;font-size:14px}
+.side h4{font-size:11px;text-transform:uppercase;color:#7a8a8a;letter-spacing:.8px;margin:18px 0 10px}
+.side .it{padding:9px 12px;border-radius:8px;margin-bottom:4px;color:#2d3d3c;display:flex;justify-content:space-between}
+.side .it.on{background:#e3f3f5;color:#0f3b44;font-weight:600}
+.badge{background:#e3f3f5;color:#16596a;border-radius:10px;padding:1px 8px;font-size:12px}
+.main{flex:1;padding:28px 36px;overflow:hidden}
+.main h2{font-size:26px;margin-bottom:4px}.muted{color:#6b7b7a;font-size:14px}
+.filters{display:flex;gap:10px;margin:18px 0 20px;align-items:center}
+.f{background:#fff;border:1px solid #d6dfdf;border-radius:8px;padding:8px 14px;font-size:13px;color:#3d4d4c}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.pc{background:#fff;border:1px solid #e1e8e8;border-radius:12px;overflow:hidden}
+.th{height:120px;background:linear-gradient(160deg,#dbeef0,#f3f8f8);position:relative;padding:12px}
+.th .doc{position:absolute;left:18px;right:18px;top:16px;bottom:-10px;background:#fff;border-radius:6px 6px 0 0;box-shadow:0 2px 8px #0f3b4422;padding:10px}
+.ln{height:6px;background:#e4ebeb;border-radius:3px;margin-bottom:6px}.ln.t{background:#1f8fa3;width:55%;height:8px}
+.pb{padding:14px}.pb h4{font-size:15px;margin-bottom:6px;line-height:1.3}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.tag{font-size:11px;padding:3px 8px;border-radius:10px;background:#f0f3f3;color:#4b5b5a}
+.tag.t1{background:#fdf1dc;color:#9a6512}.tag.t2{background:#eef0fb;color:#4a55a2}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#6b7b7a}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:26px;margin-top:18px}
+.pdf{background:#fff;border:1px solid #e1e8e8;border-radius:12px;height:640px;padding:18px;position:relative}
+.page{background:#fff;height:100%;border:1px solid #e4ebeb;padding:26px;position:relative}
+.wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(-24deg);color:#1f8fa31a;font-size:30px;font-weight:700;pointer-events:none;text-align:center}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:16px 0}
+.box{background:#f4f8f8;border-radius:6px;height:46px}
+.panel{background:#fff;border:1px solid #e1e8e8;border-radius:12px;padding:22px;margin-bottom:18px}
+.panel h3{font-size:17px;margin-bottom:10px}
+.fl{font-size:13px;color:#4b5b5a;margin:12px 0 6px;font-weight:600}
+.in{border:1px solid #d6dfdf;border-radius:8px;height:40px;background:#fafcfc;padding:10px;font-size:13px;color:#8a9a9a}
+.in.ta{height:76px}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:#2d3d3c;background:#fffaf0;border:1px solid #f0d9a8;border-radius:8px;padding:14px;margin-top:14px}
+.cb{width:18px;height:18px;border:2px solid #c98a1b;border-radius:4px;flex-shrink:0;margin-top:2px;background:#c98a1b;position:relative}
+.cb:after{content:"✓";color:#fff;font-size:13px;position:absolute;left:2px;top:-2px}
+.drop2{border:2px dashed #9fd3da;border-radius:12px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#16596a;background:#f2fafb;font-size:14px;gap:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:#6b7b7a;font-weight:600;padding:10px;border-bottom:1px solid #e1e8e8;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:12px 10px;white-space:normal;border-bottom:1px solid #eef2f2}
+.st{white-space:nowrap;font-size:11px;padding:3px 9px;border-radius:10px;font-weight:600}
+.st.ok{background:#e1f4e8;color:#24774a}.st.pe{background:#fdf1dc;color:#9a6512}.st.no{background:#f7e6e6;color:#a33}
+.slots{display:grid;grid-template-columns:90px repeat(2,1fr);gap:6px;font-size:12px}
+.sl{border-radius:6px;padding:8px;background:#fff;border:1px solid #e1e8e8;color:#6b7b7a}
+.sl.b{background:#e3f3f5;border-color:#9fd3da;color:#0f3b44;font-weight:600}
+.sl.r{background:#fdf1dc;border-color:#f0d9a8;color:#9a6512}
+</style></head><body>
+
+<!-- 1 Landing -->
+<div class="screen" id="s1">
+ <div class="top"><div class="logo"><div class="drop"></div>Blue Pipeline<span class="sub">Water Investment Summit Project Portal</span></div>
+ <div class="nav"><span>About</span><span>How access works</span><span>Contact</span><span class="btn light sm">Sign in</span></div></div>
+ <div class="hero"><span class="pill">2026 UN Water Conference · Water Investment Summit · 9 December 2026, Abu Dhabi</span>
+ <h1>Investment-ready water projects, shared securely with the people who can finance them.</h1>
+ <p>Participating countries share project teasers with invited investors and operators ahead of the Summit, so that bilateral meetings start from the same information.</p>
+ <span class="btn light">Sign in with your invitation →</span>&nbsp;&nbsp;<span class="btn" style="background:#ffffff22;border:1px solid #ffffff55">How access works</span>
+ <svg class="wave" viewBox="0 0 420 300"><g fill="none" stroke="#fff" stroke-width="2"><path d="M0 60 Q105 10 210 60 T420 60"/><path d="M0 110 Q105 60 210 110 T420 110"/><path d="M0 160 Q105 110 210 160 T420 160"/><path d="M0 210 Q105 160 210 210 T420 210"/><path d="M0 260 Q105 210 210 260 T420 260"/></g></svg></div>
+ <div class="cards3">
+ <div class="c"><div class="n">01 · COUNTRY CONTROL</div><h3>Countries own their information</h3><p>Country focal points upload their own project teasers, confirm they can be shared, and decide which meeting requests to accept.</p></div>
+ <div class="c"><div class="n">02 · INVITATION ONLY</div><h3>Personal, verified access</h3><p>Investors and operators are invited by the Summit team. Every account is personal, protected by two-step sign-in, and logged.</p></div>
+ <div class="c"><div class="n">03 · FROM TEASER TO MEETING</div><h3>Request a bilateral</h3><p>Review the pipeline, express interest in specific projects and request a meeting slot. Countries review and confirm.</p></div>
+ </div>
+ <div class="logos"><span style="margin-right:6px">In partnership with</span><div class="lg">Partner logo</div><div class="lg">Partner logo</div><div class="lg">Partner logo</div><div class="lg">Partner logo</div><span style="margin-left:auto">Developed by Expo City Dubai, through Terra</span></div>
+ <div class="stamp">Concept mock-up · illustrative content only · name and logos to be confirmed</div>
+</div>
+
+<!-- 2 Pipeline -->
+<div class="screen" id="s2">
+ <div class="top"><div class="logo"><div class="drop"></div>Blue Pipeline<span class="sub">Water Investment Summit Project Portal</span></div><div class="nav"><span>Pipeline</span><span>My requests</span><span>Help</span><span>Investor · J. Example ▾</span></div></div>
+ <div class="wrap"><div class="side"><h4>Pipeline</h4><div class="it on">All projects <span class="badge">25</span></div><div class="it">Tier 1 · presented <span class="badge">12</span></div><div class="it">Tier 2 · data room <span class="badge">13</span></div>
+ <h4>Countries</h4><div class="it">Country A <span class="badge">6</span></div><div class="it">Country B <span class="badge">5</span></div><div class="it">Country C <span class="badge">4</span></div><div class="it">Country D <span class="badge">3</span></div><div class="it">+ 5 more</div>
+ <h4>Sector</h4><div class="it">Desalination</div><div class="it">Wastewater and reuse</div><div class="it">Bulk supply and conveyance</div><div class="it">Irrigation</div></div>
+ <div class="main"><h2>Project pipeline</h2><div class="muted">25 project teasers from 9 countries. Open a teaser, then request more information or a bilateral meeting.</div>
+ <div class="filters"><span class="f">🔍 Search projects</span><span class="f">PPP model ▾</span><span class="f">Size (USD) ▾</span><span class="f">Tender stage ▾</span><span class="f" style="margin-left:auto">▦ Grid</span><span class="f">🗺 Map</span></div>
+ <div class="grid">
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln" style="width:70%"></div><div class="ln"></div></div></div><div class="pb"><h4>Wastewater treatment plants, PPP</h4><div class="tags"><span class="tag t1">Tier 1</span><span class="tag">Country B</span><span class="tag">DBFO</span></div><div class="row"><span>USD 180–220m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:60%"></div></div></div><div class="pb"><h4>Seawater desalination and conveyance</h4><div class="tags"><span class="tag t1">Tier 1</span><span class="tag">Country B</span><span class="tag">BOT</span></div><div class="row"><span>USD 450–600m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln" style="width:80%"></div><div class="ln"></div><div class="ln"></div></div></div><div class="pb"><h4>Municipal water network efficiency</h4><div class="tags"><span class="tag t2">Tier 2</span><span class="tag">Country A</span><span class="tag">Performance-based</span></div><div class="row"><span>USD 60–90m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln" style="width:50%"></div><div class="ln"></div></div></div><div class="pb"><h4>Bulk water supply scheme</h4><div class="tags"><span class="tag t1">Tier 1</span><span class="tag">Country C</span><span class="tag">BOO</span></div><div class="row"><span>USD 120–150m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:65%"></div></div></div><div class="pb"><h4>Treated wastewater reuse for irrigation</h4><div class="tags"><span class="tag t2">Tier 2</span><span class="tag">Country A</span><span class="tag">Concession</span></div><div class="row"><span>USD 40–55m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln" style="width:75%"></div><div class="ln"></div><div class="ln"></div></div></div><div class="pb"><h4>Utility non-revenue water programme</h4><div class="tags"><span class="tag t1">Tier 1</span><span class="tag">Country D</span><span class="tag">Lease</span></div><div class="row"><span>USD 70–95m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln" style="width:55%"></div><div class="ln"></div></div></div><div class="pb"><h4>Irrigation modernisation, phase 1</h4><div class="tags"><span class="tag t2">Tier 2</span><span class="tag">Country C</span><span class="tag">Hybrid PPP</span></div><div class="row"><span>USD 85–110m</span><span class="btn sm ghost">Open</span></div></div></div>
+ <div class="pc"><div class="th"><div class="doc"><div class="ln t"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:70%"></div></div></div><div class="pb"><h4>Regional reservoir and treatment works</h4><div class="tags"><span class="tag t2">Tier 2</span><span class="tag">Country E</span><span class="tag">DBO</span></div><div class="row"><span>USD 200–260m</span><span class="btn sm ghost">Open</span></div></div></div>
+ </div></div></div>
+ <div class="stamp">Concept mock-up · fictional sample projects</div>
+</div>
+
+<!-- 3 Project room -->
+<div class="screen" id="s3">
+ <div class="top"><div class="logo"><div class="drop"></div>Blue Pipeline<span class="sub">Water Investment Summit Project Portal</span></div><div class="nav"><span>Pipeline</span><span>My requests</span><span>Help</span><span>Investor · J. Example ▾</span></div></div>
+ <div class="main" style="padding:26px 60px"><div class="muted">Pipeline / Country B / Wastewater treatment plants, PPP</div>
+ <h2 style="margin-top:6px">Wastewater treatment plants, PPP</h2><div class="tags"><span class="tag t1">Tier 1 · presented at the Summit</span><span class="tag">Country B</span><span class="tag">DBFO</span><span class="tag">Teaser updated 14 Nov 2026 · v2</span></div>
+ <div class="two"><div class="pdf"><div class="page"><div class="ln t" style="width:40%;height:12px"></div><div class="ln" style="width:70%;margin-top:10px"></div>
+ <div class="kv"><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div></div>
+ <div class="ln"></div><div class="ln"></div><div class="ln" style="width:85%"></div><div class="ln"></div><div class="ln" style="width:60%"></div>
+ <div style="display:flex;gap:12px;margin-top:16px"><div class="box" style="flex:1;height:150px"></div><div class="box" style="flex:1;height:150px;background:#fdf6e8;border:1px solid #f0d9a8"></div></div>
+ <div class="wm">Viewed by J. Example · example.com<br>16 Nov 2026 10:42 · Confidential</div></div></div>
+ <div><div class="panel"><h3>Project at a glance</h3><table><tr><td class="muted">PPP model</td><td>Design, build, finance, operate</td></tr><tr><td class="muted">Indicative size</td><td>USD 180–220m</td></tr><tr><td class="muted">Tender timeline</td><td>RFQ planned Q2 2027</td></tr><tr><td class="muted">Documents prepared</td><td>Pre-feasibility study</td></tr><tr><td class="muted">Feedback sought</td><td>Risk allocation, revenue model</td></tr></table></div>
+ <div class="panel"><h3>Interested in this project?</h3><p class="muted" style="margin-bottom:14px">Your request goes to the country focal point, who reviews it and responds.</p>
+ <span class="btn">Request a bilateral meeting</span>&nbsp;<span class="btn ghost">Ask for more information</span>
+ <p class="muted" style="margin-top:14px;font-size:12px">Download disabled for this teaser by the country. Access is personal and logged.</p></div></div></div></div>
+ <div class="stamp">Concept mock-up · fictional sample project</div>
+</div>
+
+<!-- 4 Country upload -->
+<div class="screen" id="s4">
+ <div class="top"><div class="logo"><div class="drop"></div>Blue Pipeline<span class="sub">Water Investment Summit Project Portal</span></div><div class="nav"><span>My projects</span><span>Meeting requests</span><span>People</span><span>Country B · Focal point ▾</span></div></div>
+ <div class="main" style="padding:26px 60px"><h2>Add or update a project teaser</h2><div class="muted">Country B workspace. Only your country team and the Summit administrators can manage this workspace.</div>
+ <div class="two"><div class="panel" style="margin-top:0"><div class="fl">Project name</div><div class="in">Wastewater treatment plants, PPP</div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><div class="fl">Sector</div><div class="in">Wastewater and reuse ▾</div></div><div><div class="fl">Tier</div><div class="in">Tier 1 · presented at the Summit ▾</div></div></div>
+ <div class="fl">Project teaser (PDF or PowerPoint, converted to PDF)</div><div class="drop2"><b>Drop the teaser here</b><span class="muted">or browse · max 25 MB · scanned for viruses on upload</span></div>
+ <div class="fl">Additional documents (optional, for later stages)</div><div class="in">Disabled for the Summit phase</div></div>
+ <div><div class="panel"><h3>Before you publish</h3>
+ <div class="chk"><div class="cb"></div><div>I confirm, on behalf of the Government of Country B, that this teaser contains no confidential or commercially sensitive information, and that it may be shared with investors and operators invited to the Water Investment Summit Project Portal.</div></div>
+ <div class="fl">Allow download?</div><div class="in">View only (recommended) ▾</div>
+ <div style="margin-top:18px;display:flex;gap:10px"><span class="btn">Publish to the pipeline</span><span class="btn ghost">Save as draft</span></div>
+ <p class="muted" style="margin-top:12px;font-size:12px">The acknowledgement is recorded with your name, date and time in the audit log.</p></div></div></div></div>
+ <div class="stamp">Concept mock-up · acknowledgement wording to be agreed</div>
+</div>
+
+<!-- 5 Requests + slots -->
+<div class="screen" id="s5">
+ <div class="top"><div class="logo"><div class="drop"></div>Blue Pipeline<span class="sub">Water Investment Summit Project Portal</span></div><div class="nav"><span>My projects</span><span>Meeting requests</span><span>People</span><span>Country B · Focal point ▾</span></div></div>
+ <div class="main" style="padding:26px 60px"><h2>Meeting requests</h2><div class="muted">Review requests from invited investors and operators. Accepted requests can be given a slot in the Summit bilateral rooms.</div>
+ <div class="two" style="grid-template-columns:1.35fr 1fr"><div class="panel"><table><tr><th>Organisation</th><th>Project</th><th>Requested</th><th>Status</th><th></th></tr>
+ <tr><td><b>Operator One</b><br><span class="muted">Head of Business Development</span></td><td>Wastewater treatment plants</td><td>15 Nov</td><td><span class="st pe">Pending</span></td><td style="white-space:nowrap"><span class="btn sm">Accept</span> <span class="btn sm ghost">Decline</span></td></tr>
+ <tr><td><b>Infrastructure Fund Two</b><br><span class="muted">Investment Director</span></td><td>Desalination and conveyance</td><td>15 Nov</td><td><span class="st ok">Accepted</span></td><td><span class="btn sm ghost">Assign slot</span></td></tr>
+ <tr><td><b>Regional Bank Three</b><br><span class="muted">Project Finance</span></td><td>Wastewater treatment plants</td><td>14 Nov</td><td><span class="st ok">Slot 8 Dec 10:30</span></td><td></td></tr>
+ <tr><td><b>Developer Four</b><br><span class="muted">Managing Director</span></td><td>Desalination and conveyance</td><td>14 Nov</td><td><span class="st pe">Pending</span></td><td style="white-space:nowrap"><span class="btn sm">Accept</span> <span class="btn sm ghost">Decline</span></td></tr>
+ <tr><td><b>Utility Operator Five</b><br><span class="muted">Strategy</span></td><td>Network efficiency</td><td>13 Nov</td><td><span class="st no">Declined</span></td><td></td></tr></table></div>
+ <div class="panel"><h3>Bilateral slots · 8 December <span class="tag" style="margin-left:6px">optional module</span></h3><div class="slots"><div></div><div class="muted"><b>Room 1</b></div><div class="muted"><b>Room 2</b></div>
+ <div class="muted">09:00</div><div class="sl b">Country A · Fund Six</div><div class="sl">Available</div>
+ <div class="muted">09:30</div><div class="sl">Available</div><div class="sl b">Country C · Bank Seven</div>
+ <div class="muted">10:00</div><div class="sl r">Held for Country B</div><div class="sl">Available</div>
+ <div class="muted">10:30</div><div class="sl b">Country B · Regional Bank Three</div><div class="sl">Available</div>
+ <div class="muted">11:00</div><div class="sl">Available</div><div class="sl">Available</div>
+ <div class="muted">11:30</div><div class="sl">Available</div><div class="sl b">Country D · Operator Eight</div></div>
+ <p class="muted" style="margin-top:12px;font-size:12px">Confirmed slots are emailed to both parties. Room names to match the venue once confirmed.</p></div></div></div>
+ <div class="stamp">Concept mock-up · fictional organisations · slot module subject to venue confirmation</div>
+</div>
+</body></html>

@@ -56,3 +56,8 @@ next-env.d.ts
 
 # source material (internal call transcript and requirements note); kept out of the repo
 *.docx
+
+# meeting transcripts (internal, third-party discussion); kept on disk, out of git
+/docs/sources/
+# duplicate export folder from Claude
+/Claude outputs/
