@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { MembershipRole, UserRole } from "@/generated/prisma/enums";
+import {
+  MembershipRole,
+  PipelineScope,
+  UserRole,
+} from "@/generated/prisma/enums";
 import {
   type Actor,
   canApproveUsers,
   canInvite,
+  canSetPipelineScope,
+  defaultPipelineScope,
   invitationShapeError,
 } from "./account-policies";
 
@@ -89,6 +95,41 @@ describe("canInvite", () => {
   it("does not let country members or investors invite anyone", () => {
     expect(canInvite(memberA, memberOf("a"))).toBe(false);
     expect(canInvite(investor, investorInvite)).toBe(false);
+  });
+
+  it("lets only admins widen a new user's pipeline", () => {
+    const withAll = { ...memberOf("a"), pipelineScope: PipelineScope.ALL };
+    expect(canInvite(summitAdmin, withAll)).toBe(true);
+    expect(canInvite(focalA, withAll)).toBe(false);
+    expect(
+      canInvite(focalA, {
+        ...memberOf("a"),
+        pipelineScope: PipelineScope.NONE,
+      }),
+    ).toBe(true);
+    expect(
+      canInvite(summitAdmin, {
+        ...investorInvite,
+        pipelineScope: PipelineScope.SELECTED,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("pipeline scope", () => {
+  it("defaults to the whole pipeline for investors and none for everyone else", () => {
+    expect(defaultPipelineScope(UserRole.INVESTOR)).toBe(PipelineScope.ALL);
+    expect(defaultPipelineScope(UserRole.COUNTRY)).toBe(PipelineScope.NONE);
+    expect(defaultPipelineScope(UserRole.SUMMIT_ADMIN)).toBe(
+      PipelineScope.NONE,
+    );
+  });
+
+  it("is changed by admins only", () => {
+    expect(canSetPipelineScope(summitAdmin)).toBe(true);
+    expect(canSetPipelineScope(platformAdmin)).toBe(true);
+    expect(canSetPipelineScope(focalA)).toBe(false);
+    expect(canSetPipelineScope(investor)).toBe(false);
   });
 });
 

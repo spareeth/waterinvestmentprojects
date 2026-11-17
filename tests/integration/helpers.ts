@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { MembershipRole, UserRole, UserStatus } from "@/generated/prisma/enums";
+import {
+  MembershipRole,
+  PipelineScope,
+  UserRole,
+  UserStatus,
+} from "@/generated/prisma/enums";
 import type { Actor } from "@/lib/authz/account-policies";
-import type { GateConfig } from "@/lib/authz/account-gate";
+import { accountStage, type GateConfig } from "@/lib/authz/account-gate";
+import { type Viewer, viewerFrom } from "@/lib/authz/viewer";
 import { createAuth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { type Env, parseEnv } from "@/lib/env";
@@ -92,6 +98,9 @@ export async function createUser(input: {
   mfaEnabled?: boolean;
   termsAccepted?: boolean;
   membershipRole?: MembershipRole;
+  /** Country for membershipRole; defaults to COUNTRY_ID (which is created on demand). Must exist otherwise. */
+  countryId?: string;
+  pipelineScope?: PipelineScope;
 }): Promise<{ id: string; email: string }> {
   const auth = testAuth();
   const email = input.email ?? uniqueEmail("user");
@@ -104,6 +113,7 @@ export async function createUser(input: {
       status: input.status ?? UserStatus.ACTIVE,
       mfaEnabled: input.mfaEnabled ?? false,
       termsAcceptedAt: input.termsAccepted ? new Date() : null,
+      pipelineScope: input.pipelineScope ?? PipelineScope.NONE,
       emailVerified: true,
     },
     select: { id: true, email: true },
@@ -118,16 +128,43 @@ export async function createUser(input: {
     },
   });
   if (input.membershipRole) {
-    await ensureCountry();
+    if (!input.countryId) await ensureCountry();
     await db.countryMembership.create({
       data: {
         userId: user.id,
-        countryId: COUNTRY_ID,
+        countryId: input.countryId ?? COUNTRY_ID,
         role: input.membershipRole,
       },
     });
   }
   return user;
+}
+
+/** The Viewer the policy module would build for this user's session (null unless the account is active). */
+export async function viewerFor(userId: string): Promise<Viewer | null> {
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+      status: true,
+      mfaEnabled: true,
+      termsAcceptedAt: true,
+      pipelineScope: true,
+      memberships: { select: { countryId: true, role: true } },
+      pipelineCountries: { select: { countryId: true } },
+    },
+  });
+  return viewerFrom({
+    stage: accountStage(user, gate),
+    user: {
+      id: user.id,
+      role: user.role,
+      memberships: user.memberships,
+      pipelineScope: user.pipelineScope,
+      pipelineCountryIds: user.pipelineCountries.map((p) => p.countryId),
+    },
+  });
 }
 
 export async function actorFor(userId: string): Promise<Actor> {
@@ -149,11 +186,25 @@ export async function cleanUp(): Promise<void> {
     select: { id: true },
   });
   const ids = users.map((u) => u.id);
+  // Project data hanging off the "it-" countries and rooms, children first.
+  const itProject = { countryId: { startsWith: "it-" } };
+  await db.slot.deleteMany({ where: { roomId: { startsWith: "it-" } } });
+  await db.room.deleteMany({ where: { id: { startsWith: "it-" } } });
+  await db.meetingRequest.deleteMany({
+    where: { OR: [{ project: itProject }, { requesterId: { in: ids } }] },
+  });
+  await db.projectGrant.deleteMany({
+    where: { OR: [{ project: itProject }, { userId: { in: ids } }] },
+  });
+  await db.acknowledgement.deleteMany({ where: { project: itProject } });
+  await db.document.deleteMany({ where: { project: itProject } });
+  await db.project.deleteMany({ where: itProject });
   await db.auditEvent.deleteMany({
     where: {
       OR: [
         { actorId: { in: ids } },
         { entityId: { in: ids } },
+        { entityId: { startsWith: "it-" } },
         { metadata: { path: ["email"], string_ends_with: `@${IT_DOMAIN}` } },
         { userAgent: "integration-test" },
       ],
@@ -168,5 +219,5 @@ export async function cleanUp(): Promise<void> {
     },
   });
   await db.user.deleteMany({ where: { id: { in: ids } } });
-  await db.country.deleteMany({ where: { id: COUNTRY_ID } });
+  await db.country.deleteMany({ where: { id: { startsWith: "it-" } } });
 }

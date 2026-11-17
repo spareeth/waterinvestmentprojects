@@ -69,6 +69,15 @@ enum UserStatus {
   DEACTIVATED
 }
 
+/// Added in M4 (user decision, 17 Nov): which countries' PUBLISHED projects a user sees in the pipeline.
+/// Admins see everything regardless; a country user's own workspace does not depend on it.
+/// SELECTED means only the countries listed in PipelineCountry.
+enum PipelineScope {
+  NONE
+  ALL
+  SELECTED
+}
+
 enum MeetingRequestType {
   MEETING
   INFO
@@ -103,9 +112,10 @@ model Country {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  memberships CountryMembership[]
-  projects    Project[]
-  invitations Invitation[]
+  memberships     CountryMembership[]
+  projects        Project[]
+  invitations     Invitation[]
+  pipelineViewers PipelineCountry[]
 }
 
 /// Links a COUNTRY user to the country workspace they belong to.
@@ -123,29 +133,45 @@ model CountryMembership {
   @@index([countryId])
 }
 
+/// Added in M4: the countries whose published projects a user with pipelineScope SELECTED may see.
+model PipelineCountry {
+  userId    String
+  countryId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, countryId])
+  @@index([countryId])
+}
+
 /// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
 /// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
-  id              String     @id @default(cuid())
-  email           String     @unique
+  id              String        @id @default(cuid())
+  email           String        @unique
   name            String
   organisation    String?
   jobTitle        String?
   role            UserRole
-  status          UserStatus @default(PENDING_APPROVAL)
-  mfaEnabled      Boolean    @default(false)
+  status          UserStatus    @default(PENDING_APPROVAL)
+  mfaEnabled      Boolean       @default(false)
   termsAcceptedAt DateTime?
+  /// M4: pipeline visibility. NONE by default (default deny); invitations set ALL for investors.
+  pipelineScope   PipelineScope @default(NONE)
   /// Required by Better Auth. True for invited users (the invitation link proves the address).
-  emailVerified   Boolean    @default(false)
+  emailVerified   Boolean       @default(false)
   /// Required by Better Auth; not used by the portal.
   image           String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   sessions            Session[]
   accounts            Account[]
   twoFactors          TwoFactor[]
   memberships         CountryMembership[]
+  pipelineCountries   PipelineCountry[]
   documentsUploaded   Document[]          @relation("DocumentUploadedBy")
   acknowledgements    Acknowledgement[]
   invitationsSent     Invitation[]        @relation("InvitationInvitedBy")
@@ -165,6 +191,8 @@ model Invitation {
   countryId      String?
   /// Required when role is COUNTRY: the CountryMembership role created on accept.
   membershipRole MembershipRole?
+  /// M4: copied to User.pipelineScope on accept. SELECTED countries are chosen on the user afterwards.
+  pipelineScope  PipelineScope   @default(NONE)
   /// SHA-256 of the one-time token sent by email; the token itself is never stored.
   tokenHash      String          @unique
   expiresAt      DateTime

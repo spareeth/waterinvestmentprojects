@@ -2,12 +2,25 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { type CurrentSession, getCurrentSession } from "@/lib/auth/session";
 import { type AccountStage, STAGE_PATH } from "./account-gate";
+import { type Viewer, viewerFrom } from "./viewer";
 
-// Single policy module (CLAUDE.md). M3 adds the account gate: every signed-in page and server action starts here.
-// M4 adds data permissions (projects, documents, requests, grants) on top of requireActiveUser().
+// Single policy module (CLAUDE.md). Every page, server action, route handler and file URL starts here.
+// - Account gate (M3): requireSession / requireStage / requireActiveUser.
+// - Data permissions (M4): requireViewer() gives the Viewer; scope every query with the where builders
+//   (projectWhere, documentWhere, meetingRequestWhere, ...) and check actions with the can-functions.
+//   Files only through authorizeDocumentFile(). Default deny: a null Viewer matches nothing.
 
 export { type AccountStage, STAGE_PATH } from "./account-gate";
 export type { CurrentSession, CurrentUser } from "@/lib/auth/session";
+export * from "./viewer";
+export * from "./projects";
+export * from "./documents";
+export * from "./grants";
+export * from "./requests";
+export * from "./slots";
+export * from "./people";
+export * from "./audit";
+export * from "./data";
 
 /** Any usable session, whatever the account stage. Redirects to sign-in otherwise. */
 export async function requireSession(): Promise<CurrentSession> {
@@ -28,7 +41,20 @@ export async function requireStage(
   return current;
 }
 
-/** An approved account with two-step verification and accepted terms. The starting point for M4 permissions. */
+/** An approved account with two-step verification and accepted terms. */
 export async function requireActiveUser(): Promise<CurrentSession> {
   return requireStage("active");
+}
+
+/** The Viewer for pages and server actions; redirects anyone without an active account. */
+export async function requireViewer(): Promise<Viewer> {
+  const session = await requireActiveUser();
+  const viewer = viewerFrom(session);
+  if (!viewer) redirect(STAGE_PATH[session.stage]);
+  return viewer;
+}
+
+/** The Viewer or null, without redirecting: for route handlers that answer 404 instead (file routes). */
+export async function getViewer(): Promise<Viewer | null> {
+  return viewerFrom(await getCurrentSession());
 }

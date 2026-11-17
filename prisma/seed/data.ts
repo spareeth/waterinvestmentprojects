@@ -10,6 +10,7 @@ import {
   MeetingRequestStatus,
   MeetingRequestType,
   MembershipRole,
+  PipelineScope,
   ProjectStatus,
   ProjectTier,
   ProjectType,
@@ -85,6 +86,9 @@ function user(
   jobTitle: string,
   role: UserRole,
   status: UserStatus = UserStatus.ACTIVE,
+  pipelineScope: PipelineScope = role === UserRole.INVESTOR
+    ? PipelineScope.ALL
+    : PipelineScope.NONE,
 ) {
   return {
     id: `seed-user-${id}`,
@@ -94,6 +98,7 @@ function user(
     jobTitle,
     role,
     status,
+    pipelineScope,
     // Demo users enrol their own authenticator app at first sign-in (or skip it where
     // AUTH_SKIP_SECOND_STEP=true). Re-running the seed resets enrolment.
     mfaEnabled: false,
@@ -158,6 +163,9 @@ export const users = [
     "PPP Unit, Country C",
     "Focal point",
     UserRole.COUNTRY,
+    UserStatus.ACTIVE,
+    // Shows the M4 option: a country user who also sees the other countries' published teasers.
+    PipelineScope.ALL,
   ),
   user(
     "investor-1",
@@ -190,6 +198,9 @@ export const users = [
     "Developer Four",
     "Managing Director",
     UserRole.INVESTOR,
+    UserStatus.ACTIVE,
+    // Sees only Countries A and B (pipelineCountries below).
+    PipelineScope.SELECTED,
   ),
   // Self-registered, waiting for Summit admin approval: must see nothing.
   user(
@@ -241,6 +252,12 @@ export const memberships = [
   },
 ];
 
+/** Countries visible to users whose pipelineScope is SELECTED. */
+export const pipelineCountries = [
+  { userId: "seed-user-investor-4", countryId: "seed-country-a" },
+  { userId: "seed-user-investor-4", countryId: "seed-country-b" },
+];
+
 export const invitations = [
   {
     id: "seed-invitation-investor-1",
@@ -248,6 +265,7 @@ export const invitations = [
     role: UserRole.INVESTOR,
     countryId: null,
     membershipRole: null,
+    pipelineScope: PipelineScope.ALL,
     tokenHash: sha256Hex("seed-invitation-investor-1"),
     expiresAt: gst("2026-11-20T23:59"),
     acceptedAt: gst("2026-11-10T08:45"),
@@ -259,6 +277,7 @@ export const invitations = [
     role: UserRole.INVESTOR,
     countryId: null,
     membershipRole: null,
+    pipelineScope: PipelineScope.ALL,
     tokenHash: sha256Hex("seed-invitation-investor-7"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,
@@ -270,6 +289,7 @@ export const invitations = [
     role: UserRole.COUNTRY,
     countryId: "seed-country-c",
     membershipRole: MembershipRole.MEMBER,
+    pipelineScope: PipelineScope.NONE,
     tokenHash: sha256Hex("seed-invitation-country-c-member"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,
@@ -1124,6 +1144,7 @@ export const seedData = {
   countries,
   users,
   memberships,
+  pipelineCountries,
   invitations,
   projects,
   documents,

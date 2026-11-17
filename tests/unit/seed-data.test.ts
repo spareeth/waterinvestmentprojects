@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   MeetingRequestStatus,
   MembershipRole,
+  PipelineScope,
   ProjectStatus,
   SlotStatus,
   UserRole,
@@ -18,6 +19,7 @@ const {
   countries,
   users,
   memberships,
+  pipelineCountries,
   invitations,
   projects,
   documents,
@@ -126,6 +128,24 @@ describe("seed data: users and memberships", () => {
       );
     });
     expect(withBoth.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("gives investors the whole pipeline by default and shows each pipeline option once", () => {
+    const scopeOf = (id: string) => userById.get(id)?.pipelineScope;
+    expect(scopeOf("seed-user-investor-1")).toBe(PipelineScope.ALL);
+    expect(scopeOf("seed-user-country-a-focal")).toBe(PipelineScope.NONE);
+    // One country user who also sees the pipeline, one investor limited to some countries.
+    expect(scopeOf("seed-user-country-c-focal")).toBe(PipelineScope.ALL);
+    expect(scopeOf("seed-user-investor-4")).toBe(PipelineScope.SELECTED);
+    for (const p of pipelineCountries) {
+      expect(scopeOf(p.userId)).toBe(PipelineScope.SELECTED);
+      expect(countries.some((c) => c.id === p.countryId)).toBe(true);
+    }
+    for (const inv of invitations) {
+      expect(inv.pipelineScope).toBe(
+        inv.role === UserRole.INVESTOR ? PipelineScope.ALL : PipelineScope.NONE,
+      );
+    }
   });
 
   it("has invitations that reference real inviters and store only a token hash", () => {

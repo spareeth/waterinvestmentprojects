@@ -8,6 +8,24 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Turn off stylistic rules that Prettier handles.
   prettier,
+  {
+    // Single policy module (CLAUDE.md): pages and components never query the database directly.
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/db",
+              message:
+                "Read data through src/lib/authz (requireViewer, where builders, find*For helpers).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",

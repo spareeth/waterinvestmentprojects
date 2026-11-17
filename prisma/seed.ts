@@ -110,6 +110,11 @@ async function main(): Promise<void> {
             update: { role: m.role },
           });
         }
+        // Selected pipeline countries are replaced as a whole, so a country removed from the list disappears.
+        await tx.pipelineCountry.deleteMany({
+          where: { userId: { in: seedUserIds } },
+        });
+        await tx.pipelineCountry.createMany({ data: d.pipelineCountries });
         for (const { id, ...data } of d.invitations) {
           await tx.invitation.upsert({
             where: { id },
@@ -196,6 +201,7 @@ async function main(): Promise<void> {
       countries: await prisma.country.count(),
       users: await prisma.user.count(),
       memberships: await prisma.countryMembership.count(),
+      pipelineCountries: await prisma.pipelineCountry.count(),
       invitations: await prisma.invitation.count(),
       projects: await prisma.project.count(),
       documents: await prisma.document.count(),

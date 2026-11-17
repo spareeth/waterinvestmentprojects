@@ -1,8 +1,12 @@
 import "server-only";
 import { isAPIError } from "better-auth/api";
-import { UserStatus } from "@/generated/prisma/enums";
+import { PipelineScope, UserStatus } from "@/generated/prisma/enums";
 import { requestMetaFrom, writeAudit } from "@/lib/audit";
-import { type Actor, canApproveUsers } from "@/lib/authz/account-policies";
+import {
+  type Actor,
+  canApproveUsers,
+  defaultPipelineScope,
+} from "@/lib/authz/account-policies";
 import { db } from "@/lib/db";
 import { type Auth, getAuth, normaliseEmail } from "./auth";
 import { AUTH_AUDIT, AUTH_ERROR } from "./constants";
@@ -292,17 +296,28 @@ export async function register(
   }
 }
 
-/** A Summit admin approves a self-registered account. The admin screen arrives in M8. */
+/**
+ * A Summit admin approves a self-registered account. The admin screen arrives in M8. Self-registered accounts
+ * start with pipelineScope NONE; approval gives the role default (investors ALL) unless the admin chooses.
+ */
 export async function approveUser(
   actor: Actor,
   userId: string,
   headers: Headers,
+  pipelineScope?: PipelineScope,
 ): Promise<void> {
   if (!canApproveUsers(actor)) throw new Error("Not allowed to approve users.");
   await db.$transaction(async (tx) => {
+    const pending = await tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const scope =
+      pipelineScope ??
+      (pending ? defaultPipelineScope(pending.role) : PipelineScope.NONE);
     const updated = await tx.user.updateMany({
       where: { id: userId, status: UserStatus.PENDING_APPROVAL },
-      data: { status: UserStatus.ACTIVE },
+      data: { status: UserStatus.ACTIVE, pipelineScope: scope },
     });
     if (updated.count !== 1) throw new Error("No pending account to approve.");
     await writeAudit(

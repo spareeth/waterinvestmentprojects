@@ -75,6 +75,9 @@ conference registration or matchmaking app, sync with venue room-booking systems
 Rules: default deny; countries never see or change another country's workspace, requests or slot bookings; unpublished
 drafts are visible only to their country and admins; extra material requires an explicit, unexpired `ProjectGrant`;
 an account pending approval sees nothing.
+Pipeline visibility is set per user (decided 17 Nov, M4): `pipelineScope` ALL (default for investors), SELECTED
+(only listed countries) or NONE (default for country users). A country user given ALL or SELECTED sees other
+countries' published teasers as an investor would; their own workspace is unaffected. Only admins change it.
 
 ---
 
@@ -104,8 +107,9 @@ Document(id, projectId, kind[TEASER|EXTRA|DATAROOM], title, filename, version, d
          blobKey, sha256, sizeBytes, scanStatus, uploadedById, uploadedAt, supersededById)
 Acknowledgement(id, projectId, documentId, userId, textVersion, acceptedAt, ip, onBehalfOfCountry, evidenceNote)
 User(id, email, name, organisation, jobTitle, role[PLATFORM_ADMIN|SUMMIT_ADMIN|COUNTRY|INVESTOR],
-     status[PENDING_APPROVAL|ACTIVE|DEACTIVATED], mfaEnabled, termsAcceptedAt)
-Invitation(id, email, role, countryId?, tokenHash, expiresAt, acceptedAt, invitedById)
+     status[PENDING_APPROVAL|ACTIVE|DEACTIVATED], mfaEnabled, termsAcceptedAt, pipelineScope[NONE|ALL|SELECTED])
+PipelineCountry(userId, countryId)            // M4: countries a SELECTED user sees in the pipeline
+Invitation(id, email, role, countryId?, membershipRole?, pipelineScope, tokenHash, expiresAt, acceptedAt, invitedById)
 MeetingRequest(id, projectId, requesterId, type[MEETING|INFO], message, rank?, status[PENDING|ACCEPTED|DECLINED|WITHDRAWN],
                decidedById, decidedOnBehalf, decidedAt)
 Room(id, name, capacity)                     // F10
