@@ -13,9 +13,30 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
-    include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}"],
-    setupFiles: ["./vitest.setup.ts"],
     restoreMocks: true,
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "jsdom",
+          include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}"],
+          setupFiles: ["./vitest.setup.ts"],
+        },
+      },
+      {
+        // Real PostgreSQL (DATABASE_URL, migrations applied). Files run one at a time against the shared database.
+        extends: true,
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          setupFiles: ["./tests/integration/setup.ts"],
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+    ],
   },
 });

@@ -14,7 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${appConfig.name} | ${appConfig.tagline}`,
+  title: {
+    default: `${appConfig.name} | ${appConfig.tagline}`,
+    template: `%s | ${appConfig.name}`,
+  },
   description:
     "Invitation-only portal where countries share water project teasers with invited investors and operators ahead of the Water Investment Summit.",
   robots: { index: false, follow: false },

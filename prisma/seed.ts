@@ -6,8 +6,9 @@ import "dotenv/config";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { seedData } from "./seed/data";
+import { LOCAL_DEMO_PASSWORD, seedData } from "./seed/data";
 
 /** Placeholder PDFs are written here so they can be inspected or loaded into object storage (M5). */
 const BLOB_DIR = path.resolve(process.cwd(), ".data", "blobs");
@@ -29,6 +30,25 @@ function assertSafeToSeed(): string {
   return url;
 }
 
+/**
+ * Password for every demo user. Local development may use the documented default; a production build
+ * (staging) must set its own SEED_DEMO_PASSWORD, because the default is written in the README.
+ */
+function demoPassword(): string {
+  const fromEnv = process.env.SEED_DEMO_PASSWORD;
+  if (fromEnv) {
+    if (fromEnv.length < 12)
+      throw new Error("SEED_DEMO_PASSWORD must be at least 12 characters.");
+    return fromEnv;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Set SEED_DEMO_PASSWORD (at least 12 characters) before seeding a staging server.",
+    );
+  }
+  return LOCAL_DEMO_PASSWORD;
+}
+
 async function writeBlobs(): Promise<void> {
   for (const [blobKey, bytes] of seedData.documentFiles) {
     const file = path.join(BLOB_DIR, blobKey);
@@ -42,6 +62,7 @@ async function main(): Promise<void> {
     adapter: new PrismaPg({ connectionString: assertSafeToSeed() }),
   });
   const d = seedData;
+  const passwordHash = await hashPassword(demoPassword());
 
   try {
     await prisma.$transaction(
@@ -55,6 +76,26 @@ async function main(): Promise<void> {
         }
         for (const { id, ...data } of d.users) {
           await tx.user.upsert({
+            where: { id },
+            create: { id, ...data },
+            update: data,
+          });
+        }
+        // Demo sign-in: one shared demo password, two-step enrolment and sessions reset on every run.
+        const seedUserIds = d.users.map((u) => u.id);
+        await tx.twoFactor.deleteMany({
+          where: { userId: { in: seedUserIds } },
+        });
+        await tx.session.deleteMany({ where: { userId: { in: seedUserIds } } });
+        for (const u of d.users) {
+          const id = u.id.replace("seed-user-", "seed-account-");
+          const data = {
+            userId: u.id,
+            accountId: u.id,
+            providerId: "credential",
+            password: passwordHash,
+          };
+          await tx.account.upsert({
             where: { id },
             create: { id, ...data },
             update: data,

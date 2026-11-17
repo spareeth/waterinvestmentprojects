@@ -1,14 +1,65 @@
 import "server-only";
 import { z } from "zod";
 
-const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  DATABASE_URL: z
-    .string()
-    .regex(/^postgres(ql)?:\/\//, "DATABASE_URL must be a PostgreSQL URL"),
-});
+/** Only "true" switches a flag on; anything other than "true", "false" or empty is a configuration error. */
+const flag = z
+  .enum(["true", "false", ""])
+  .optional()
+  .transform((value) => value === "true");
+
+function intInRange(min: number, max: number, fallback: number) {
+  return z.coerce
+    .number()
+    .int()
+    .min(min)
+    .max(max)
+    .optional()
+    .transform((value) => value ?? fallback);
+}
+
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    /**
+     * Deployment environment. Staging runs a production build (NODE_ENV=production), so this is what tells
+     * staging and production apart. Defaults to "production" whenever NODE_ENV is production (fail safe).
+     */
+    APP_ENV: z.enum(["development", "staging", "production"]).optional(),
+    DATABASE_URL: z
+      .string()
+      .regex(/^postgres(ql)?:\/\//, "DATABASE_URL must be a PostgreSQL URL"),
+    APP_URL: z.url().default("http://localhost:3000"),
+    /** Signs session cookies and encrypts two-step secrets. At least 32 characters; never commit it. */
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+    /** Self-registration is built but off; self-registered accounts wait for a Summit admin. */
+    SELF_REGISTRATION_ENABLED: flag,
+    /** Demo only: makes two-step enrolment optional. Refused when APP_ENV is production. */
+    AUTH_SKIP_SECOND_STEP: flag,
+    /** Signed out after this many minutes without activity. */
+    SESSION_IDLE_MINUTES: intInRange(5, 24 * 60, 120),
+    /** Signed out this many hours after signing in, whatever the activity. */
+    SESSION_MAX_HOURS: intInRange(1, 72, 12),
+  })
+  .transform(({ APP_ENV, ...rest }) => ({
+    ...rest,
+    APP_ENV:
+      APP_ENV ??
+      (rest.NODE_ENV === "production" ? "production" : "development"),
+  }))
+  .superRefine((env, ctx) => {
+    if (env.AUTH_SKIP_SECOND_STEP && env.APP_ENV === "production") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SKIP_SECOND_STEP"],
+        message:
+          "the two-step switch is for local and staging demos only and cannot be used when APP_ENV is production",
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

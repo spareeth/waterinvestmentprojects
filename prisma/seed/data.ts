@@ -26,6 +26,12 @@ export function gst(localDateTime: string): Date {
 }
 
 export const ACKNOWLEDGEMENT_TEXT_VERSION = "teaser-ack-v1";
+
+/**
+ * Demo password for every seed user on a LOCAL machine only (documented in the README, so not a secret).
+ * Staging must set SEED_DEMO_PASSWORD instead; the seed refuses to use this value in a production build.
+ */
+export const LOCAL_DEMO_PASSWORD = "Local-demo-only-2026";
 export const SLOT_MINUTES = 30;
 
 // ---------------------------------------------------------------------------
@@ -88,8 +94,10 @@ function user(
     jobTitle,
     role,
     status,
-    // 2FA enrolment arrives with auth in M3.
+    // Demo users enrol their own authenticator app at first sign-in (or skip it where
+    // AUTH_SKIP_SECOND_STEP=true). Re-running the seed resets enrolment.
     mfaEnabled: false,
+    emailVerified: true,
     termsAcceptedAt: status === UserStatus.ACTIVE ? termsAccepted : null,
   };
 }
@@ -239,6 +247,7 @@ export const invitations = [
     email: "investor@operator-one.example",
     role: UserRole.INVESTOR,
     countryId: null,
+    membershipRole: null,
     tokenHash: sha256Hex("seed-invitation-investor-1"),
     expiresAt: gst("2026-11-20T23:59"),
     acceptedAt: gst("2026-11-10T08:45"),
@@ -249,6 +258,7 @@ export const invitations = [
     email: "invitee@fund-seven.example",
     role: UserRole.INVESTOR,
     countryId: null,
+    membershipRole: null,
     tokenHash: sha256Hex("seed-invitation-investor-7"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,
@@ -259,6 +269,7 @@ export const invitations = [
     email: "member@country-c.example",
     role: UserRole.COUNTRY,
     countryId: "seed-country-c",
+    membershipRole: MembershipRole.MEMBER,
     tokenHash: sha256Hex("seed-invitation-country-c-member"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,

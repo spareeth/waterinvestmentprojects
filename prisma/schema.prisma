@@ -123,8 +123,8 @@ model CountryMembership {
   @@index([countryId])
 }
 
-/// Application user. Better Auth (M3) adds its own session, account and verification tables that
-/// reference User.id, plus any fields it needs (for example emailVerified); keep id a string.
+/// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
+/// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
   id              String     @id @default(cuid())
   email           String     @unique
@@ -135,9 +135,16 @@ model User {
   status          UserStatus @default(PENDING_APPROVAL)
   mfaEnabled      Boolean    @default(false)
   termsAcceptedAt DateTime?
+  /// Required by Better Auth. True for invited users (the invitation link proves the address).
+  emailVerified   Boolean    @default(false)
+  /// Required by Better Auth; not used by the portal.
+  image           String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
+  sessions            Session[]
+  accounts            Account[]
+  twoFactors          TwoFactor[]
   memberships         CountryMembership[]
   documentsUploaded   Document[]          @relation("DocumentUploadedBy")
   acknowledgements    Acknowledgement[]
@@ -152,16 +159,18 @@ model User {
 }
 
 model Invitation {
-  id          String    @id @default(cuid())
-  email       String
-  role        UserRole
-  countryId   String?
+  id             String          @id @default(cuid())
+  email          String
+  role           UserRole
+  countryId      String?
+  /// Required when role is COUNTRY: the CountryMembership role created on accept.
+  membershipRole MembershipRole?
   /// SHA-256 of the one-time token sent by email; the token itself is never stored.
-  tokenHash   String    @unique
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  invitedById String
-  createdAt   DateTime  @default(now())
+  tokenHash      String          @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  invitedById    String
+  createdAt      DateTime        @default(now())
 
   country   Country? @relation(fields: [countryId], references: [id])
   invitedBy User     @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
@@ -169,6 +178,78 @@ model Invitation {
   @@index([email])
   @@index([countryId])
   @@index([invitedById])
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth tables (M3). Field names follow Better Auth's schema; not part of PLAN section 5.
+// ---------------------------------------------------------------------------
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Opaque session token (the cookie value is this token, signed).
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Sign-in method for a user. Only the "credential" provider (email + password) is used.
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  /// Password hash (scrypt) for the credential provider. Never the password itself.
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+/// Short-lived values used by Better Auth (for example a pending second-step challenge).
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+/// Authenticator app (TOTP) enrolment. Secret and backup codes are stored encrypted.
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  userId                  String
+  secret                  String
+  backupCodes             String
+  /// False until the user has confirmed a code from the authenticator app.
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([secret])
 }
 
 // ---------------------------------------------------------------------------

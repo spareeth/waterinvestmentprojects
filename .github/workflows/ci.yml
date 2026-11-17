@@ -35,6 +35,8 @@ jobs:
     env:
       # Throwaway CI database; not a secret.
       DATABASE_URL: postgresql://portal:portal_ci@localhost:5432/summit_portal?schema=public
+      # Throwaway value for the CI database only; real secrets live on the servers.
+      BETTER_AUTH_SECRET: ci-only-not-a-secret-0123456789abcdef
       NEXT_TELEMETRY_DISABLED: 1
 
     steps:
