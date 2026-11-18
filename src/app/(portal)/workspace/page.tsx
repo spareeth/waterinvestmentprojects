@@ -82,7 +82,8 @@ export default async function WorkspacePage() {
                       </span>
                       <span className="text-sm text-muted-foreground">
                         {admin ? `${p.country.name} · ` : ""}
-                        {p.sector} · {TIER_LABEL[p.tier]}
+                        {p.sector}
+                        {p.tier ? ` · ${TIER_LABEL[p.tier]}` : ""}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

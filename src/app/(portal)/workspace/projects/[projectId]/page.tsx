@@ -107,7 +107,8 @@ export default async function WorkspaceProjectPage({
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {formatBytes(t.sizeBytes)} · uploaded{" "}
-                          {dateTime.format(t.uploadedAt)} by {t.uploadedBy.name}
+                          {dateTime.format(t.uploadedAt)} by{" "}
+                          {t.uploadedBy?.name ?? "the country (upload link)"}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -167,7 +168,7 @@ export default async function WorkspaceProjectPage({
                 defaults={{
                   name: project.name,
                   sector: project.sector,
-                  tier: project.tier,
+                  tier: project.tier ?? undefined,
                   projectType: project.projectType,
                   pppModel: project.pppModel ?? "",
                   sizeMinUsdMillion: usdToMillion(project.sizeMinUsd),

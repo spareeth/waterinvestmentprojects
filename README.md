@@ -77,6 +77,15 @@ There is no HTTP endpoint for Better Auth: every sign-in step is a server action
 - **Virus scan:** ClamAV arrives in M10. Until then `UPLOAD_SCAN=pending` (default) keeps uploads PENDING, so they cannot be opened or published; `UPLOAD_SCAN=assume-clean` marks them clean at once for local and staging demos, and the audit log records that no scanner ran. The server refuses to start with `assume-clean` when `APP_ENV=production`.
 - **Audit:** `project.create`, `project.update`, `project.publish`, `project.withdraw`, `project.view`, `document.upload`, `document.scan`, `document.update`, `acknowledgement.create`, plus `document.view` / `document.download` / `access.denied` from the file route.
 
+## Teaser upload link (M0, PLAN v0.3 F0)
+
+- **Links** (`/admin/upload-links`, Summit and platform admins): one link per country, `/submit/<token>`, where the token fixes the country; plus one generic link where the uploader picks an active country. 32 random bytes; only the SHA-256 is stored (`UploadLink.tokenHash`), so the URL is shown once, when created. Each link expires (default 30 Nov 2026, end of day UAE time) and can be revoked; creating a new link for a country revokes the old one. A link stops working when its country is set inactive.
+- **Upload page** (`/submit/<token>`, no account, no two-step): country, uploader name and email, 1 to 5 teasers (sector drop-down and a PDF or PowerPoint `.pptx` file each, checked by content, max 25 MB each, 60 MB together) and one acknowledgement with WBG's exact wording from `src/lib/config.ts` (`uploadAcknowledgement`, text and version change together). Rate limited per IP (opening and submitting); every opening and refused token is audited.
+- **On submit:** one transaction stores a `Submission` (uploader, `ackTextVersion`, `ackAcceptedAt`, IP) and per teaser a DRAFT `Project` (`submissionId`, name from the file name, sector, no tier) with `Document` version 1 (`allowDownload` true, `uploadedById` empty). Files go to `submissions/<uuid>/<uuid>.<pdf|pptx>` in the private store and are removed again if the transaction fails.
+- **No email for now** (decision of 18 Nov): the uploader gets a confirmation page (reference, time, files, the consent they gave) to print or save, and admins see new submissions on their home page and `/admin/submissions` (counts, "New" for the last 24 hours). `src/lib/mail` exists with a log-only driver but no flow uses it.
+- **Submissions** (`/admin/submissions`, admins only): every submission with its teasers; downloads go through `/files/<id>?download=1` and the policy module. Until a virus scanner runs, admins (only) may download files whose scan is still pending; the download is audited with the scan status. PowerPoint files are always served as downloads.
+- **Audit:** `upload_link.create`, `upload_link.revoke`, `upload_link.open`, `upload_link.refused`, `submission.create`, `submission.list`, `project.create`, `document.upload`, `document.scan`.
+
 ## Scripts
 
 | Script                            | Purpose                             |

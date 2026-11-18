@@ -1,5 +1,7 @@
 // Response headers for serving a stored file. Pure.
 
+import { TEASER_CONTENT_TYPE, teaserTypeOf } from "@/lib/workspace/teaser-file";
+
 export type ServeMode = "view" | "download";
 
 /**
@@ -21,16 +23,23 @@ export function contentDisposition(mode: ServeMode, filename: string): string {
   return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
-/** Headers for a private PDF: never cached by shared caches, never sniffed as another type. */
+/**
+ * Headers for a private file (PDF, or PowerPoint from the upload link): never cached by shared caches, never
+ * sniffed as another type. Browsers cannot show PowerPoint, so it is always sent as a download.
+ */
 export function privateFileHeaders(
   mode: ServeMode,
   filename: string,
   sizeBytes: number,
 ): Record<string, string> {
+  const type = teaserTypeOf(filename);
   return {
-    "Content-Type": "application/pdf",
+    "Content-Type": TEASER_CONTENT_TYPE[type],
     "Content-Length": String(sizeBytes),
-    "Content-Disposition": contentDisposition(mode, filename),
+    "Content-Disposition": contentDisposition(
+      type === "pdf" ? mode : "download",
+      filename,
+    ),
     "Cache-Control": "private, no-store, max-age=0",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",

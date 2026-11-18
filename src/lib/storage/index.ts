@@ -10,7 +10,12 @@ import { assertSafeKey } from "./keys";
 // through src/lib/authz (authorizeDocumentFile) first, then stream the file. A signed URL of at most 5 minutes
 // becomes possible once the S3-compatible driver (MinIO, M10) exists.
 
-export { assertSafeKey, isSafeKey, teaserBlobKey } from "./keys";
+export {
+  assertSafeKey,
+  isSafeKey,
+  submissionBlobKey,
+  teaserBlobKey,
+} from "./keys";
 
 export interface StoredFile {
   sizeBytes: number;

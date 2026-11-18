@@ -199,6 +199,16 @@ export async function cleanUp(): Promise<void> {
   await db.acknowledgement.deleteMany({ where: { project: itProject } });
   await db.document.deleteMany({ where: { project: itProject } });
   await db.project.deleteMany({ where: itProject });
+  // Upload links (M0) and their submissions: for "it-" countries, or created by integration test users.
+  const itLink = {
+    OR: [{ countryId: { startsWith: "it-" } }, { createdById: { in: ids } }],
+  };
+  await db.submission.deleteMany({
+    where: {
+      OR: [{ countryId: { startsWith: "it-" } }, { uploadLink: itLink }],
+    },
+  });
+  await db.uploadLink.deleteMany({ where: itLink });
   await db.auditEvent.deleteMany({
     where: {
       OR: [

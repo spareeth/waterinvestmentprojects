@@ -7,14 +7,17 @@ const linkClass =
 
 /**
  * Top bar for signed-in pages. Which links appear is decided by the page through src/lib/authz
- * (canUseWorkspace) and passed in; hiding a link is convenience only, every page checks again.
+ * (canUseWorkspace, canListSubmissions) and passed in; hiding a link is convenience only, every page checks again.
  */
 export function PortalHeader({
   name,
   showWorkspace,
+  showAdmin = false,
 }: {
   name: string;
   showWorkspace: boolean;
+  /** Upload links and submissions (M0), for Summit and platform admins. */
+  showAdmin?: boolean;
 }) {
   return (
     <SiteHeader>
@@ -25,6 +28,16 @@ export function PortalHeader({
         <Link href="/workspace" className={linkClass}>
           My projects
         </Link>
+      ) : null}
+      {showAdmin ? (
+        <>
+          <Link href="/admin/submissions" className={linkClass}>
+            Submissions
+          </Link>
+          <Link href="/admin/upload-links" className={linkClass}>
+            Upload links
+          </Link>
+        </>
       ) : null}
       <AccountHeader name={name} />
     </SiteHeader>

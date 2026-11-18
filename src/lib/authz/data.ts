@@ -166,6 +166,7 @@ export async function authorizeDocumentFile(
         projectId: doc.projectId,
         kind: doc.kind,
         version: doc.version,
+        scanStatus: doc.scanStatus,
       },
     },
     client,
@@ -179,6 +180,7 @@ export async function authorizeDocumentFile(
     sha256: doc.sha256,
     sizeBytes: doc.sizeBytes,
     allowDownload: doc.allowDownload,
+    scanStatus: doc.scanStatus,
   };
 }
 

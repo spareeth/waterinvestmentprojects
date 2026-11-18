@@ -325,6 +325,27 @@ describe("documents", () => {
     ).toBe(false);
   });
 
+  it("lets only admins download a file whose scan is still pending (M0), never an infected one", () => {
+    const pendingDraft = { ...draftTeaser, scanStatus: ScanStatus.PENDING };
+    for (const admin of [platformAdmin, summitAdmin]) {
+      expect(canDownloadDocument(admin, pendingTeaser, noGrants)).toBe(true);
+      expect(canDownloadDocument(admin, pendingDraft, noGrants)).toBe(true);
+      expect(canOpenDocumentFile(admin, pendingDraft, noGrants)).toBe(false);
+      expect(canDownloadDocument(admin, infected, noGrants)).toBe(false);
+      expect(
+        canDownloadDocument(
+          admin,
+          { ...teaser, scanStatus: ScanStatus.FAILED },
+          noGrants,
+        ),
+      ).toBe(false);
+    }
+    for (const v of [focalA, memberA, investor, focalBWithPipeline, null]) {
+      expect(canDownloadDocument(v, pendingTeaser, noGrants)).toBe(false);
+      expect(canDownloadDocument(v, pendingDraft, noGrants)).toBe(false);
+    }
+  });
+
   it("lets uploads follow project editing; DATAROOM is admin only for now", () => {
     expect(canUploadDocument(memberA, aDraft, DocumentKind.TEASER)).toBe(true);
     expect(canUploadDocument(memberA, aPub, DocumentKind.TEASER)).toBe(false);

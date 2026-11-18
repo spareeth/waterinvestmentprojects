@@ -9,6 +9,19 @@ export function teaserBlobKey(projectId: string, documentId: string): string {
 }
 
 /**
+ * Key for a file sent through an upload link (M0): submissions/<uploadId>/<fileId>.<pdf|pptx>. Both ids are
+ * random UUIDs made before the database rows exist, so the file can be stored first and removed if the
+ * transaction fails.
+ */
+export function submissionBlobKey(
+  uploadId: string,
+  fileId: string,
+  extension: "pdf" | "pptx",
+): string {
+  return assertSafeKey(`submissions/${uploadId}/${fileId}.${extension}`);
+}
+
+/**
  * Accepts only plain relative keys: letters, digits, dot, dash and underscore in segments separated by single
  * slashes, no segment starting with a dot (so no "..", no hidden files), no absolute paths or backslashes.
  */

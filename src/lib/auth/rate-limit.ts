@@ -1,7 +1,8 @@
 import "server-only";
 
-// Per-IP request limits for the auth server actions. In memory: Phase 1 runs a single app container
-// (PLAN section 4). The per-email lockout in lockout.ts is stored in the database and survives restarts.
+// Per-IP request limits for the auth server actions and the public upload link (M0). In memory: Phase 1 runs a
+// single app container (PLAN section 4). The per-email lockout in lockout.ts is stored in the database and
+// survives restarts.
 
 interface Window {
   count: number;
@@ -20,6 +21,10 @@ export const AUTH_RATE_LIMITS = {
   enrol: { max: 10, windowSeconds: 60 },
   invitation: { max: 10, windowSeconds: 60 },
   register: { max: 5, windowSeconds: 60 * 10 },
+  /** Opening /submit/<token> (valid or not). */
+  uploadLinkOpen: { max: 60, windowSeconds: 60 * 10 },
+  /** Submitting teasers through an upload link (a ministry may send several in one sitting). */
+  uploadSubmit: { max: 20, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 export type RateLimitKey = keyof typeof AUTH_RATE_LIMITS;

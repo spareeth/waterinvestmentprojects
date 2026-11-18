@@ -68,7 +68,8 @@ describe("teaser file checks", () => {
   it("formats sizes", () => {
     expect(formatBytes(512)).toBe("512 bytes");
     expect(formatBytes(2048)).toBe("2 KB");
-    expect(formatBytes(MAX_TEASER_BYTES)).toBe("25.0 MB");
+    expect(formatBytes(MAX_TEASER_BYTES)).toBe("25 MB");
+    expect(formatBytes(2.5 * 1024 * 1024)).toBe("2.5 MB");
   });
 });
 

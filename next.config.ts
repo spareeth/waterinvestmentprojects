@@ -5,8 +5,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      // Teaser uploads (PLAN F3): 25 MB PDF plus multipart overhead. The upload action checks 25 MB itself.
-      bodySizeLimit: "26mb",
+      // Teaser uploads: the upload link (M0) takes up to 5 files of 25 MB each, at most 60 MB together, plus
+      // multipart overhead. The actions and the submission service check both limits themselves.
+      bodySizeLimit: "61mb",
     },
   },
   cacheComponents: true,

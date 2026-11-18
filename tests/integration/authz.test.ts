@@ -481,7 +481,12 @@ describe("authorizeDocumentFile", () => {
       {
         entityType: "Document",
         ip: meta.ip,
-        metadata: { projectId: P.aPub, kind: DocumentKind.TEASER, version: 2 },
+        metadata: {
+          projectId: P.aPub,
+          kind: DocumentKind.TEASER,
+          version: 2,
+          scanStatus: "CLEAN",
+        },
       },
     ]);
   });

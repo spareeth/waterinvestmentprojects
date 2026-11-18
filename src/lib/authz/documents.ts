@@ -104,12 +104,20 @@ export function canOpenDocumentFile(
   );
 }
 
-/** Downloading: the owning country and admins always; pipeline viewers only where allowDownload is on. */
+/**
+ * Downloading: the owning country and admins always; pipeline viewers only where allowDownload is on.
+ * M0 (user decision, 18 Nov): until a virus scanner runs (M10), admins may also download files whose scan is
+ * still PENDING, so they can collect government uploads on production. Never INFECTED or FAILED files, never
+ * anyone else; the download is audited with its scan status.
+ */
 export function canDownloadDocument(
   viewer: Viewer | null,
   doc: DocumentRef,
   context: DocumentContext,
 ): boolean {
+  if (isAdminViewer(viewer) && doc.scanStatus === ScanStatus.PENDING) {
+    return true;
+  }
   if (!canOpenDocumentFile(viewer, doc, context)) return false;
   return (
     doc.allowDownload ||

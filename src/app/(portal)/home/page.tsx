@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PortalHeader } from "@/components/portal/portal-header";
+import { SubmissionSummary } from "@/components/submission/submission-summary";
 import { Button } from "@/components/ui/button";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import {
+  canListSubmissions,
+  canUseWorkspace,
+  requirePortalUser,
+} from "@/lib/authz";
+import { getSubmissionCounts } from "@/lib/submission/service";
 
 // Reads the session or the database and redirects on the server before rendering, so it may block.
 export const instant = false;
@@ -20,9 +26,16 @@ const ROLE_LABEL = {
 export default async function HomePage() {
   const { user, viewer } = await requirePortalUser();
   const workspace = canUseWorkspace(viewer);
+  const admin = canListSubmissions(viewer);
+  // No email for now (user decision, 18 Nov): admins see new submissions here and on /admin/submissions.
+  const counts = admin ? await getSubmissionCounts(viewer) : null;
   return (
     <>
-      <PortalHeader name={user.name} showWorkspace={workspace} />
+      <PortalHeader
+        name={user.name}
+        showWorkspace={workspace}
+        showAdmin={admin}
+      />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         {!user.mfaEnabled ? (
           <p
@@ -44,6 +57,25 @@ export default async function HomePage() {
             <p className="mt-1 text-muted-foreground">{user.organisation}</p>
           ) : null}
         </div>
+        {counts ? (
+          <section className="flex flex-col gap-4 rounded-xl border bg-card p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Teaser uploads</h2>
+              <p className="mt-2 text-muted-foreground">
+                Create upload links for Governments and collect their teasers.
+              </p>
+            </div>
+            <SubmissionSummary counts={counts} />
+            <div className="flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link href="/admin/submissions">See submissions</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/admin/upload-links">Manage upload links</Link>
+              </Button>
+            </div>
+          </section>
+        ) : null}
         {workspace ? (
           <section className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold">My projects</h2>

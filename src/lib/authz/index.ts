@@ -20,6 +20,9 @@ export * from "./requests";
 export * from "./slots";
 export * from "./people";
 export * from "./workspace";
+export * from "./submissions";
+export * from "./upload-token";
+export * from "./upload-links";
 export * from "./audit";
 export * from "./data";
 

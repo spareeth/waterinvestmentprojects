@@ -57,6 +57,19 @@ const envSchema = z
       .transform((value): "pending" | "assume-clean" =>
         value === "assume-clean" ? value : "pending",
       ),
+    /**
+     * How email would be sent. No email is sent for now (user decision, 18 Nov); only the "log" driver exists,
+     * which writes a message to the server log instead of sending it.
+     */
+    MAIL_DRIVER: z
+      .enum(["log", ""])
+      .optional()
+      .transform((): "log" => "log"),
+    /** Sender address for outgoing email. */
+    MAIL_FROM: z
+      .union([z.email(), z.literal("")])
+      .optional()
+      .transform((value) => value || "no-reply@localhost"),
   })
   .transform(({ APP_ENV, ...rest }) => ({
     ...rest,
