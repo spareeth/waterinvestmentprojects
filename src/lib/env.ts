@@ -37,8 +37,17 @@ const envSchema = z
       .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
     /** Self-registration is built but off; self-registered accounts wait for a Summit admin. */
     SELF_REGISTRATION_ENABLED: flag,
-    /** Demo only: makes two-step enrolment optional. Refused when APP_ENV is production. */
-    AUTH_SKIP_SECOND_STEP: flag,
+    /**
+     * Second step at sign-in (PLAN 0a.3, 18 Nov: email and password only for now). "none" (default) asks for no
+     * second step; "totp" requires an authenticator app (built in the old M3, kept dormant). Email codes come
+     * once the Summit mailbox is live. An authenticator someone already set up is still asked for under "none".
+     */
+    AUTH_SECOND_STEP: z
+      .enum(["none", "totp", ""])
+      .optional()
+      .transform((value): "none" | "totp" =>
+        value === "totp" ? value : "none",
+      ),
     /** Signed out after this many minutes without activity. */
     SESSION_IDLE_MINUTES: intInRange(5, 24 * 60, 120),
     /** Signed out this many hours after signing in, whatever the activity. */
@@ -116,14 +125,6 @@ const envSchema = z
       (rest.NODE_ENV === "production" ? "production" : "development"),
   }))
   .superRefine((env, ctx) => {
-    if (env.AUTH_SKIP_SECOND_STEP && env.APP_ENV === "production") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["AUTH_SKIP_SECOND_STEP"],
-        message:
-          "the two-step switch is for local and staging demos only and cannot be used when APP_ENV is production",
-      });
-    }
     if (env.MAIL_DRIVER === "smtp") {
       for (const key of ["SMTP_HOST", "MAIL_FROM"] as const) {
         if (!env[key]) {

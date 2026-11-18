@@ -57,6 +57,9 @@ enum UserRole {
   PLATFORM_ADMIN
   SUMMIT_ADMIN
   COUNTRY
+  /// M2 (PLAN v0.3 section 4): reads its countries' requests and is copied on their notifications (M5).
+  /// Its countries are CountryMembership rows (membership role ignored for this role).
+  WBG_COORDINATOR
   INVESTOR
 }
 
@@ -177,23 +180,29 @@ model PipelineCountry {
 /// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
 /// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
-  id              String        @id @default(cuid())
-  email           String        @unique
-  name            String
-  organisation    String?
-  jobTitle        String?
-  role            UserRole
-  status          UserStatus    @default(PENDING_APPROVAL)
-  mfaEnabled      Boolean       @default(false)
-  termsAcceptedAt DateTime?
+  id                     String        @id @default(cuid())
+  email                  String        @unique
+  name                   String
+  organisation           String?
+  jobTitle               String?
+  role                   UserRole
+  status                 UserStatus    @default(PENDING_APPROVAL)
+  mfaEnabled             Boolean       @default(false)
+  termsAcceptedAt        DateTime?
+  /// M2 (PLAN 0a.4): set when an admin hands out a temporary password; cleared when the person sets their own.
+  mustChangePassword     Boolean       @default(false)
+  /// M2: investor acknowledgement (PLAN v0.3 0.6), accepted once per user at first sign-in, again if the
+  /// wording version in config changes. Investors see no pipeline before it.
+  investorAckTextVersion String?
+  investorAckAcceptedAt  DateTime?
   /// M4: pipeline visibility. NONE by default (default deny); invitations set ALL for investors.
-  pipelineScope   PipelineScope @default(NONE)
+  pipelineScope          PipelineScope @default(NONE)
   /// Required by Better Auth. True for invited users (the invitation link proves the address).
-  emailVerified   Boolean       @default(false)
+  emailVerified          Boolean       @default(false)
   /// Required by Better Auth; not used by the portal.
-  image           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  image                  String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   sessions            Session[]
   accounts            Account[]

@@ -1,18 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { UserStatus } from "@/generated/prisma/enums";
+import { UserRole, UserStatus } from "@/generated/prisma/enums";
 import {
   accountStage,
   type GateUser,
+  needsInvestorAck,
   sessionProblem,
   STAGE_PATH,
 } from "./account-gate";
 
+const ACK = "investor-ack-test-v1";
+
 const ready: GateUser = {
+  role: UserRole.COUNTRY,
   status: UserStatus.ACTIVE,
   mfaEnabled: true,
+  mustChangePassword: false,
   termsAcceptedAt: new Date("2026-11-10T09:00:00Z"),
+  investorAckTextVersion: null,
 };
-const strict = { skipSecondStep: false };
+const investor: GateUser = {
+  ...ready,
+  role: UserRole.INVESTOR,
+  termsAcceptedAt: null,
+  investorAckTextVersion: ACK,
+};
+/** PLAN 0a.3: email and password only (the default). */
+const passwordOnly = { secondStep: "none", investorAckVersion: ACK } as const;
+/** The dormant authenticator-app mode. */
+const totp = { secondStep: "totp", investorAckVersion: ACK } as const;
 const limits = { idleMinutes: 120, maxHours: 12 };
 const signedInAt = new Date("2026-11-17T08:00:00Z");
 
@@ -21,45 +36,100 @@ function at(minutesAfterSignIn: number): Date {
 }
 
 describe("accountStage", () => {
-  it("lets an approved, enrolled user who accepted the terms in", () => {
-    expect(accountStage(ready, strict)).toBe("active");
+  it("lets an approved user who accepted the terms in", () => {
+    expect(accountStage(ready, passwordOnly)).toBe("active");
+    expect(accountStage(ready, totp)).toBe("active");
   });
 
   it("shows a pending account nothing but the pending screen", () => {
     const pending = { ...ready, status: UserStatus.PENDING_APPROVAL };
-    expect(accountStage(pending, strict)).toBe("pending");
-    // Even with enrolment and terms done, and with the demo switch on.
-    expect(accountStage(pending, { skipSecondStep: true })).toBe("pending");
+    expect(accountStage(pending, passwordOnly)).toBe("pending");
+    expect(accountStage(pending, totp)).toBe("pending");
+    expect(
+      accountStage({ ...pending, mustChangePassword: true }, passwordOnly),
+    ).toBe("pending");
   });
 
   it("never treats a deactivated account as active", () => {
     const gone = { ...ready, status: UserStatus.DEACTIVATED };
-    expect(accountStage(gone, strict)).not.toBe("active");
+    expect(accountStage(gone, passwordOnly)).not.toBe("active");
   });
 
-  it("requires two-step enrolment before the terms and the portal", () => {
+  it("asks for no second step with email and password only (PLAN 0a.3)", () => {
+    const notEnrolled = { ...ready, mfaEnabled: false };
+    expect(accountStage(notEnrolled, passwordOnly)).toBe("active");
+  });
+
+  it("requires authenticator enrolment before the terms when the second step is totp", () => {
     const notEnrolled = { ...ready, mfaEnabled: false, termsAcceptedAt: null };
-    expect(accountStage(notEnrolled, strict)).toBe("enrol-2fa");
-    expect(accountStage({ ...ready, mfaEnabled: false }, strict)).toBe(
+    expect(accountStage(notEnrolled, totp)).toBe("enrol-2fa");
+    expect(accountStage({ ...investor, mfaEnabled: false }, totp)).toBe(
       "enrol-2fa",
     );
   });
 
-  it("makes enrolment optional only when the demo switch is on", () => {
-    const notEnrolled = { ...ready, mfaEnabled: false };
-    expect(accountStage(notEnrolled, { skipSecondStep: true })).toBe("active");
+  it("makes a temporary password the first thing to replace, for every role", () => {
+    for (const role of Object.values(UserRole)) {
+      const user = {
+        ...ready,
+        role,
+        mfaEnabled: false,
+        mustChangePassword: true,
+        termsAcceptedAt: null,
+        investorAckTextVersion: null,
+      };
+      expect(accountStage(user, passwordOnly), role).toBe("change-password");
+      expect(accountStage(user, totp), role).toBe("change-password");
+    }
   });
 
-  it("requires the terms before first use", () => {
-    expect(accountStage({ ...ready, termsAcceptedAt: null }, strict)).toBe(
-      "terms",
-    );
+  it("requires the terms before first use, except for investors", () => {
+    expect(
+      accountStage({ ...ready, termsAcceptedAt: null }, passwordOnly),
+    ).toBe("terms");
+    for (const role of [
+      UserRole.PLATFORM_ADMIN,
+      UserRole.SUMMIT_ADMIN,
+      UserRole.WBG_COORDINATOR,
+    ]) {
+      expect(
+        accountStage({ ...ready, role, termsAcceptedAt: null }, passwordOnly),
+        role,
+      ).toBe("terms");
+    }
+    expect(accountStage(investor, passwordOnly)).toBe("active");
+  });
+
+  it("keeps investors out until they accept the current investor acknowledgement", () => {
+    const notYet = { ...investor, investorAckTextVersion: null };
+    expect(accountStage(notYet, passwordOnly)).toBe("investor-ack");
+    // Accepting the terms is not enough.
+    expect(
+      accountStage({ ...notYet, termsAcceptedAt: new Date() }, passwordOnly),
+    ).toBe("investor-ack");
+    // A new wording version (e.g. WBG's final text replacing the placeholder) asks again.
+    const old = { ...investor, investorAckTextVersion: "investor-ack-old" };
+    expect(accountStage(old, passwordOnly)).toBe("investor-ack");
+  });
+
+  it("asks only investors for the investor acknowledgement", () => {
+    for (const role of Object.values(UserRole)) {
+      expect(
+        needsInvestorAck(
+          { role, investorAckTextVersion: null },
+          { investorAckVersion: ACK },
+        ),
+        role,
+      ).toBe(role === UserRole.INVESTOR);
+    }
   });
 
   it("maps every stage to a page", () => {
     expect(STAGE_PATH).toEqual({
       pending: "/pending",
+      "change-password": "/change-password",
       "enrol-2fa": "/two-factor/setup",
+      "investor-ack": "/acknowledgement",
       terms: "/terms",
       active: "/home",
     });

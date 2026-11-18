@@ -14,7 +14,12 @@ import {
   UserStatus,
 } from "@/generated/prisma/enums";
 import { appConfig } from "@/lib/config";
-import { SLOT_MINUTES, gst, seedData } from "../../prisma/seed/data";
+import {
+  INVESTOR_WITHOUT_ACK,
+  SLOT_MINUTES,
+  gst,
+  seedData,
+} from "../../prisma/seed/data";
 import { buildPlaceholderPdf, escapePdfText } from "../../prisma/seed/pdf";
 
 const {
@@ -117,13 +122,51 @@ describe("seed data: users and memberships", () => {
     expect(users.some((u) => u.status === UserStatus.DEACTIVATED)).toBe(true);
   });
 
-  it("only gives country memberships to COUNTRY users, and every COUNTRY user has one", () => {
+  it("only gives country memberships to COUNTRY users and WBG coordinators, and each of them has at least one", () => {
+    const linkedRoles: UserRole[] = [
+      UserRole.COUNTRY,
+      UserRole.WBG_COORDINATOR,
+    ];
     for (const m of memberships) {
-      expect(userById.get(m.userId)?.role).toBe(UserRole.COUNTRY);
+      expect(linkedRoles).toContain(userById.get(m.userId)?.role);
       expect(countries.some((c) => c.id === m.countryId)).toBe(true);
     }
     for (const u of users.filter((u) => u.role === UserRole.COUNTRY)) {
       expect(memberships.filter((m) => m.userId === u.id)).toHaveLength(1);
+    }
+    for (const u of users.filter((u) => u.role === UserRole.WBG_COORDINATOR)) {
+      const own = memberships.filter((m) => m.userId === u.id);
+      expect(own.length).toBeGreaterThan(0);
+      // Their countries match their WBG coordinator contacts.
+      for (const m of own) {
+        expect(
+          countryContacts.some(
+            (c) =>
+              c.userId === u.id &&
+              c.countryId === m.countryId &&
+              c.role === CountryContactRole.WBG_COORDINATOR,
+          ),
+          m.countryId,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("lets demo users in with the demo password, and leaves one investor to show the acknowledgement", () => {
+    expect(users.every((u) => !u.mustChangePassword)).toBe(true);
+    const activeInvestors = users.filter(
+      (u) => u.role === UserRole.INVESTOR && u.status === UserStatus.ACTIVE,
+    );
+    const without = activeInvestors.filter((u) => !u.investorAckAcceptedAt);
+    expect(without.map((u) => u.id)).toEqual([INVESTOR_WITHOUT_ACK]);
+    for (const u of activeInvestors) {
+      if (u.id === INVESTOR_WITHOUT_ACK) continue;
+      expect(u.investorAckTextVersion).toBe(
+        appConfig.investorAcknowledgement.version,
+      );
+    }
+    for (const u of users.filter((u) => u.role !== UserRole.INVESTOR)) {
+      expect(u.investorAckTextVersion).toBeNull();
     }
   });
 

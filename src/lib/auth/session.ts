@@ -15,6 +15,7 @@ import {
   STAGE_PATH,
 } from "@/lib/authz/account-gate";
 import { db } from "@/lib/db";
+import { appConfig } from "@/lib/config";
 import { getEnv } from "@/lib/env";
 import { type Auth, getAuth } from "./auth";
 import { AUTH_AUDIT } from "./constants";
@@ -48,15 +49,29 @@ export function gateConfig(): GateConfig {
   return {
     idleMinutes: env.SESSION_IDLE_MINUTES,
     maxHours: env.SESSION_MAX_HOURS,
-    skipSecondStep: env.AUTH_SKIP_SECOND_STEP,
+    secondStep: env.AUTH_SECOND_STEP,
+    investorAckVersion: appConfig.investorAcknowledgement.version,
   };
 }
 
-/** Where to send someone who has just signed in (pending screen, enrolment, terms or the portal). */
+/** The user fields the account gate reads. */
+export const GATE_USER_SELECT = {
+  role: true,
+  status: true,
+  mfaEnabled: true,
+  mustChangePassword: true,
+  termsAcceptedAt: true,
+  investorAckTextVersion: true,
+} as const;
+
+/**
+ * Where to send someone who has just signed in (pending screen, new password, enrolment, acknowledgement or
+ * terms, or the portal).
+ */
 export async function stagePathForUser(userId: string): Promise<string> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { status: true, mfaEnabled: true, termsAcceptedAt: true },
+    select: GATE_USER_SELECT,
   });
   if (!user) return "/sign-in";
   return STAGE_PATH[accountStage(user, gateConfig())];
@@ -96,10 +111,7 @@ export async function getCurrentSession(
       email: true,
       name: true,
       organisation: true,
-      role: true,
-      status: true,
-      mfaEnabled: true,
-      termsAcceptedAt: true,
+      ...GATE_USER_SELECT,
       memberships: { select: { countryId: true, role: true } },
       pipelineScope: true,
       pipelineCountries: { select: { countryId: true } },

@@ -34,7 +34,9 @@ describe("sign-in screens", () => {
       "type",
       "password",
     );
-    expect(screen.getByText(/authenticator app/)).toBeInTheDocument();
+    // PLAN 0a.3 and 0a.4: email and password only, accounts handed out by the Summit team.
+    expect(screen.getByText(/temporary/)).toBeInTheDocument();
+    expect(screen.queryByText(/authenticator app/)).not.toBeInTheDocument();
   });
 
   it("asks for the second step with a one-time code field", () => {

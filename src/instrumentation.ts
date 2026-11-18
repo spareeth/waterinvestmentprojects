@@ -1,5 +1,5 @@
 // Runs once when a server starts. Validating the environment here makes a misconfigured server refuse to
-// start, instead of failing on the first request. In particular, AUTH_SKIP_SECOND_STEP=true with
+// start, instead of failing on the first request. In particular, UPLOAD_SCAN=assume-clean with
 // APP_ENV=production stops the server (see src/lib/env.ts).
 
 export async function register(): Promise<void> {
@@ -17,9 +17,9 @@ export async function register(): Promise<void> {
     if (!process.env.VITEST) process.exit(1);
     throw error;
   }
-  if (env.AUTH_SKIP_SECOND_STEP) {
-    console.warn(
-      `[auth] Two-step verification is OPTIONAL (AUTH_SKIP_SECOND_STEP=true, APP_ENV=${env.APP_ENV}). Demo use only.`,
+  if (env.AUTH_SECOND_STEP === "none") {
+    console.info(
+      `[auth] Sign-in asks for email and password only (AUTH_SECOND_STEP=none, PLAN 0a.3).`,
     );
   }
   if (env.UPLOAD_SCAN === "assume-clean") {

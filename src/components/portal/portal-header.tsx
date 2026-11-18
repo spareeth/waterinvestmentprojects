@@ -16,13 +16,16 @@ export function PortalHeader({
 }: {
   name: string;
   showWorkspace: boolean;
-  /** Upload links and submissions (M0), for Summit and platform admins. */
+  /** Upload links and submissions (M0) and accounts (M2), for Summit and platform admins. */
   showAdmin?: boolean;
 }) {
   return (
     <SiteHeader>
       <Link href="/home" className={linkClass}>
         Home
+      </Link>
+      <Link href="/pipeline" className={linkClass}>
+        Pipeline
       </Link>
       {showWorkspace ? (
         <Link href="/workspace" className={linkClass}>
@@ -36,6 +39,9 @@ export function PortalHeader({
           </Link>
           <Link href="/admin/upload-links" className={linkClass}>
             Upload links
+          </Link>
+          <Link href="/admin/accounts" className={linkClass}>
+            Accounts
           </Link>
         </>
       ) : null}

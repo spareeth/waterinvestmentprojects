@@ -207,6 +207,13 @@ Decisions while building (18 Nov):
 - **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Users, roles, invitations, pipeline
   scopes, `ProjectGrant` and meeting request fields still follow v0.2 until M2 (auth), M3 (authz) and M5 (meeting
   requests) bring them in line.
+- **Auth (M2, Sajid 18 Nov):** `UserRole.WBG_COORDINATOR` added. `User.countryIds[]` is kept as the existing
+  `CountryMembership` table (userId, countryId, role FOCAL_POINT|MEMBER; the role means nothing for coordinators).
+  New `User.mustChangePassword` (not in section 6): set when an admin hands out a temporary password (0a.4), cleared
+  when the person chooses their own. `User.investorAckTextVersion` / `investorAckAcceptedAt` as section 6; investors
+  accept it instead of the draft terms, other roles keep the terms. Second step behind `AUTH_SECOND_STEP`
+  (`none` now, `totp` kept dormant, email codes later). `Invitation` keeps its v0.2 extras (`membershipRole`,
+  `pipelineScope`) until M3; invitations are unused while admins hand out accounts.
 
 ---
 

@@ -6,6 +6,12 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import type { FormState } from "@/components/auth/form-parts";
 import { requestMetaFrom } from "@/lib/audit";
+import {
+  AccountError,
+  acceptInvestorAcknowledgement,
+  changeTemporaryPassword,
+} from "@/lib/auth/accounts";
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
 import { takeToken } from "@/lib/auth/rate-limit";
 import {
   acceptTerms,
@@ -16,7 +22,8 @@ import {
 import { getCurrentSession, stagePathForUser } from "@/lib/auth/session";
 import { requireStage } from "@/lib/authz";
 
-// Server actions for signed-in people who have not reached the portal yet (enrolment, terms) and for sign-out.
+// Server actions for signed-in people who have not reached the portal yet (new password, enrolment, investor
+// acknowledgement, terms) and for sign-out.
 // Each one re-checks the account gate itself rather than trusting the page that rendered the form.
 
 const TOO_MANY = "Too many attempts. Please wait a minute and try again.";
@@ -104,6 +111,79 @@ export async function acceptTermsAction(
     };
   }
   await acceptTerms(current.user.id, await headers());
+  redirect(await stagePathForUser(current.user.id));
+}
+
+const newPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(
+        MIN_PASSWORD_LENGTH,
+        `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+      )
+      .max(128, "Use at most 128 characters."),
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "The passwords do not match.",
+  });
+
+/** First sign-in with a temporary password from an admin (PLAN 0a.4): the person chooses their own. */
+export async function changePasswordAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const current = await requireStage("change-password");
+  const h = await headers();
+  if (!takeToken("enrol", requestMetaFrom(h).ip)) return { error: TOO_MANY };
+  const parsed = newPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      fieldErrors[String(issue.path[0] ?? "password")] ??= issue.message;
+    }
+    return { fieldErrors };
+  }
+  try {
+    await changeTemporaryPassword(
+      current.user.id,
+      current.sessionId,
+      parsed.data.password,
+      requestMetaFrom(h),
+    );
+  } catch (error) {
+    if (error instanceof AccountError) {
+      return error.code === "same_password"
+        ? { fieldErrors: error.fieldErrors }
+        : {
+            error: "Your password could not be changed. Please sign in again.",
+          };
+    }
+    throw error;
+  }
+  redirect(await stagePathForUser(current.user.id));
+}
+
+/** Investors accept the investor acknowledgement once, before the pipeline is visible. */
+export async function acceptInvestorAckAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const current = await requireStage("investor-ack");
+  if (formData.get("accept") !== "yes") {
+    return {
+      fieldErrors: { accept: "Tick the box to accept the acknowledgement." },
+    };
+  }
+  await acceptInvestorAcknowledgement(
+    current.user.id,
+    requestMetaFrom(await headers()),
+  );
   redirect(await stagePathForUser(current.user.id));
 }
 

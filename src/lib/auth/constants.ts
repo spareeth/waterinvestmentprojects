@@ -27,4 +27,12 @@ export const AUTH_AUDIT = {
   APPROVE: "user.approve",
   INVITATION_CREATE: "invitation.create",
   INVITATION_ACCEPT: "invitation.accept",
+  /** M2: an admin created an account with a temporary password (PLAN 0a.4). */
+  ACCOUNT_CREATE: "user.create",
+  /** M2: an admin issued a new temporary password. */
+  PASSWORD_RESET: "user.password_reset",
+  /** M2: the person replaced a temporary password with their own. */
+  PASSWORD_CHANGE: "auth.password_change",
+  /** M2: an investor accepted the investor acknowledgement. */
+  INVESTOR_ACK: "user.investor_ack",
 } as const;

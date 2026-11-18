@@ -22,6 +22,7 @@ const ROLE_LABEL = {
   PLATFORM_ADMIN: "platform administrator",
   SUMMIT_ADMIN: "Summit team member",
   COUNTRY: "country representative",
+  WBG_COORDINATOR: "WBG coordinator",
   INVESTOR: "investor or operator",
 } as const;
 

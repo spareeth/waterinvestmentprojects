@@ -77,6 +77,12 @@ export const countries = [
 
 const termsAccepted = gst("2026-11-10T09:00");
 
+/**
+ * M2: this active investor has not accepted the investor acknowledgement yet, so the demo can show that step
+ * (every other active investor accepted the current version from config).
+ */
+export const INVESTOR_WITHOUT_ACK = "seed-user-investor-3";
+
 function user(
   id: string,
   email: string,
@@ -98,11 +104,27 @@ function user(
     role,
     status,
     pipelineScope,
-    // Demo users enrol their own authenticator app at first sign-in (or skip it where
-    // AUTH_SKIP_SECOND_STEP=true). Re-running the seed resets enrolment.
+    // No second step by default (AUTH_SECOND_STEP=none, PLAN 0a.3); with totp, demo users enrol their own
+    // authenticator app at first sign-in. Re-running the seed resets enrolment.
     mfaEnabled: false,
     emailVerified: true,
     termsAcceptedAt: status === UserStatus.ACTIVE ? termsAccepted : null,
+    // Demo users sign in with the documented demo password and are not asked to change it.
+    mustChangePassword: false,
+    ...investorAck(`seed-user-${id}`, role, status),
+  };
+}
+
+function investorAck(userId: string, role: UserRole, status: UserStatus) {
+  const accepted =
+    role === UserRole.INVESTOR &&
+    status === UserStatus.ACTIVE &&
+    userId !== INVESTOR_WITHOUT_ACK;
+  return {
+    investorAckTextVersion: accepted
+      ? appConfig.investorAcknowledgement.version
+      : null,
+    investorAckAcceptedAt: accepted ? termsAccepted : null,
   };
 }
 
@@ -165,6 +187,15 @@ export const users = [
     UserStatus.ACTIVE,
     // Shows the M4 option: a country user who also sees the other countries' published teasers.
     PipelineScope.ALL,
+  ),
+  // M2: WBG coordinator for Countries A to C (country contacts below), read-only on their requests from M5.
+  user(
+    "wbg-coordinator",
+    "coordinator.one@wbg-demo.example",
+    "Jordan Coordinator",
+    "World Bank Group (demo)",
+    "Country coordinator",
+    UserRole.WBG_COORDINATOR,
   ),
   user(
     "investor-1",
@@ -249,6 +280,12 @@ export const memberships = [
     countryId: "seed-country-c",
     role: MembershipRole.FOCAL_POINT,
   },
+  // M2: a WBG coordinator's countries are membership rows too (the membership role means nothing for them).
+  ...["a", "b", "c"].map((c) => ({
+    userId: "seed-user-wbg-coordinator",
+    countryId: `seed-country-${c}`,
+    role: MembershipRole.MEMBER,
+  })),
 ];
 
 /** Countries visible to users whose pipelineScope is SELECTED. */
@@ -486,6 +523,7 @@ export const countryContacts = [
       "Jordan Coordinator",
       "coordinator.one@wbg-demo.example",
       WBG_COORDINATOR,
+      "seed-user-wbg-coordinator",
     ),
   ),
   ...["d", "e"].map((c) =>

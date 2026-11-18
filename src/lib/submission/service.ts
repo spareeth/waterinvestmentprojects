@@ -6,6 +6,7 @@ import {
   CountryStatus,
   DocumentKind,
   ProjectStatus,
+  UserRole,
 } from "@/generated/prisma/enums";
 import { type RequestMeta, writeAudit } from "@/lib/audit";
 import {
@@ -205,9 +206,26 @@ async function recordUploaderContact(
 ): Promise<string | null> {
   const email = contact.email.trim().toLowerCase();
   const role = CountryContactRole.FOCAL_POINT;
+  // M2: link the contact to the portal account of this country with the same address, if there is one.
+  const account = await tx.user.findFirst({
+    where: {
+      email,
+      role: UserRole.COUNTRY,
+      memberships: { some: { countryId: contact.countryId } },
+    },
+    select: { id: true },
+  });
   // ON CONFLICT DO NOTHING: two submissions from the same person at once cannot fail on the unique key.
   const inserted = await tx.countryContact.createMany({
-    data: [{ countryId: contact.countryId, name: contact.name, email, role }],
+    data: [
+      {
+        countryId: contact.countryId,
+        name: contact.name,
+        email,
+        role,
+        userId: account?.id ?? null,
+      },
+    ],
     skipDuplicates: true,
   });
   if (inserted.count === 0) return null;

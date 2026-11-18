@@ -53,7 +53,21 @@ At first sign-in each user sets up an authenticator app (Microsoft Authenticator
 
 Two seed invitations are still open, for trying the invitation flow locally: `/invitation/seed-invitation-investor-7` (investor) and `/invitation/seed-invitation-country-c-member` (Country C member). Their tokens are not secret, so treat them as used once staging is shared.
 
-## Sign-in and accounts (M3)
+## Sign-in and accounts (M3, changed in v0.3 M2)
+
+**Since M2 (PLAN 0a.3 and 0a.4, 18 Nov):** sign-in is email and password only (`AUTH_SECOND_STEP=none`, the
+default, allowed in production; `totp` switches the authenticator app below back on; an authenticator someone already
+set up is still asked for). Accounts are handed out by admins on `/admin/accounts`: the admin creates the account
+(role, and countries for country focal points and WBG coordinators), the portal shows a generated temporary password
+once, and the admin passes it on personally. No invitation emails. At first sign-in the person chooses their own
+password (`/change-password`); investors then accept the investor acknowledgement (`/acknowledgement`, wording and
+version from config `investorAcknowledgement`, placeholder until WBG sends it, asked again when the version
+changes) and see no pipeline before it; everyone else accepts the draft terms. Admins can issue a new temporary
+password (forgotten password): it ends the person's sessions and removes their authenticator. New audit actions:
+`user.create`, `user.password_reset`, `auth.password_change`, `user.investor_ack`. New role `WBG_COORDINATOR` (its
+countries are `CountryMembership` rows; default deny until M3/M5). Accounts created for an address that is a
+country contact of the same country and role are linked to it (`CountryContact.userId`), and so are contacts created
+later from uploads. The points below describe the original M3 build; the invitation flow still works but is unused.
 
 - **Invitation only.** An invitation holds the email, role and, for country users, the country and membership role (focal point or member). Only the SHA-256 of the link token is stored; links expire (7 days by default) and work once, even if clicked twice at the same moment. Accepting creates the account, the password and the country membership. Focal points can invite members of their own country; admins invite anyone. No email is sent yet (provider not decided), so invitation links come from `createInvitation()` and the admin console in M8.
 - **Two-step verification is mandatory.** After the password, every account must set up an authenticator app (TOTP, with 10 single-use backup codes) before anything else; later sign-ins ask for the code. Then the terms of use (draft wording, version recorded in the audit log).
@@ -63,7 +77,7 @@ Two seed invitations are still open, for trying the invitation flow locally: `/i
 - **Lockout and rate limits:** 5 failed sign-ins for one email within 15 minutes lock that email for the rest of the 15 minutes (counted from the audit log). Each sign-in action is also limited per IP address. Wrong two-step codes lock the second step for a while.
 - **Audit:** `auth.login`, `auth.login_failed` (no actor, with the email and reason), `auth.logout`, `auth.session_expired`, `auth.mfa_enrol`, `user.terms_accept`, `user.register`, `user.approve`, `invitation.create`, `invitation.accept`.
 - **Self-registration** is built but off (`SELF_REGISTRATION_ENABLED=false`). When on, `/register` creates investor accounts with status PENDING_APPROVAL that see nothing until a Summit admin approves them (`approveUser()`; screen in M8).
-- **Demo switch:** `AUTH_SKIP_SECOND_STEP=true` makes enrolment optional for a local or staging demo (already enrolled users are still asked for a code). The server refuses to start with it when `APP_ENV=production`. Staging runs a production build, so staging must set `APP_ENV=staging`; when `APP_ENV` is missing on a production build it counts as production.
+- **Second step switch (M2):** `AUTH_SECOND_STEP` (`none` by default, `totp`) replaces the old `AUTH_SKIP_SECOND_STEP`. Staging runs a production build, so staging must set `APP_ENV=staging`; when `APP_ENV` is missing on a production build it counts as production (this still matters for `UPLOAD_SCAN=assume-clean`).
 - `APP_URL` must be the exact public address (scheme, host and port): sign-in cookies and invitation links use it.
 
 There is no HTTP endpoint for Better Auth: every sign-in step is a server action that calls it directly. Password reset needs the email provider and is not built yet; until then the Summit team re-invites people who lose access.

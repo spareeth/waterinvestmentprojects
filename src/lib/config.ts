@@ -25,4 +25,27 @@ export const appConfig = {
     version: "country-upload-ack-v1-on-behalf",
     text: "I confirm that the represented Government has given its consent, in writing, for this project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
   },
+  /**
+   * M2: the investor or operator acknowledgement, accepted once per user at first sign-in before the pipeline is
+   * visible (PLAN v0.3 0.6). WBG will send the wording; until then this is a placeholder. To put in the final text
+   * without a code change, set BOTH INVESTOR_ACK_VERSION and INVESTOR_ACK_TEXT (the text alone is ignored, so a
+   * new wording always comes with a new version). Users store the version they accepted and are asked again
+   * whenever it changes.
+   */
+  investorAcknowledgement: investorAcknowledgement(),
 } as const;
+
+function investorAcknowledgement(): {
+  version: string;
+  text: string;
+  isPlaceholder: boolean;
+} {
+  const version = process.env.INVESTOR_ACK_VERSION?.trim();
+  const text = process.env.INVESTOR_ACK_TEXT?.trim();
+  if (version && text) return { version, text, isPlaceholder: false };
+  return {
+    version: "investor-ack-placeholder-v1",
+    text: "I confirm that I will use the project teasers and other information shared through this portal only for the purposes of the Water Investment Summit and related bilateral discussions, and that I will not pass them on outside my organisation without the agreement of the country concerned.",
+    isPlaceholder: true,
+  };
+}

@@ -9,6 +9,7 @@ import type { Actor } from "@/lib/authz/account-policies";
 import { accountStage, type GateConfig } from "@/lib/authz/account-gate";
 import { type Viewer, viewerFrom } from "@/lib/authz/viewer";
 import { createAuth } from "@/lib/auth/auth";
+import { appConfig } from "@/lib/config";
 import { db } from "@/lib/db";
 import { type Env, parseEnv } from "@/lib/env";
 
@@ -25,7 +26,7 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
     ...process.env,
     APP_ENV: "development",
     SELF_REGISTRATION_ENABLED: "false",
-    AUTH_SKIP_SECOND_STEP: "false",
+    AUTH_SECOND_STEP: "none",
     SESSION_IDLE_MINUTES: "120",
     SESSION_MAX_HOURS: "12",
     ...overrides,
@@ -36,11 +37,19 @@ export function testAuth(overrides: Record<string, string> = {}) {
   return createAuth({ env: testEnv(overrides) });
 }
 
+/**
+ * Strict gate (authenticator app required, AUTH_SECOND_STEP=totp), as most tests were written for it: users
+ * need mfaEnabled to reach the portal.
+ */
 export const gate: GateConfig = {
   idleMinutes: 120,
   maxHours: 12,
-  skipSecondStep: false,
+  secondStep: "totp",
+  investorAckVersion: appConfig.investorAcknowledgement.version,
 };
+
+/** The default since PLAN 0a.3: email and password only. */
+export const gatePasswordOnly: GateConfig = { ...gate, secondStep: "none" };
 
 export function uniqueEmail(label: string): string {
   return `${label}-${randomUUID().slice(0, 8)}@${IT_DOMAIN}`;
@@ -96,7 +105,10 @@ export async function createUser(input: {
   role?: UserRole;
   status?: UserStatus;
   mfaEnabled?: boolean;
+  /** First-use steps done: terms accepted and, for investors, the current investor acknowledgement too. */
   termsAccepted?: boolean;
+  /** M2: signed in with a temporary password from an admin. */
+  mustChangePassword?: boolean;
   membershipRole?: MembershipRole;
   /** Country for membershipRole; defaults to COUNTRY_ID (which is created on demand). Must exist otherwise. */
   countryId?: string;
@@ -113,6 +125,11 @@ export async function createUser(input: {
       status: input.status ?? UserStatus.ACTIVE,
       mfaEnabled: input.mfaEnabled ?? false,
       termsAcceptedAt: input.termsAccepted ? new Date() : null,
+      investorAckTextVersion: input.termsAccepted
+        ? appConfig.investorAcknowledgement.version
+        : null,
+      investorAckAcceptedAt: input.termsAccepted ? new Date() : null,
+      mustChangePassword: input.mustChangePassword ?? false,
       pipelineScope: input.pipelineScope ?? PipelineScope.NONE,
       emailVerified: true,
     },
@@ -140,8 +157,14 @@ export async function createUser(input: {
   return user;
 }
 
-/** The Viewer the policy module would build for this user's session (null unless the account is active). */
-export async function viewerFor(userId: string): Promise<Viewer | null> {
+/**
+ * The Viewer the policy module would build for this user's session (null unless the account is active).
+ * Uses the strict gate unless told otherwise.
+ */
+export async function viewerFor(
+  userId: string,
+  config: GateConfig = gate,
+): Promise<Viewer | null> {
   const user = await db.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
@@ -149,14 +172,16 @@ export async function viewerFor(userId: string): Promise<Viewer | null> {
       role: true,
       status: true,
       mfaEnabled: true,
+      mustChangePassword: true,
       termsAcceptedAt: true,
+      investorAckTextVersion: true,
       pipelineScope: true,
       memberships: { select: { countryId: true, role: true } },
       pipelineCountries: { select: { countryId: true } },
     },
   });
   return viewerFrom({
-    stage: accountStage(user, gate),
+    stage: accountStage(user, config),
     user: {
       id: user.id,
       role: user.role,

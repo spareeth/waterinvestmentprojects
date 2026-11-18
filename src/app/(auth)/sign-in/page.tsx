@@ -9,7 +9,7 @@ export default function SignInPage() {
   return (
     <AuthPage
       title="Sign in"
-      description="Access is by invitation only. After your password you will be asked for a code from your authenticator app."
+      description="Access is by invitation only. Sign in with your email address and your password."
       header={
         <Link href="/" className="text-white/90 hover:text-white">
           Home
@@ -18,9 +18,9 @@ export default function SignInPage() {
     >
       <SignInForm />
       <p className="mt-6 text-sm text-muted-foreground">
-        New here? Use the personal link in your invitation email to create your
-        account. Forgotten your password or lost your phone? Contact the Summit
-        team.
+        New here? The Summit team creates your account and gives you a temporary
+        password, which you change when you first sign in. Forgotten your
+        password? Contact the Summit team for a new temporary one.
       </p>
     </AuthPage>
   );

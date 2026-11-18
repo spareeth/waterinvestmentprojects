@@ -13,7 +13,7 @@ describe("parseEnv", () => {
     expect(env.NODE_ENV).toBe("development");
     expect(env.APP_ENV).toBe("development");
     expect(env.SELF_REGISTRATION_ENABLED).toBe(false);
-    expect(env.AUTH_SKIP_SECOND_STEP).toBe(false);
+    expect(env.AUTH_SECOND_STEP).toBe("none");
     expect(env.SESSION_IDLE_MINUTES).toBe(120);
     expect(env.SESSION_MAX_HOURS).toBe(12);
   });
@@ -148,55 +148,37 @@ describe("upload scan setting", () => {
   });
 });
 
-describe("staging switch to skip the second step", () => {
-  it("is allowed locally and on staging", () => {
-    const local = parseEnv({ ...base, AUTH_SKIP_SECOND_STEP: "true" });
-    expect(local.AUTH_SKIP_SECOND_STEP).toBe(true);
-    const staging = parseEnv({
-      ...base,
-      NODE_ENV: "production",
-      APP_ENV: "staging",
-      AUTH_SKIP_SECOND_STEP: "true",
-    });
-    expect(staging.AUTH_SKIP_SECOND_STEP).toBe(true);
+describe("second step at sign-in", () => {
+  it("asks for no second step by default, in production too (PLAN 0a.3)", () => {
+    expect(parseEnv(base).AUTH_SECOND_STEP).toBe("none");
+    const production = parseEnv({ ...base, NODE_ENV: "production" });
+    expect(production.APP_ENV).toBe("production");
+    expect(production.AUTH_SECOND_STEP).toBe("none");
   });
 
-  it("is refused when APP_ENV is production", () => {
-    expect(() =>
-      parseEnv({
-        ...base,
-        NODE_ENV: "production",
-        APP_ENV: "production",
-        AUTH_SKIP_SECOND_STEP: "true",
-      }),
-    ).toThrow(/AUTH_SKIP_SECOND_STEP/);
-  });
-
-  it("is refused in a production build that does not say it is staging", () => {
-    expect(parseEnv({ ...base, NODE_ENV: "production" }).APP_ENV).toBe(
-      "production",
+  it("switches the authenticator app on with totp only", () => {
+    expect(
+      parseEnv({ ...base, AUTH_SECOND_STEP: "totp" }).AUTH_SECOND_STEP,
+    ).toBe("totp");
+    expect(() => parseEnv({ ...base, AUTH_SECOND_STEP: "sms" })).toThrow(
+      /AUTH_SECOND_STEP/,
     );
-    expect(() =>
-      parseEnv({
-        ...base,
-        NODE_ENV: "production",
-        AUTH_SKIP_SECOND_STEP: "true",
-      }),
-    ).toThrow(/AUTH_SKIP_SECOND_STEP/);
   });
+});
 
-  it("stops the server from starting in production", async () => {
+describe("startup check", () => {
+  it("stops the server from starting with a demo-only setting in production", async () => {
     vi.resetModules();
     vi.stubEnv("DATABASE_URL", base.DATABASE_URL);
     vi.stubEnv("BETTER_AUTH_SECRET", base.BETTER_AUTH_SECRET);
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("AUTH_SKIP_SECOND_STEP", "true");
+    vi.stubEnv("UPLOAD_SCAN", "assume-clean");
     vi.stubEnv("NEXT_RUNTIME", "nodejs");
     vi.stubEnv("NEXT_PHASE", "");
     try {
       const { register } = await import("@/instrumentation");
-      await expect(register()).rejects.toThrow(/AUTH_SKIP_SECOND_STEP/);
+      await expect(register()).rejects.toThrow(/UPLOAD_SCAN/);
     } finally {
       vi.unstubAllEnvs();
     }

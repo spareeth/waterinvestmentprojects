@@ -140,13 +140,14 @@ describe("account gate after sign-in", () => {
     const { jar } = await signIn(user.email);
     const session = await getCurrentSession(jar.headers(), {
       auth,
-      config: { ...gate, skipSecondStep: true },
+      config: { ...gate, secondStep: "none" },
     });
     expect(session?.stage).toBe("active");
   });
 
   it("asks for the terms after enrolment, then lets the user in", async () => {
-    const user = await createUser({});
+    // Investors accept the investor acknowledgement instead (tests/integration/accounts.test.ts).
+    const user = await createUser({ role: UserRole.COUNTRY });
     const { jar } = await signIn(user.email);
     await enrol(jar, user.id);
     expect(
