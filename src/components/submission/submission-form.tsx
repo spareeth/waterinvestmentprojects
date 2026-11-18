@@ -86,9 +86,8 @@ export function SubmissionForm({
         </div>
         <p className="text-sm text-muted-foreground">
           No email is sent, so please print or save this page, or note the
-          reference. The Summit team checks every teaser before it is shared
-          with the invited participants. To replace a file, send it again
-          through this link and tell the Summit team which one it replaces.
+          reference. To replace a file, send it again through this link and tell
+          the Summit team which one it replaces.
         </p>
         <div className="flex flex-wrap gap-3 print:hidden">
           <Button type="button" onClick={() => window.print()}>

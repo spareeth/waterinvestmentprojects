@@ -3,31 +3,36 @@ import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { appConfig } from "@/lib/config";
 
-/** Dark top bar shared by the public site and the signed-in app. Navigation is passed in by each area. */
+/**
+ * Dark top bar shared by the public site and the signed-in app. Navigation is passed in by each area. The
+ * tagline only shows when there is room for it (wide screens, or no navigation), and the navigation wraps onto
+ * a second line rather than squeezing the name, so admin links never crowd the bar.
+ */
 export function SiteHeader({ children }: { children?: ReactNode }) {
+  const taglineClass = children ? "hidden xl:block" : "hidden md:block";
   return (
     <header className="bg-brand-navy text-white">
-      <div className="flex h-16 items-center gap-4 px-4 sm:px-9">
+      <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-9">
         <Link
           href="/"
-          className="flex items-center gap-3 rounded-lg focus-visible:ring-3 focus-visible:ring-brand-aqua/60 focus-visible:outline-none"
+          className="flex shrink-0 items-center gap-3 rounded-lg focus-visible:ring-3 focus-visible:ring-brand-aqua/60 focus-visible:outline-none"
         >
           <BrandMark />
-          <span className="text-lg font-semibold tracking-tight">
+          <span className="text-lg font-semibold tracking-tight whitespace-nowrap">
             {appConfig.name}
           </span>
         </Link>
         <span
           aria-hidden="true"
-          className="hidden h-5 w-px bg-white/30 md:block"
+          className={`h-5 w-px bg-white/30 ${taglineClass}`}
         />
-        <span className="hidden text-sm text-white/80 md:block">
+        <span className={`text-sm text-white/80 ${taglineClass}`}>
           {appConfig.tagline}
         </span>
         {children ? (
           <nav
             aria-label="Main"
-            className="ms-auto flex items-center gap-2 text-sm sm:gap-6"
+            className="ms-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm whitespace-nowrap sm:gap-x-6"
           >
             {children}
           </nav>
