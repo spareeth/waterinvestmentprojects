@@ -218,10 +218,10 @@ export function SubmissionForm({
       </div>
 
       <fieldset className="flex flex-col gap-4">
-        <legend className="text-sm font-semibold text-foreground">
+        <legend className="mb-1 text-sm font-semibold text-foreground">
           Project teasers
         </legend>
-        <p className="-mt-2 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           One file per project. {fileHint} You can send up to{" "}
           {MAX_TEASERS_PER_SUBMISSION} at a time,{" "}
           {formatBytes(MAX_SUBMISSION_BYTES)} in total.

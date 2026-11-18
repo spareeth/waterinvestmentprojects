@@ -5,7 +5,7 @@ Source material (do not edit): the two .docx files and the meeting transcripts i
 
 ## Context
 
-Platform name not yet agreed ("Blue Pipeline" is a placeholder; read it from config `APP_NAME`). Phase 1: invitation-only portal for the Water Investment Summit (9 Dec 2026, UN Water Conference, Abu Dhabi).
+Platform name: "Water Investment Projects", domain waterinvestmentprojects.org (decided 18 Nov; replaces the placeholder "Blue Pipeline", which survives only in old docs and mockups). Read the name from config `APP_NAME` and the address from `APP_URL` (production: https://waterinvestmentprojects.org); never hard-code either. Phase 1: invitation-only portal for the Water Investment Summit (9 Dec 2026, UN Water Conference, Abu Dhabi).
 Governments upload one-page project teasers through a per-country upload link (with one consent acknowledgement per submission); invited investors see and can download all published teasers and request bilateral meetings; country focal points accept or decline, with the WBG coordinator copied. No tiers anywhere.
 Terra (Expo City Dubai) builds and hosts it. Project data belongs to the countries.
 

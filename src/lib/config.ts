@@ -1,8 +1,8 @@
-// Public, non-secret settings. The platform name ("Water Investment Portal", domain waterinvestmentportal.org,
-// decided 18 Nov) must only ever be read from here, never hard-coded in components.
+// Public, non-secret settings. The platform name ("Water Investment Projects", domain
+// waterinvestmentprojects.org, decided 18 Nov) must only ever be read from here, never hard-coded in components.
 
 export const appConfig = {
-  name: process.env.APP_NAME || "Water Investment Portal",
+  name: process.env.APP_NAME || "Water Investment Projects",
   tagline: "Water Investment Summit Project Portal",
   url: process.env.APP_URL || "http://localhost:3000",
   supportEmail: process.env.SUPPORT_EMAIL || undefined,
