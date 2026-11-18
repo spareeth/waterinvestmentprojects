@@ -11,8 +11,9 @@ Terra (Expo City Dubai) builds and hosts it. Project data belongs to the countri
 
 ## Stack
 
-Next.js (App Router, TypeScript strict), Tailwind + shadcn/ui, Prisma + PostgreSQL 16, Better Auth (2FA mandatory),
-Azure Blob Storage (UAE North), React-Leaflet, Vitest + Playwright, docker-compose for local dev.
+Next.js (App Router, TypeScript strict), Tailwind + shadcn/ui, Prisma + PostgreSQL 16, Better Auth (email + password only for now, see PLAN section 0a),
+private object storage behind `src/lib/storage` (local disk now; S3-compatible/MinIO on the server), React-Leaflet, Vitest + Playwright, docker-compose for local dev.
+Hosting (decided 18 Nov, for the time being): Docker Compose on Terra's Hetzner server. Azure UAE North is not used for now.
 Develop in the WSL copy (`~/UNWC_ProjectPlatform`). Colour and type tokens live in `src/app/globals.css`.
 
 ## Non-negotiable rules
@@ -25,7 +26,7 @@ Develop in the WSL copy (`~/UNWC_ProjectPlatform`). Colour and type tokens live 
 - Files are never public. Serve via permission check, then short-lived signed URL (max 5 min) or stream.
 - Every create, update, delete, grant, revoke, login, view and download writes an `AuditEvent`.
 - No real country data in local or staging. Seed data only, clearly fictional names.
-- No secrets in the repo. `.env.example` lists variables; real values live in Key Vault.
+- No secrets in the repo. `.env.example` lists variables; real values live only on the server, in a root-only `.env`.
 - Add or update a test proving cross-country and cross-project isolation whenever authz-related code changes.
 
 ## Working style

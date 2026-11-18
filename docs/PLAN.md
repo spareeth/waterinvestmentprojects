@@ -53,6 +53,17 @@ and Jacob differ, Jacob's WBG answers are treated as the working decision unless
     live invite tracker proposed); MoFA and GCFC on plenary audience. Whether the portal sends invitations or WBG sends
     the link: to settle on 18 Nov. Build bulk CSV invitations anyway.
 
+### 0a. Decisions by Sajid, 18 Nov (after v0.3; these override the points above where they differ)
+1. **Hosting:** Terra's Hetzner server for the time being (see section 5). All other v0.3 points stand.
+2. **No email for now.** The portal sends no email until a provider is chosen.
+3. **Sign-in: email + password only for now.** No second step (neither email code nor authenticator app) until
+   email is set up. Self-registration stays off.
+4. **Accounts are handed out by admins:** an admin creates each account with a generated temporary password that
+   must be changed at first sign-in; the admin passes on the email and temporary password personally. No
+   invitation emails.
+5. **Notifications: admin page only.** New uploads and meeting requests appear on admin pages (with counts and CSV
+   export) that the admin checks; no emails to focal points, WBG coordinators, investors or uploaders for now.
+
 ---
 
 ## 1. Timeline (WBG proposal of 17 Nov, to confirm on the 18 Nov call)
@@ -138,6 +149,11 @@ drafts visible only to admins (and own country).
 ---
 
 ## 5. Architecture (unchanged in principle)
+
+**Hosting decision (18 Nov, Sajid): Terra's Hetzner server for the time being**, as its own Docker Compose stack
+(app, Postgres, S3-compatible storage such as MinIO, behind the server's reverse proxy with TLS); secrets in a
+root-only `.env` on the server. All other points of v0.3 stand. The Azure UAE North text below is kept as the
+longer-term option only.
 
 Next.js (App Router, TypeScript), Tailwind + shadcn/ui, Prisma + PostgreSQL 16, Better Auth (email OTP 2FA),
 private Azure Blob Storage, pdf.js, LibreOffice worker for PPTX to PDF (can be manual at first), email via Microsoft
