@@ -1,5 +1,7 @@
 // Prisma schema for the Water Investment Summit Secure Project Portal.
-// Models and field names follow docs/PLAN.md section 5 (data model v0.2) exactly.
+// Models and field names follow docs/PLAN.md section 6 (data model v0.3). M1 (18 Nov) brought projects,
+// teasers, submissions and country contacts in line; users, roles, invitations, grants, pipeline scopes and
+// meeting requests still follow v0.2 until M2 (auth), M3 (authz) and M5 (meeting requests).
 // Ask before renaming or restructuring anything here.
 
 generator client {
@@ -12,7 +14,7 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Enums (the bracketed values in PLAN section 5)
+// Enums (the bracketed values in PLAN section 6)
 // ---------------------------------------------------------------------------
 
 /// Not bracketed in the PLAN; ACTIVE countries take part in the current Summit.
@@ -24,11 +26,6 @@ enum CountryStatus {
 enum MembershipRole {
   FOCAL_POINT
   MEMBER
-}
-
-enum ProjectTier {
-  TIER1
-  TIER2
 }
 
 enum ProjectType {
@@ -90,6 +87,13 @@ enum MeetingRequestStatus {
   WITHDRAWN
 }
 
+/// PLAN v0.3 CountryContact.role. FOCAL_POINT: the country's request-inbox contact (by default the upload
+/// link uploader); WBG_COORDINATOR: copied on that country's request notifications.
+enum CountryContactRole {
+  FOCAL_POINT
+  WBG_COORDINATOR
+}
+
 enum SlotStatus {
   OPEN
   HELD
@@ -118,6 +122,28 @@ model Country {
   pipelineViewers PipelineCountry[]
   uploadLinks     UploadLink[]
   submissions     Submission[]
+  contacts        CountryContact[]
+}
+
+/// PLAN v0.3: a country's request-inbox contacts (focal points) and WBG coordinators. The uploader of a link
+/// submission becomes a FOCAL_POINT contact unless they already are one (PLAN section 3). userId links the
+/// contact to a portal account once there is one (M2/M3).
+model CountryContact {
+  id        String             @id @default(cuid())
+  countryId String
+  name      String
+  /// Stored in lower case, so the unique key catches the same address typed differently.
+  email     String
+  role      CountryContactRole
+  userId    String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([countryId, email, role])
+  @@index([userId])
 }
 
 /// Links a COUNTRY user to the country workspace they belong to.
@@ -175,7 +201,7 @@ model User {
   memberships         CountryMembership[]
   pipelineCountries   PipelineCountry[]
   documentsUploaded   Document[]          @relation("DocumentUploadedBy")
-  acknowledgements    Acknowledgement[]
+  countryContacts     CountryContact[]
   invitationsSent     Invitation[]        @relation("InvitationInvitedBy")
   meetingRequests     MeetingRequest[]    @relation("MeetingRequestRequester")
   meetingDecisions    MeetingRequest[]    @relation("MeetingRequestDecidedBy")
@@ -310,13 +336,15 @@ model UploadLink {
   @@index([countryId])
 }
 
-/// PLAN v0.3: one government upload through an upload link, with the uploader's single acknowledgement
-/// (wording version and time) for every teaser in it. A teaser cannot be stored without one.
+/// PLAN v0.3: one teaser upload with the uploader's single acknowledgement (wording version and time) for
+/// every teaser in it. A teaser cannot be stored without one: Document.submissionId is required.
+/// Through an upload link (uploadLinkId set, uploader from the form) or, since M1, in the portal workspace
+/// (uploadLinkId null, uploader = the signed-in user; the audit event names the account).
 model Submission {
   id             String   @id @default(cuid())
   countryId      String
-  /// M0: the link used (not in PLAN section 6; added with the UploadLink table).
-  uploadLinkId   String
+  /// The link used; null for a portal workspace upload (M1).
+  uploadLinkId   String?
   uploaderName   String
   uploaderEmail  String
   ackTextVersion String
@@ -324,106 +352,86 @@ model Submission {
   ip             String?
   createdAt      DateTime @default(now())
 
-  country    Country    @relation(fields: [countryId], references: [id])
-  uploadLink UploadLink @relation(fields: [uploadLinkId], references: [id])
+  country    Country     @relation(fields: [countryId], references: [id])
+  /// Restrict: deleting a link must never make its submissions look like portal uploads.
+  uploadLink UploadLink? @relation(fields: [uploadLinkId], references: [id], onDelete: Restrict)
+  /// Projects created by this submission (Project.submissionId).
   projects   Project[]
+  /// Teaser files whose consent this submission records (Document.submissionId).
+  documents  Document[]
 
   @@index([countryId, createdAt])
   @@index([uploadLinkId])
 }
 
 // ---------------------------------------------------------------------------
-// Projects, documents and acknowledgements
+// Projects and documents
 // ---------------------------------------------------------------------------
 
 model Project {
-  id                String        @id @default(cuid())
-  countryId         String
-  /// M0: set for projects created through an upload link.
-  submissionId      String?
-  name              String
-  sector            String
-  /// Optional since M0 (upload link projects have none); tiers are removed altogether in the v0.3 M1.
-  tier              ProjectTier?
-  projectType       ProjectType   @default(SUMMIT_PIPELINE)
-  pppModel          String?
-  sizeMinUsd        Decimal?      @db.Decimal(16, 2)
-  sizeMaxUsd        Decimal?      @db.Decimal(16, 2)
-  tenderTimeline    String?
-  documentsPrepared String?
-  feedbackSought    String?
-  revenueModel      String?
-  counterparty      String?
-  lat               Float?
-  lon               Float?
-  status            ProjectStatus @default(DRAFT)
-  publishedAt       DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  countryId        String
+  /// The submission that created the project (upload link). Each teaser file has its own Document.submissionId.
+  submissionId     String?
+  title            String
+  sector           String
+  projectType      ProjectType   @default(SUMMIT_PIPELINE)
+  /// pppModel, size and developmentStage are entered by the admin team from the teasers (PLAN 0.5), not by
+  /// governments. Free text with suggestions until WBG fixes the lists.
+  pppModel         String?
+  sizeMinUsd       Decimal?      @db.Decimal(16, 2)
+  sizeMaxUsd       Decimal?      @db.Decimal(16, 2)
+  developmentStage String?
+  /// Not in PLAN v0.3 section 6; kept for the map (F12, M10; user decision 18 Nov). No form asks for them.
+  lat              Float?
+  lon              Float?
+  status           ProjectStatus @default(DRAFT)
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  country          Country           @relation(fields: [countryId], references: [id])
-  submission       Submission?       @relation(fields: [submissionId], references: [id])
-  documents        Document[]
-  acknowledgements Acknowledgement[]
-  meetingRequests  MeetingRequest[]
-  grants           ProjectGrant[]
+  country         Country          @relation(fields: [countryId], references: [id])
+  submission      Submission?      @relation(fields: [submissionId], references: [id])
+  documents       Document[]
+  meetingRequests MeetingRequest[]
+  grants          ProjectGrant[]
 
   @@index([countryId, status])
   @@index([submissionId])
-  @@index([status, tier])
   @@index([sector])
 }
 
 model Document {
   id             String       @id @default(cuid())
   projectId      String
+  /// M1 (user decision, 18 Nov; not in PLAN section 6): the Submission whose acknowledgement covers this file.
+  /// Required, so the database itself refuses a teaser without a Submission (CLAUDE.md).
+  submissionId   String
   kind           DocumentKind
-  title          String
   filename       String
   version        Int          @default(1)
-  docDate        DateTime?    @db.Date
-  allowDownload  Boolean      @default(false)
+  /// PLAN v0.3: downloads allowed by default.
+  allowDownload  Boolean      @default(true)
   /// Object key in the private bucket. Never a public URL.
   blobKey        String       @unique
   sha256         String       @db.Char(64)
   sizeBytes      Int
   scanStatus     ScanStatus   @default(PENDING)
-  /// Empty for teasers uploaded through an upload link (M0): the Submission names the uploader.
+  /// The portal account that uploaded the file; empty for upload link teasers (the Submission names the uploader).
   uploadedById   String?
   uploadedAt     DateTime     @default(now())
   /// Set when a newer version replaces this one.
   supersededById String?      @unique
 
-  project          Project           @relation(fields: [projectId], references: [id])
-  uploadedBy       User?             @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
-  supersededBy     Document?         @relation("DocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
-  supersedes       Document?         @relation("DocumentSupersededBy")
-  acknowledgements Acknowledgement[]
+  project      Project    @relation(fields: [projectId], references: [id])
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  uploadedBy   User?      @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  supersededBy Document?  @relation("DocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes   Document?  @relation("DocumentSupersededBy")
 
   @@index([projectId, kind])
+  @@index([submissionId])
   @@index([uploadedById])
-}
-
-/// Confidentiality acknowledgement given before publishing. A project cannot be published without one.
-model Acknowledgement {
-  id                String   @id @default(cuid())
-  projectId         String
-  documentId        String
-  userId            String
-  textVersion       String
-  acceptedAt        DateTime @default(now())
-  ip                String?
-  /// True when a Summit admin acknowledged for the country (evidence: the country's email).
-  onBehalfOfCountry Boolean  @default(false)
-  evidenceNote      String?
-
-  project  Project  @relation(fields: [projectId], references: [id])
-  document Document @relation(fields: [documentId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-
-  @@index([projectId])
-  @@index([documentId])
-  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

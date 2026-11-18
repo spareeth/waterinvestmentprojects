@@ -173,13 +173,15 @@ until the domain is registered. Name, URL, logos, acknowledgement texts and supp
 ## 6. Data model (v0.3)
 
 ```
-Country(id, name, iso3, uploadToken, uploadTokenExpiresAt, status)
-CountryContact(id, countryId, name, email, role[FOCAL_POINT|WBG_COORDINATOR], userId?)
-Submission(id, countryId, uploaderName, uploaderEmail, ackTextVersion, ackAcceptedAt, ip, createdAt)
+Country(id, name, iso3, status)
+UploadLink(id, countryId? [null = generic link], tokenHash, expiresAt, revokedAt?, createdById, createdAt)
+CountryContact(id, countryId, name, email, role[FOCAL_POINT|WBG_COORDINATOR], userId?)   // unique (countryId, email, role)
+Submission(id, countryId, uploadLinkId? [null = portal upload], uploaderName, uploaderEmail, ackTextVersion,
+           ackAcceptedAt, ip, createdAt)
 Project(id, countryId, submissionId?, title, sector, pppModel?, sizeMinUsd?, sizeMaxUsd?, developmentStage?,
         projectType[SUMMIT_PIPELINE|OTHER_PROPONENT], status[DRAFT|PUBLISHED|WITHDRAWN], publishedAt)
-Document(id, projectId, kind[TEASER], filename, version, allowDownload default true, blobKey, sha256, sizeBytes,
-         scanStatus, uploadedAt, supersededById)
+Document(id, projectId, submissionId, kind[TEASER], filename, version, allowDownload default true, blobKey, sha256,
+         sizeBytes, scanStatus, uploadedById?, uploadedAt, supersededById)
 User(id, email, name, organisation, jobTitle, role[PLATFORM_ADMIN|SUMMIT_ADMIN|COUNTRY|WBG_COORDINATOR|INVESTOR],
      countryIds[], status, investorAckTextVersion?, investorAckAcceptedAt?)
 Invitation(id, email, role, countryId?, tokenHash, expiresAt, acceptedAt, invitedById)
@@ -190,6 +192,21 @@ AuditEvent(id, actorId?, action, entityType, entityId, ip, userAgent, at, metada
 ```
 Removed from v0.2: `tier`, `ProjectGrant`, `rank`, `Acknowledgement` per document (replaced by `Submission`),
 teaser fields entered by governments (revenueModel, counterparty, tenderTimeline, feedbackSought, documentsPrepared).
+
+Decisions while building (18 Nov):
+- **Upload links (M0):** an `UploadLink` table replaces the earlier `Country.uploadToken` / `uploadTokenExpiresAt`
+  fields, so the generic link (no country, the uploader picks one) and revoked or replaced links fit too. Only the
+  SHA-256 of the token is stored; the URL is shown once. `Submission.uploadLinkId` names the link used.
+- **Every teaser file carries its consent (M1):** `Document.submissionId` is required, so the database refuses a
+  teaser without a `Submission`. A teaser uploaded in the portal workspace creates its own `Submission`
+  (`uploadLinkId` null, the signed-in user as uploader, same wording and version as the link; an admin uploading
+  for a country confirms the government's written consent instead, version `country-upload-ack-v1-on-behalf`).
+  `Project.submissionId` is the link submission that created the project. Publishing needs no second tick.
+- **Country contacts (M1):** each upload link submission adds the uploader as a `FOCAL_POINT` contact of the
+  country unless that address already is one (existing contacts, for example named by WBG, are never changed).
+- **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Users, roles, invitations, pipeline
+  scopes, `ProjectGrant` and meeting request fields still follow v0.2 until M2 (auth), M3 (authz) and M5 (meeting
+  requests) bring them in line.
 
 ---
 

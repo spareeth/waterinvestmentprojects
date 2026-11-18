@@ -7,7 +7,6 @@ import { DocumentKind, ScanStatus } from "@/generated/prisma/enums";
 import { type GrantRef, activeGrantWhere, isGrantActive } from "./grants";
 import { canEditProject, pipelineProjectWhere } from "./projects";
 import {
-  actsForCountry,
   hasPipeline,
   inPipeline,
   isAdminViewer,
@@ -137,12 +136,4 @@ export function canUploadDocument(
 ): boolean {
   if (kind === DocumentKind.DATAROOM) return isAdminViewer(viewer);
   return canEditProject(viewer, project);
-}
-
-/** Acknowledging a teaser before publishing: whoever may publish for the country (focal point or admin). */
-export function canAcknowledge(
-  viewer: Viewer | null,
-  project: Pick<ProjectRef, "countryId">,
-): boolean {
-  return actsForCountry(viewer, project.countryId);
 }

@@ -9,7 +9,6 @@ import {
   Tag,
 } from "@/components/workspace/status-badge";
 import { canUseWorkspace, isAdminViewer, requirePortalUser } from "@/lib/authz";
-import { TIER_LABEL } from "@/lib/workspace/project-input";
 import {
   listWorkspaceCountries,
   listWorkspaceProjects,
@@ -37,7 +36,7 @@ export default async function WorkspacePage() {
   ]);
   const admin = isAdminViewer(viewer);
   const intro = admin
-    ? "All country workspaces. You can add and update projects for a country, and publish on its behalf with its written confirmation."
+    ? "All country workspaces. You can add and update projects for a country, upload a teaser once its government has consented in writing, and publish on its behalf."
     : `${countries.map((c) => c.name).join(", ")} workspace. Only your country team and the Summit administrators can manage this workspace.`;
 
   return (
@@ -78,12 +77,11 @@ export default async function WorkspacePage() {
                   >
                     <div className="flex flex-col gap-1">
                       <span className="text-lg font-semibold text-brand-navy">
-                        {p.name}
+                        {p.title}
                       </span>
                       <span className="text-sm text-muted-foreground">
                         {admin ? `${p.country.name} · ` : ""}
                         {p.sector}
-                        {p.tier ? ` · ${TIER_LABEL[p.tier]}` : ""}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

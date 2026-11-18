@@ -92,7 +92,6 @@ describe("workspace permissions", () => {
       uploadTeaser: true,
       publish: true,
       withdraw: false,
-      acknowledge: true,
       onBehalf: false,
     });
     expect(
@@ -100,7 +99,7 @@ describe("workspace permissions", () => {
     ).toMatchObject({ edit: true, publish: false, withdraw: true });
   });
 
-  it("member: drafts only, never publishes or acknowledges", () => {
+  it("member: drafts only, never publishes", () => {
     expect(
       workspacePermissions(memberA, project("A", ProjectStatus.DRAFT)),
     ).toEqual({
@@ -108,7 +107,6 @@ describe("workspace permissions", () => {
       uploadTeaser: true,
       publish: false,
       withdraw: false,
-      acknowledge: false,
       onBehalf: false,
     });
     for (const status of [ProjectStatus.PUBLISHED, ProjectStatus.WITHDRAWN]) {
@@ -133,7 +131,6 @@ describe("workspace permissions", () => {
         uploadTeaser: false,
         publish: false,
         withdraw: false,
-        acknowledge: false,
         onBehalf: false,
       });
     }

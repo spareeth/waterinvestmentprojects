@@ -13,7 +13,6 @@ import {
   MembershipRole,
   PipelineScope,
   ProjectStatus,
-  ProjectTier,
   ScanStatus,
   SlotStatus,
   UserRole,
@@ -162,9 +161,8 @@ async function createFixtures() {
   const project = (id: string, countryId: string, status: ProjectStatus) => ({
     id,
     countryId,
-    name: `Integration ${id}`,
+    title: `Integration ${id}`,
     sector: "Test sector",
-    tier: ProjectTier.TIER1,
     status,
     publishedAt: status === ProjectStatus.DRAFT ? null : NOW,
   });
@@ -179,6 +177,28 @@ async function createFixtures() {
     ],
   });
 
+  // PLAN v0.3: every teaser is stored with the Submission that records the country's consent.
+  const submissionOf = (countryId: string) => `it-authz-sub-${countryId}`;
+  await db.submission.createMany({
+    data: Object.values(C).map((countryId) => ({
+      id: submissionOf(countryId),
+      countryId,
+      uploadLinkId: null,
+      uploaderName: "Integration uploader",
+      uploaderEmail: `uploader-${countryId}@it.example`,
+      ackTextVersion: "it",
+      ackAcceptedAt: NOW,
+    })),
+  });
+  const countryOfProject: Record<string, string> = {
+    [P.aPub]: C.a,
+    [P.aDraft]: C.a,
+    [P.aWithdrawn]: C.a,
+    [P.bPub]: C.b,
+    [P.bDraft]: C.b,
+    [P.xPub]: C.x,
+  };
+
   const doc = (
     id: string,
     projectId: string,
@@ -192,8 +212,8 @@ async function createFixtures() {
   ) => ({
     id,
     projectId,
+    submissionId: submissionOf(countryOfProject[projectId]),
     kind,
-    title: id,
     filename: `${id}.pdf`,
     version: extra.version ?? 1,
     allowDownload: extra.allowDownload ?? false,
@@ -225,15 +245,6 @@ async function createFixtures() {
   await db.document.update({
     where: { id: D.aTeaserV1 },
     data: { supersededById: D.aTeaserV2 },
-  });
-  await db.acknowledgement.create({
-    data: {
-      id: "it-authz-ack-a",
-      projectId: P.aPub,
-      documentId: D.aTeaserV2,
-      userId: u.focalA,
-      textVersion: "it",
-    },
   });
 
   const grant = (
@@ -680,24 +691,34 @@ describe("slots", () => {
 });
 
 describe("publishing", () => {
-  it("is allowed once the current clean teaser has an acknowledgement", async () => {
+  it("is allowed once there is a current clean teaser (its Submission holds the consent)", async () => {
     // No teaser at all, and a teaser still waiting for its virus scan.
     expect(await publishBlocker(v.focalA, P.aWithdrawn)).toBe(
       "no_clean_teaser",
     );
     expect(await publishBlocker(v.focalA, P.aDraft)).toBe("no_clean_teaser");
-    expect(await publishBlocker(v.focalB, P.bDraft)).toBe("no_acknowledgement");
-    await db.acknowledgement.create({
-      data: {
-        id: "it-authz-ack-b-draft",
-        projectId: P.bDraft,
-        documentId: D.bDraftTeaser,
-        userId: u.focalB,
-        textVersion: "it",
-      },
-    });
     expect(await publishBlocker(v.focalB, P.bDraft)).toBeNull();
     expect(await publishBlocker(v.summitAdmin, P.bDraft)).toBeNull();
+  });
+
+  it("cannot store a teaser without a Submission (database constraint)", async () => {
+    await expect(
+      db.document.create({
+        data: {
+          id: "it-authz-d-no-submission",
+          projectId: P.aDraft,
+          submissionId: "it-authz-no-such-submission",
+          kind: DocumentKind.TEASER,
+          filename: "x.pdf",
+          blobKey: "it/no-submission.pdf",
+          sha256: "0".repeat(64),
+          sizeBytes: 1,
+        },
+      }),
+    ).rejects.toThrow();
+    expect(
+      await db.document.count({ where: { id: "it-authz-d-no-submission" } }),
+    ).toBe(0);
   });
 
   it("is refused to members, other countries and investors", async () => {

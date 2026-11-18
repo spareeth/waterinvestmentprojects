@@ -74,7 +74,7 @@ export async function findMeetingRequestFor(
   return client.meetingRequest.findFirst({
     where: { AND: [{ id: requestId }, meetingRequestWhere(viewer)] },
     include: {
-      project: { select: { id: true, name: true, countryId: true } },
+      project: { select: { id: true, title: true, countryId: true } },
     },
   });
 }
@@ -103,7 +103,6 @@ export async function authorizeDocumentFile(
       id: true,
       projectId: true,
       kind: true,
-      title: true,
       filename: true,
       version: true,
       allowDownload: true,
@@ -174,7 +173,6 @@ export async function authorizeDocumentFile(
   return {
     id: doc.id,
     projectId: doc.projectId,
-    title: doc.title,
     filename: doc.filename,
     blobKey: doc.blobKey,
     sha256: doc.sha256,
@@ -184,13 +182,13 @@ export async function authorizeDocumentFile(
   };
 }
 
-export type PublishBlocker =
-  "not_found" | "forbidden" | "no_clean_teaser" | "no_acknowledgement";
+export type PublishBlocker = "not_found" | "forbidden" | "no_clean_teaser";
 
 /**
- * Why this viewer cannot publish the project now, or null when they can (CLAUDE.md: publishing is impossible
- * without a stored Acknowledgement). Needs the publish role (focal point or admin), a current CLEAN teaser
- * and an Acknowledgement recorded for exactly that teaser. Call it inside the publishing transaction.
+ * Why this viewer cannot publish the project now, or null when they can. Needs the publish role (focal point or
+ * admin) and a current CLEAN teaser. PLAN v0.3: the consent is the teaser's Submission, given at upload; the
+ * database guarantees every Document has one (Document.submissionId is required). Call it inside the publishing
+ * transaction.
  */
 export async function publishBlocker(
   viewer: Viewer | null,
@@ -213,12 +211,7 @@ export async function publishBlocker(
     orderBy: { version: "desc" },
     select: { id: true },
   });
-  if (!teaser) return "no_clean_teaser";
-  const acknowledgement = await client.acknowledgement.findFirst({
-    where: { projectId, documentId: teaser.id },
-    select: { id: true },
-  });
-  return acknowledgement ? null : "no_acknowledgement";
+  return teaser ? null : "no_clean_teaser";
 }
 
 /** The room grid, redacted for the viewer: other people's bookings show only as BOOKED. */

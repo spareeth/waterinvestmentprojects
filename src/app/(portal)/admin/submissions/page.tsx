@@ -18,6 +18,7 @@ import {
   getSubmissionCounts,
   isRecentSubmission,
   listSubmissions,
+  type SubmissionListItem,
 } from "@/lib/submission/service";
 import { SubmissionSummary } from "@/components/submission/submission-summary";
 import { formatBytes } from "@/lib/workspace/teaser-file";
@@ -27,8 +28,28 @@ export const instant = false;
 
 export const metadata: Metadata = { title: "Teaser submissions" };
 
+type SubmissionDocument = SubmissionListItem["documents"][number];
+
+/** A submission's teaser files grouped by project, in the order they came. */
+function byProject(documents: SubmissionDocument[]) {
+  const groups = new Map<
+    string,
+    {
+      project: SubmissionDocument["project"];
+      documents: SubmissionDocument[];
+    }
+  >();
+  for (const d of documents) {
+    const group = groups.get(d.project.id);
+    if (group) group.documents.push(d);
+    else groups.set(d.project.id, { project: d.project, documents: [d] });
+  }
+  return [...groups.values()];
+}
+
 /**
- * Admin: every teaser submission from the upload links, newest first, with downloads through /files/<id>
+ * Admin: every teaser submission (upload links and, since M1, portal workspace uploads), newest first, with
+ * downloads through /files/<id>
  * (the policy module decides and audits each download). M0, PLAN v0.3 F0. With no email for now (user decision,
  * 18 Nov) this page is also the notification: counts at the top, recent submissions marked "New".
  */
@@ -54,9 +75,9 @@ export default async function SubmissionsPage() {
             Teaser submissions
           </h1>
           <p className="mt-1 max-w-3xl text-muted-foreground">
-            Newest first. Each teaser is saved as a draft project. Files marked
-            &ldquo;Virus check pending&rdquo; have not been scanned yet: open
-            them with care.
+            Newest first. Each teaser sent through an upload link is saved as a
+            draft project. Files marked &ldquo;Virus check pending&rdquo; have
+            not been scanned yet: open them with care.
           </p>
         </div>
         <SubmissionSummary counts={counts} />
@@ -93,25 +114,27 @@ export default async function SubmissionsPage() {
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Tag>
-                    {s.uploadLink.countryId === null
-                      ? "Generic link"
-                      : "Country link"}
+                    {s.uploadLink === null
+                      ? "Portal upload"
+                      : s.uploadLink.countryId === null
+                        ? "Generic link"
+                        : "Country link"}
                   </Tag>
                   Consent given {formatUaeTime(s.ackAcceptedAt)}, wording{" "}
                   {s.ackTextVersion}. Reference{" "}
                   <span className="font-mono">{s.id}</span>.
                 </p>
                 <ul className="mt-4 flex flex-col divide-y rounded-lg border">
-                  {s.projects.map((p) => (
+                  {byProject(s.documents).map(({ project: p, documents }) => (
                     <li key={p.id} className="flex flex-col gap-2 p-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{p.name}</span>
+                        <span className="font-medium">{p.title}</span>
                         <StatusBadge status={p.status} />
                         <span className="text-sm text-muted-foreground">
                           {p.sector}
                         </span>
                       </div>
-                      {p.documents.map((d) => (
+                      {documents.map((d) => (
                         <div
                           key={d.id}
                           className="flex flex-wrap items-center gap-2 text-sm"

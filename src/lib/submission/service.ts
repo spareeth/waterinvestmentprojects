@@ -1,6 +1,8 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
+import type { Prisma } from "@/generated/prisma/client";
 import {
+  CountryContactRole,
   CountryStatus,
   DocumentKind,
   ProjectStatus,
@@ -64,6 +66,7 @@ export const SUBMISSION_AUDIT = {
   LINK_REFUSED: "upload_link.refused",
   SUBMISSION_CREATE: "submission.create",
   SUBMISSION_LIST: "submission.list",
+  CONTACT_CREATE: "country_contact.create",
   PROJECT_CREATE: "project.create",
   DOCUMENT_UPLOAD: "document.upload",
   DOCUMENT_SCAN: "document.scan",
@@ -183,6 +186,56 @@ interface CheckedTeaser {
   sector: string;
   type: TeaserFileType;
   file: SubmissionFile;
+}
+
+/**
+ * PLAN v0.3 section 3: the uploader email becomes the country's request-inbox contact unless WBG names another
+ * focal point. Adds the uploader as a FOCAL_POINT CountryContact of the country, unless that address already is
+ * one (an existing contact, for example named by WBG, is never changed). Returns the new contact id, or null.
+ */
+async function recordUploaderContact(
+  tx: Prisma.TransactionClient,
+  contact: {
+    countryId: string;
+    name: string;
+    email: string;
+    submissionId: string;
+  },
+  meta: RequestMeta | undefined,
+): Promise<string | null> {
+  const email = contact.email.trim().toLowerCase();
+  const role = CountryContactRole.FOCAL_POINT;
+  // ON CONFLICT DO NOTHING: two submissions from the same person at once cannot fail on the unique key.
+  const inserted = await tx.countryContact.createMany({
+    data: [{ countryId: contact.countryId, name: contact.name, email, role }],
+    skipDuplicates: true,
+  });
+  if (inserted.count === 0) return null;
+  const created = await tx.countryContact.findUniqueOrThrow({
+    where: {
+      countryId_email_role: { countryId: contact.countryId, email, role },
+    },
+    select: { id: true },
+  });
+  await writeAudit(
+    {
+      actorId: null,
+      action: SUBMISSION_AUDIT.CONTACT_CREATE,
+      entityType: "CountryContact",
+      entityId: created.id,
+      meta,
+      metadata: {
+        countryId: contact.countryId,
+        role,
+        name: contact.name,
+        email,
+        source: "upload_link",
+        submissionId: contact.submissionId,
+      },
+    },
+    tx,
+  );
+  return created.id;
 }
 
 /**
@@ -322,12 +375,12 @@ export async function submitTeasers(
       const projectIds: string[] = [];
       const documentIds: string[] = [];
       for (const teaser of stored) {
-        const name = projectNameFromFilename(teaser.filename);
+        const title = projectNameFromFilename(teaser.filename);
         const project = await tx.project.create({
           data: {
             countryId: target.id,
             submissionId: submission.id,
-            name,
+            title,
             sector: teaser.sector,
             status: ProjectStatus.DRAFT,
           },
@@ -336,8 +389,8 @@ export async function submitTeasers(
         const doc = await tx.document.create({
           data: {
             projectId: project.id,
+            submissionId: submission.id,
             kind: DocumentKind.TEASER,
-            title: "Project teaser",
             filename: teaser.filename,
             version: 1,
             // PLAN v0.3: downloads allowed by default.
@@ -362,7 +415,7 @@ export async function submitTeasers(
             metadata: {
               countryId: target.id,
               submissionId: submission.id,
-              name,
+              title,
               sector: teaser.sector,
               source: "upload_link",
             },
@@ -423,6 +476,17 @@ export async function submitTeasers(
           },
         },
         tx,
+      );
+
+      await recordUploaderContact(
+        tx,
+        {
+          countryId: target.id,
+          name: uploaderName,
+          email: uploaderEmail,
+          submissionId: submission.id,
+        },
+        meta,
       );
 
       return {
@@ -718,24 +782,18 @@ export async function listSubmissions(
       createdAt: true,
       country: { select: { id: true, name: true } },
       uploadLink: { select: { countryId: true } },
-      projects: {
-        orderBy: { createdAt: "asc" },
+      // Every file this submission's consent covers (a workspace upload adds a version to an existing project).
+      documents: {
+        orderBy: [{ projectId: "asc" }, { version: "asc" }],
         select: {
           id: true,
-          name: true,
-          sector: true,
-          status: true,
-          documents: {
-            where: { kind: DocumentKind.TEASER },
-            orderBy: { version: "asc" },
-            select: {
-              id: true,
-              filename: true,
-              version: true,
-              sizeBytes: true,
-              sha256: true,
-              scanStatus: true,
-            },
+          filename: true,
+          version: true,
+          sizeBytes: true,
+          sha256: true,
+          scanStatus: true,
+          project: {
+            select: { id: true, title: true, sector: true, status: true },
           },
         },
       },
@@ -779,8 +837,8 @@ export async function getSubmissionCounts(
   const [submissions, teasers, recent, countries, activeCountries] =
     await Promise.all([
       db.submission.count({ where }),
-      db.project.count({
-        where: { submissionId: { not: null }, submission: { is: where } },
+      db.document.count({
+        where: { kind: DocumentKind.TEASER, submission: { is: where } },
       }),
       db.submission.count({
         where: { AND: [where, { createdAt: { gte: since } }] },

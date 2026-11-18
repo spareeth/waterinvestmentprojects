@@ -1,19 +1,17 @@
-import { describe, FieldShell, Textarea } from "./form-controls";
-
-/** The confidentiality tick box (PLAN F4) and, for an admin acting for a country, the evidence note. */
+/**
+ * The consent tick box on the workspace teaser upload (PLAN v0.3: every teaser is stored with a Submission
+ * recording this consent). The wording comes from config through the page.
+ */
 export function AcknowledgementFields({
   idPrefix,
   text,
-  onBehalf,
   errors,
 }: {
   idPrefix: string;
   text: string;
-  onBehalf: boolean;
   errors: Record<string, string>;
 }) {
   const boxId = `${idPrefix}-acknowledge`;
-  const noteId = `${idPrefix}-evidence`;
   return (
     <div className="flex flex-col gap-3">
       <label
@@ -36,21 +34,6 @@ export function AcknowledgementFields({
         <p id={`${boxId}-error`} className="text-xs text-destructive">
           {errors.acknowledge}
         </p>
-      ) : null}
-      {onBehalf ? (
-        <FieldShell
-          id={noteId}
-          label="Where is the country's confirmation kept?"
-          hint="You are acting for the country. For example: email from the focal point, 18 Nov 2026, filed in the Summit mailbox."
-          error={errors.evidenceNote}
-        >
-          <Textarea
-            {...describe(noteId, true, errors.evidenceNote)}
-            name="evidenceNote"
-            rows={3}
-            required
-          />
-        </FieldShell>
       ) : null}
     </div>
   );

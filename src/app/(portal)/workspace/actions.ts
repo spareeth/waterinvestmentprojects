@@ -43,7 +43,6 @@ const FIELD_FOR: Partial<Record<WorkspaceErrorCode, string>> = {
   file_too_large: "teaser",
   file_not_pdf: "teaser",
   ack_required: "acknowledge",
-  evidence_required: "evidenceNote",
 };
 
 function refused(
@@ -68,10 +67,7 @@ function text(formData: FormData, name: string): string {
 }
 
 function acknowledgementFrom(formData: FormData) {
-  return {
-    acknowledged: text(formData, "acknowledge") === "yes",
-    evidenceNote: text(formData, "evidenceNote"),
-  };
+  return { acknowledged: text(formData, "acknowledge") === "yes" };
 }
 
 export async function createProjectAction(
@@ -139,20 +135,12 @@ export async function uploadTeaserAction(
   if (file.size > MAX_TEASER_BYTES) {
     return { fieldErrors: { teaser: WORKSPACE_MESSAGES.file_too_large } };
   }
-  const docDateText = text(formData, "docDate");
-  const docDate = /^\d{4}-\d{2}-\d{2}$/.test(docDateText)
-    ? new Date(`${docDateText}T00:00:00Z`)
-    : null;
   try {
     await uploadTeaser(
       viewer,
       projectId,
       { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) },
-      {
-        title: text(formData, "title"),
-        docDate,
-        allowDownload: text(formData, "allowDownload") === "download",
-      },
+      { allowDownload: text(formData, "allowDownload") !== "view" },
       acknowledgementFrom(formData),
       { meta: await meta() },
     );
@@ -173,7 +161,7 @@ export async function setTeaserDownloadAction(
     await setTeaserDownload(
       viewer,
       documentId,
-      text(formData, "allowDownload") === "download",
+      text(formData, "allowDownload") !== "view",
       { meta: await meta() },
     );
   } catch (error) {
@@ -190,8 +178,8 @@ export async function publishProjectAction(
 ): Promise<WorkspaceFormState> {
   const viewer = await requireViewer();
   try {
-    await publishProject(viewer, projectId, acknowledgementFrom(formData), {
-      allowDownload: text(formData, "allowDownload") === "download",
+    await publishProject(viewer, projectId, {
+      allowDownload: text(formData, "allowDownload") !== "view",
       meta: await meta(),
     });
   } catch (error) {

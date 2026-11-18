@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { ScanStatus } from "@/generated/prisma/enums";
-import { ACKNOWLEDGEMENT_TEXT_VERSION as SEED_TEXT_VERSION } from "../../../prisma/seed/data";
+import {
+  UPLOAD_ACK_ON_BEHALF_TEXT_VERSION as SEED_ON_BEHALF_VERSION,
+  UPLOAD_ACK_TEXT_VERSION as SEED_TEXT_VERSION,
+} from "../../../prisma/seed/data";
+import { appConfig } from "@/lib/config";
 import { contentDisposition, privateFileHeaders } from "@/lib/storage/http";
 import { isSafeKey, teaserBlobKey } from "@/lib/storage/keys";
 import { initialScan } from "@/lib/storage/scan";
-import {
-  ACKNOWLEDGEMENT_ON_BEHALF_TEXT_VERSION,
-  ACKNOWLEDGEMENT_TEXT_VERSION,
-  acknowledgementText,
-  acknowledgementTextVersion,
-} from "./acknowledgement";
+import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WORKSPACE_MESSAGES } from "./errors";
-import { millionToUsd, parseProjectInput, usdToMillion } from "./project-input";
+import {
+  millionToUsd,
+  PROJECT_FIELDS,
+  parseProjectInput,
+  usdToMillion,
+} from "./project-input";
 import {
   cleanFilename,
   formatBytes,
@@ -75,36 +79,52 @@ describe("teaser file checks", () => {
 
 describe("project input", () => {
   const valid = {
-    name: "Coastal desalination plant",
+    title: "Coastal desalination plant",
     sector: "Desalination",
-    tier: "TIER1",
     projectType: "SUMMIT_PIPELINE",
     sizeMinUsdMillion: "120.5",
     sizeMaxUsdMillion: "200",
-    lat: "24.4",
-    lon: "54.6",
+    developmentStage: "Feasibility",
   };
 
   it("parses a valid project, converting USD million to USD", () => {
     const result = parseProjectInput(valid);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expect(result.data.title).toBe("Coastal desalination plant");
     expect(result.data.sizeMinUsd).toBe("120500000");
     expect(result.data.sizeMaxUsd).toBe("200000000");
     expect(result.data.pppModel).toBeNull();
-    expect(result.data.lat).toBe(24.4);
+    expect(result.data.developmentStage).toBe("Feasibility");
   });
 
-  it("requires name, sector, tier and type", () => {
+  it("requires title, sector and type", () => {
     const result = parseProjectInput({});
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(Object.keys(result.fieldErrors).sort()).toEqual([
-      "name",
       "projectType",
       "sector",
-      "tier",
+      "title",
     ]);
+  });
+
+  it("has no tier and none of the fields PLAN v0.3 removed", () => {
+    for (const removed of [
+      "tier",
+      "name",
+      "tenderTimeline",
+      "documentsPrepared",
+      "feedbackSought",
+      "revenueModel",
+      "counterparty",
+      "lat",
+      "lon",
+    ]) {
+      expect(PROJECT_FIELDS as readonly string[]).not.toContain(removed);
+    }
+    const result = parseProjectInput({ ...valid, tier: "TIER1" } as never);
+    expect(result.ok && "tier" in result.data).toBe(false);
   });
 
   it("rejects an upper size below the lower size", () => {
@@ -116,16 +136,9 @@ describe("project input", () => {
     if (!result.ok) expect(result.fieldErrors.sizeMaxUsdMillion).toBeTruthy();
   });
 
-  it("rejects out-of-range or half-given coordinates", () => {
-    const far = parseProjectInput({ ...valid, lat: "91" });
-    expect(far.ok).toBe(false);
-    const half = parseProjectInput({ ...valid, lon: "" });
-    expect(half.ok).toBe(false);
-    if (!half.ok) expect(half.fieldErrors.lon).toMatch(/both/);
-  });
-
-  it("rejects an unknown tier", () => {
-    expect(parseProjectInput({ ...valid, tier: "TIER9" }).ok).toBe(false);
+  it("stores an empty development stage as null", () => {
+    const result = parseProjectInput({ ...valid, developmentStage: "  " });
+    expect(result.ok && result.data.developmentStage).toBeNull();
   });
 
   it("round-trips sizes between USD and USD million", () => {
@@ -135,30 +148,24 @@ describe("project input", () => {
   });
 });
 
-describe("acknowledgement wording", () => {
-  it("names the country and uses the seed's text version", () => {
-    expect(ACKNOWLEDGEMENT_TEXT_VERSION).toBe(SEED_TEXT_VERSION);
-    expect(acknowledgementText("Country B", false)).toMatch(
-      /^I confirm, on behalf of the Government of Country B, that this teaser contains no confidential/,
-    );
+describe("workspace upload consent", () => {
+  it("gives country users the exact upload link wording and version, as in the seed", () => {
+    const own = workspaceUploadAcknowledgement(false);
+    expect(own).toEqual(appConfig.uploadAcknowledgement);
+    expect(own.version).toBe(SEED_TEXT_VERSION);
   });
 
-  it("has a separate wording and version for admins acting on behalf", () => {
-    expect(acknowledgementTextVersion(true)).toBe(
-      ACKNOWLEDGEMENT_ON_BEHALF_TEXT_VERSION,
-    );
-    expect(acknowledgementTextVersion(false)).toBe(
-      ACKNOWLEDGEMENT_TEXT_VERSION,
-    );
-    expect(acknowledgementText("Country B", true)).toMatch(
-      /Government of Country B has confirmed in writing/,
-    );
+  it("has a separate wording and version for admins acting for a country", () => {
+    const admin = workspaceUploadAcknowledgement(true);
+    expect(admin.version).toBe(SEED_ON_BEHALF_VERSION);
+    expect(admin.version).not.toBe(appConfig.uploadAcknowledgement.version);
+    expect(admin.text).toMatch(/has given its consent, in writing/);
   });
 
   it("uses no em dashes in UI copy", () => {
     const copy = [
-      acknowledgementText("Country A", false),
-      acknowledgementText("Country A", true),
+      workspaceUploadAcknowledgement(false).text,
+      workspaceUploadAcknowledgement(true).text,
       ...Object.values(WORKSPACE_MESSAGES),
     ];
     for (const line of copy) expect(line).not.toContain("\u2014");

@@ -9,9 +9,7 @@ export type WorkspaceErrorCode =
   | "file_too_large"
   | "file_not_pdf"
   | "ack_required"
-  | "evidence_required"
   | "no_clean_teaser"
-  | "no_acknowledgement"
   | "already_published"
   | "not_published";
 
@@ -32,13 +30,9 @@ export const WORKSPACE_MESSAGES: Record<WorkspaceErrorCode, string> = {
   file_not_pdf:
     "The teaser must be a PDF file. If you have a PowerPoint file, save it as PDF first.",
   ack_required:
-    "Tick the confirmation box. The teaser can only be shared once it is confirmed.",
-  evidence_required:
-    "Note where the country's written confirmation is kept (for example the date and sender of its email).",
+    "Tick the consent box. A teaser can only be stored with the Government's consent to share it.",
   no_clean_teaser:
     "Upload a teaser first. It can be published once its virus check has passed.",
-  no_acknowledgement:
-    "The confirmation could not be recorded. Please try again.",
   already_published: "This project is already in the pipeline.",
   not_published: "This project is not in the pipeline.",
 };

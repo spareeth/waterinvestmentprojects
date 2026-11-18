@@ -12,15 +12,14 @@ import {
   FieldShell,
   Notice,
   Select,
-  Textarea,
   TextInput,
 } from "@/components/workspace/form-controls";
 import {
+  DEVELOPMENT_STAGE_SUGGESTIONS,
   PPP_MODEL_SUGGESTIONS,
   PROJECT_TYPE_LABEL,
   type ProjectFormValues,
   SECTOR_SUGGESTIONS,
-  TIER_LABEL,
 } from "@/lib/workspace/project-input";
 
 const initial: WorkspaceFormState = {};
@@ -76,25 +75,6 @@ export function ProjectForm({
     );
   };
 
-  const area = (
-    name: keyof ProjectFormValues,
-    label: string,
-    hint?: string,
-  ) => {
-    const id = `project-${name}`;
-    return (
-      <FieldShell id={id} label={label} hint={hint} error={e[name]}>
-        <Textarea
-          {...describe(id, hint, e[name])}
-          name={name}
-          defaultValue={v[name] ?? ""}
-          rows={3}
-          disabled={readOnly}
-        />
-      </FieldShell>
-    );
-  };
-
   return (
     <form action={formAction} className="flex flex-col gap-5" noValidate>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
@@ -128,23 +108,9 @@ export function ProjectForm({
         <input type="hidden" name="countryId" value={countries[0].id} />
       ) : null}
 
-      {text("name", "Project name", { required: true })}
+      {text("title", "Project title", { required: true })}
       <div className="grid gap-5 sm:grid-cols-2">
         {text("sector", "Sector", { required: true, list: "sector-options" })}
-        <FieldShell id="project-tier" label="Tier" error={e.tier}>
-          <Select
-            {...describe("project-tier", undefined, e.tier)}
-            name="tier"
-            defaultValue={v.tier ?? "TIER1"}
-            disabled={readOnly}
-          >
-            {Object.entries(TIER_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </FieldShell>
         <FieldShell
           id="project-projectType"
           label="Project type"
@@ -170,24 +136,9 @@ export function ProjectForm({
         {text("sizeMaxUsdMillion", "Size to (USD million)", {
           inputMode: "decimal",
         })}
-      </div>
-      {text("tenderTimeline", "Tender timeline", {
-        hint: "For example: request for proposals in Q2 2027.",
-      })}
-      {text("counterparty", "Contracting authority or counterparty")}
-      {area("revenueModel", "Revenue model")}
-      {area(
-        "documentsPrepared",
-        "Documents prepared",
-        "Feasibility study, environmental assessment and similar.",
-      )}
-      {area("feedbackSought", "Feedback sought from investors")}
-      <div className="grid gap-5 sm:grid-cols-2">
-        {text("lat", "Latitude", {
-          inputMode: "decimal",
-          hint: "Optional. Decimal degrees, for the map.",
+        {text("developmentStage", "Development stage", {
+          list: "stage-options",
         })}
-        {text("lon", "Longitude", { inputMode: "decimal" })}
       </div>
 
       <datalist id="sector-options">
@@ -197,6 +148,11 @@ export function ProjectForm({
       </datalist>
       <datalist id="ppp-options">
         {PPP_MODEL_SUGGESTIONS.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+      <datalist id="stage-options">
+        {DEVELOPMENT_STAGE_SUGGESTIONS.map((s) => (
           <option key={s} value={s} />
         ))}
       </datalist>

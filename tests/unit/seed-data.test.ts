@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  CountryContactRole,
   MeetingRequestStatus,
   MembershipRole,
   PipelineScope,
@@ -12,6 +13,7 @@ import {
   UserRole,
   UserStatus,
 } from "@/generated/prisma/enums";
+import { appConfig } from "@/lib/config";
 import { SLOT_MINUTES, gst, seedData } from "../../prisma/seed/data";
 import { buildPlaceholderPdf, escapePdfText } from "../../prisma/seed/pdf";
 
@@ -21,10 +23,12 @@ const {
   memberships,
   pipelineCountries,
   invitations,
+  uploadLinks,
+  submissions,
+  countryContacts,
   projects,
   documents,
   documentFiles,
-  acknowledgements,
   meetingRequests,
   rooms,
   slots,
@@ -38,6 +42,8 @@ const userById = byId(users);
 const projectById = byId(projects);
 const documentById = byId(documents);
 const requestById = byId(meetingRequests);
+const submissionById = byId(submissions);
+const linkById = byId(uploadLinks);
 
 describe("seed data: identity and fiction", () => {
   it("uses unique, recognisable seed ids in every collection", () => {
@@ -45,9 +51,11 @@ describe("seed data: identity and fiction", () => {
       countries,
       users,
       invitations,
+      uploadLinks,
+      submissions,
+      countryContacts,
       projects,
       documents,
-      acknowledgements,
       meetingRequests,
       rooms,
       slots,
@@ -76,10 +84,12 @@ describe("seed data: identity and fiction", () => {
     const emails = [
       ...users.map((u) => u.email),
       ...invitations.map((i) => i.email),
+      ...submissions.map((s) => s.uploaderEmail),
+      ...countryContacts.map((c) => c.email),
     ];
     for (const email of emails) expect(email).toMatch(/@[a-z0-9.-]+\.example$/);
     expect(new Set(users.map((u) => u.email)).size).toBe(users.length);
-    const ips = [...acknowledgements, ...auditEvents]
+    const ips = [...submissions, ...auditEvents]
       .map((r) => r.ip)
       .filter(Boolean);
     for (const ip of ips)
@@ -157,7 +167,76 @@ describe("seed data: users and memberships", () => {
   });
 });
 
-describe("seed data: projects, documents and acknowledgements", () => {
+describe("seed data: upload links, submissions and country contacts", () => {
+  it("has only revoked upload links, without a token hash in the repository", () => {
+    expect(uploadLinks.length).toBeGreaterThan(0);
+    for (const link of uploadLinks) {
+      expect(link.revokedAt, link.id).toBeInstanceOf(Date);
+      expect("tokenHash" in link, link.id).toBe(false);
+      expect(userById.get(link.createdById)?.role).toBe(UserRole.SUMMIT_ADMIN);
+    }
+    expect(uploadLinks.filter((l) => l.countryId === null)).toHaveLength(1);
+  });
+
+  it("records each submission's acknowledgement version and time, with a link or as a portal upload", () => {
+    const versions = [
+      appConfig.uploadAcknowledgement.version,
+      appConfig.uploadAcknowledgementOnBehalf.version,
+    ];
+    for (const s of submissions) {
+      expect(versions, s.id).toContain(s.ackTextVersion);
+      expect(s.ackAcceptedAt).toBeInstanceOf(Date);
+      if (s.uploadLinkId === null) {
+        // Portal workspace upload: the uploader is a seed account.
+        expect(
+          users.some((u) => u.email === s.uploaderEmail),
+          s.id,
+        ).toBe(true);
+      } else {
+        const link = linkById.get(s.uploadLinkId);
+        expect(link, s.id).toBeDefined();
+        expect(s.ackTextVersion).toBe(appConfig.uploadAcknowledgement.version);
+        // A country link fixes the country; the generic link lets the uploader choose.
+        if (link!.countryId !== null) expect(s.countryId).toBe(link!.countryId);
+      }
+    }
+    expect(submissions.some((s) => s.uploadLinkId === null)).toBe(true);
+  });
+
+  it("makes every link uploader a focal point contact of their country, and gives every country a WBG coordinator", () => {
+    for (const s of submissions.filter((s) => s.uploadLinkId !== null)) {
+      expect(
+        countryContacts.some(
+          (c) =>
+            c.countryId === s.countryId &&
+            c.email === s.uploaderEmail.toLowerCase() &&
+            c.role === CountryContactRole.FOCAL_POINT,
+        ),
+        s.id,
+      ).toBe(true);
+    }
+    for (const country of countries) {
+      expect(
+        countryContacts.some(
+          (c) =>
+            c.countryId === country.id &&
+            c.role === CountryContactRole.WBG_COORDINATOR,
+        ),
+        country.id,
+      ).toBe(true);
+    }
+    const keys = countryContacts.map(
+      (c) => `${c.countryId}|${c.email}|${c.role}`,
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const c of countryContacts) {
+      expect(c.email).toBe(c.email.toLowerCase());
+      if (c.userId) expect(userById.get(c.userId)?.email).toBe(c.email);
+    }
+  });
+});
+
+describe("seed data: projects and documents", () => {
   it("has 8 to 10 projects, mostly PUBLISHED, with some DRAFT", () => {
     expect(projects.length).toBeGreaterThanOrEqual(8);
     expect(projects.length).toBeLessThanOrEqual(10);
@@ -169,7 +248,24 @@ describe("seed data: projects, documents and acknowledgements", () => {
     expect(new Set(projects.map((p) => p.sector)).size).toBeGreaterThanOrEqual(
       4,
     );
-    expect(new Set(projects.map((p) => p.tier)).size).toBe(2);
+  });
+
+  it("has no tiers and none of the fields PLAN v0.3 removed", () => {
+    for (const p of projects) {
+      for (const removed of [
+        "tier",
+        "name",
+        "tenderTimeline",
+        "documentsPrepared",
+        "feedbackSought",
+        "revenueModel",
+        "counterparty",
+      ]) {
+        expect(removed in p, `${p.id}.${removed}`).toBe(false);
+      }
+      expect(p.title.length).toBeGreaterThan(3);
+    }
+    expect(JSON.stringify(projects)).not.toMatch(/tier/i);
   });
 
   it("keeps publishedAt consistent with status and sizes in order", () => {
@@ -181,41 +277,42 @@ describe("seed data: projects, documents and acknowledgements", () => {
     }
   });
 
-  it("never publishes a project without a stored acknowledgement on one of its teasers", () => {
-    for (const p of projects.filter((p) => p.status !== ProjectStatus.DRAFT)) {
-      const acks = acknowledgements.filter((a) => a.projectId === p.id);
-      expect(acks.length, p.id).toBeGreaterThan(0);
-      for (const a of acks) {
-        const doc = documentById.get(a.documentId);
-        expect(doc?.projectId).toBe(p.id);
-        expect(doc?.kind).toBe("TEASER");
+  it("stores every document with a Submission of the same country, given no later than the upload", () => {
+    for (const doc of documents) {
+      const s = submissionById.get(doc.submissionId);
+      expect(s, doc.id).toBeDefined();
+      expect(s!.countryId).toBe(projectById.get(doc.projectId)?.countryId);
+      expect(s!.ackAcceptedAt.getTime()).toBeLessThanOrEqual(
+        doc.uploadedAt.getTime(),
+      );
+      // Link files have no portal uploader; portal files name the account whose consent the Submission holds.
+      if (s!.uploadLinkId === null) {
+        expect(userById.get(doc.uploadedById!)?.email).toBe(s!.uploaderEmail);
+      } else {
+        expect(doc.uploadedById).toBeNull();
       }
-      // The first publication was preceded by an acknowledgement.
-      expect(
-        acks.some((a) => a.acceptedAt <= p.publishedAt!),
-        p.id,
-      ).toBe(true);
     }
   });
 
-  it("records acknowledgements by the country focal point, or on behalf with evidence", () => {
-    for (const a of acknowledgements) {
-      const u = userById.get(a.userId);
-      if (a.onBehalfOfCountry) {
-        expect(u?.role).toBe(UserRole.SUMMIT_ADMIN);
-        expect(a.evidenceNote).toBeTruthy();
-      } else {
-        const countryId = projectById.get(a.projectId)?.countryId;
-        expect(
-          memberships.some(
-            (m) =>
-              m.userId === a.userId &&
-              m.countryId === countryId &&
-              m.role === MembershipRole.FOCAL_POINT,
-          ),
-        ).toBe(true);
-        expect(a.evidenceNote).toBeNull();
-      }
+  it("links projects created through an upload link to that submission", () => {
+    for (const p of projects.filter((p) => p.submissionId !== null)) {
+      const s = submissionById.get(p.submissionId!);
+      expect(s?.uploadLinkId, p.id).not.toBeNull();
+      expect(s?.countryId).toBe(p.countryId);
+    }
+  });
+
+  it("published projects only after a teaser was uploaded", () => {
+    for (const p of projects.filter((p) => p.status !== ProjectStatus.DRAFT)) {
+      expect(
+        documents.some(
+          (d) =>
+            d.projectId === p.id &&
+            d.kind === "TEASER" &&
+            d.uploadedAt <= p.publishedAt!,
+        ),
+        p.id,
+      ).toBe(true);
     }
   });
 
@@ -229,7 +326,8 @@ describe("seed data: projects, documents and acknowledgements", () => {
       );
       expect(new TextDecoder().decode(bytes!.slice(0, 8))).toBe("%PDF-1.4");
       expect(projectById.has(doc.projectId)).toBe(true);
-      expect(userById.has(doc.uploadedById)).toBe(true);
+      if (doc.uploadedById !== null)
+        expect(userById.has(doc.uploadedById)).toBe(true);
     }
     expect(new Set(documents.map((d) => d.blobKey)).size).toBe(
       documents.length,

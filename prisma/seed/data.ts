@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import {
+  CountryContactRole,
   CountryStatus,
   DocumentKind,
   GrantScope,
@@ -12,21 +13,19 @@ import {
   MembershipRole,
   PipelineScope,
   ProjectStatus,
-  ProjectTier,
   ProjectType,
   ScanStatus,
   SlotStatus,
   UserRole,
   UserStatus,
 } from "../../src/generated/prisma/enums";
+import { appConfig } from "../../src/lib/config";
 import { buildPlaceholderPdf } from "./pdf";
 
 /** Summit venue time zone is Gulf Standard Time (UTC+4, no daylight saving). */
 export function gst(localDateTime: string): Date {
   return new Date(`${localDateTime}:00+04:00`);
 }
-
-export const ACKNOWLEDGEMENT_TEXT_VERSION = "teaser-ack-v1";
 
 /**
  * Demo password for every seed user on a LOCAL machine only (documented in the README, so not a secret).
@@ -298,25 +297,225 @@ export const invitations = [
 ];
 
 // ---------------------------------------------------------------------------
-// Projects. Coordinates are arbitrary map positions, not real project locations.
+// Upload links and submissions (PLAN v0.3 F0). Every teaser below comes with a Submission recording the
+// uploader's acknowledgement. The links are history only: revoked, and their token hashes are random values
+// made by seed.ts on first insert, so no seed link can ever be opened. Admins create fresh links in the portal.
+// ---------------------------------------------------------------------------
+
+/** The upload acknowledgement versions stored on the seed submissions (from src/lib/config.ts). */
+export const UPLOAD_ACK_TEXT_VERSION = appConfig.uploadAcknowledgement.version;
+export const UPLOAD_ACK_ON_BEHALF_TEXT_VERSION =
+  appConfig.uploadAcknowledgementOnBehalf.version;
+
+function uploadLink(id: string, countryId: string | null, createdAt: Date) {
+  return {
+    id: `seed-link-${id}`,
+    countryId,
+    expiresAt: gst("2026-11-30T23:59"),
+    revokedAt: gst("2026-11-17T18:00"),
+    createdById: "seed-user-summit-admin",
+    createdAt,
+  };
+}
+
+export const uploadLinks = [
+  uploadLink("a", "seed-country-a", gst("2026-11-09T09:00")),
+  uploadLink("b", "seed-country-b", gst("2026-11-09T09:05")),
+  uploadLink("c", "seed-country-c", gst("2026-11-09T09:10")),
+  uploadLink("e", "seed-country-e", gst("2026-11-09T09:15")),
+  // Country D used the generic link (the uploader picked the country).
+  uploadLink("generic", null, gst("2026-11-09T09:20")),
+];
+
+function submission(
+  id: string,
+  countryId: string,
+  uploadLinkId: string | null,
+  uploaderName: string,
+  uploaderEmail: string,
+  at: Date,
+  ackTextVersion: string = UPLOAD_ACK_TEXT_VERSION,
+) {
+  return {
+    id: `seed-submission-${id}`,
+    countryId,
+    uploadLinkId,
+    uploaderName,
+    uploaderEmail,
+    ackTextVersion,
+    ackAcceptedAt: at,
+    // Documentation-range IP addresses only.
+    ip: "203.0.113.10",
+    createdAt: at,
+  };
+}
+
+export const submissions = [
+  // Through the upload links: the uploader typed name and email.
+  submission(
+    "a",
+    "seed-country-a",
+    "seed-link-a",
+    "Avery Example",
+    "focal@country-a.example",
+    gst("2026-11-11T14:00"),
+  ),
+  submission(
+    "b",
+    "seed-country-b",
+    "seed-link-b",
+    "Blake Example",
+    "focal@country-b.example",
+    gst("2026-11-10T12:00"),
+  ),
+  submission(
+    "c",
+    "seed-country-c",
+    "seed-link-c",
+    "Casey Example",
+    "focal@country-c.example",
+    gst("2026-11-13T10:00"),
+  ),
+  submission(
+    "d",
+    "seed-country-d",
+    "seed-link-generic",
+    "Dana Sample",
+    "water.ppp@country-d.example",
+    gst("2026-11-14T14:00"),
+  ),
+  submission(
+    "e",
+    "seed-country-e",
+    "seed-link-e",
+    "Emery Example",
+    "projects@country-e.example",
+    gst("2026-11-14T14:30"),
+  ),
+  // In the portal workspace (no link): the signed-in user is the uploader.
+  submission(
+    "a3-workspace",
+    "seed-country-a",
+    null,
+    "Alex Sample",
+    "member@country-a.example",
+    gst("2026-11-15T16:00"),
+  ),
+  submission(
+    "b1-v2-workspace",
+    "seed-country-b",
+    null,
+    "Blake Example",
+    "focal@country-b.example",
+    gst("2026-11-14T09:00"),
+  ),
+  // An admin adding material for the country records that its written consent was received.
+  submission(
+    "b1-extra-workspace",
+    "seed-country-b",
+    null,
+    "Sam Summit",
+    "summit.admin@demo.example",
+    gst("2026-11-16T10:00"),
+    UPLOAD_ACK_ON_BEHALF_TEXT_VERSION,
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// Country contacts (PLAN v0.3): each link uploader is the country's request-inbox contact (FOCAL_POINT), and
+// each country has a fictional WBG coordinator, copied on its request notifications.
+// ---------------------------------------------------------------------------
+
+function contact(
+  id: string,
+  countryId: string,
+  name: string,
+  email: string,
+  role: CountryContactRole,
+  userId: string | null = null,
+) {
+  return { id: `seed-contact-${id}`, countryId, name, email, role, userId };
+}
+
+const { FOCAL_POINT, WBG_COORDINATOR } = CountryContactRole;
+
+export const countryContacts = [
+  contact(
+    "a-focal",
+    "seed-country-a",
+    "Avery Example",
+    "focal@country-a.example",
+    FOCAL_POINT,
+    "seed-user-country-a-focal",
+  ),
+  contact(
+    "b-focal",
+    "seed-country-b",
+    "Blake Example",
+    "focal@country-b.example",
+    FOCAL_POINT,
+    "seed-user-country-b-focal",
+  ),
+  contact(
+    "c-focal",
+    "seed-country-c",
+    "Casey Example",
+    "focal@country-c.example",
+    FOCAL_POINT,
+    "seed-user-country-c-focal",
+  ),
+  contact(
+    "d-focal",
+    "seed-country-d",
+    "Dana Sample",
+    "water.ppp@country-d.example",
+    FOCAL_POINT,
+  ),
+  contact(
+    "e-focal",
+    "seed-country-e",
+    "Emery Example",
+    "projects@country-e.example",
+    FOCAL_POINT,
+  ),
+  // Two fictional coordinators share the five countries.
+  ...["a", "b", "c"].map((c) =>
+    contact(
+      `${c}-wbg`,
+      `seed-country-${c}`,
+      "Jordan Coordinator",
+      "coordinator.one@wbg-demo.example",
+      WBG_COORDINATOR,
+    ),
+  ),
+  ...["d", "e"].map((c) =>
+    contact(
+      `${c}-wbg`,
+      `seed-country-${c}`,
+      "Riley Coordinator",
+      "coordinator.two@wbg-demo.example",
+      WBG_COORDINATOR,
+    ),
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// Projects (PLAN v0.3: no tiers; PPP model, size and development stage entered by the admin team).
+// Coordinates are arbitrary map positions, not real project locations (kept for the later map, M10).
 // ---------------------------------------------------------------------------
 
 export const projects = [
   {
     id: "seed-project-a1",
     countryId: "seed-country-a",
-    name: "Municipal water network efficiency",
+    submissionId: "seed-submission-a",
+    title: "Municipal water network efficiency",
     sector: "Network efficiency",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Performance-based contract",
     sizeMinUsd: 60_000_000,
     sizeMaxUsd: 90_000_000,
-    tenderTimeline: "Expressions of interest Q1 2027",
-    documentsPrepared: "Pre-feasibility study",
-    feedbackSought: "Performance indicators, payment mechanism",
-    revenueModel: "Availability payments from the utility",
-    counterparty: "National water utility (fictional)",
+    developmentStage: "Pre-feasibility",
     lat: 12.5,
     lon: 41.0,
     status: ProjectStatus.PUBLISHED,
@@ -325,38 +524,31 @@ export const projects = [
   {
     id: "seed-project-a2",
     countryId: "seed-country-a",
-    name: "Treated wastewater reuse for irrigation",
+    submissionId: "seed-submission-a",
+    title: "Treated wastewater reuse for irrigation",
     sector: "Wastewater and reuse",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Concession",
     sizeMinUsd: 40_000_000,
     sizeMaxUsd: 55_000_000,
-    tenderTimeline: "Feasibility update Q2 2027",
-    documentsPrepared: "Concept note",
-    feedbackSought: "Offtake arrangements with farmers",
-    revenueModel: "Tariff on reclaimed water",
-    counterparty: "Irrigation agency (fictional)",
+    developmentStage: "Concept",
     lat: 13.4,
     lon: 42.2,
     status: ProjectStatus.PUBLISHED,
     publishedAt: gst("2026-11-12T10:30"),
   },
   {
+    // Added in the portal workspace, not through the link.
     id: "seed-project-a3",
     countryId: "seed-country-a",
-    name: "Rural water supply clusters",
+    submissionId: null,
+    title: "Rural water supply clusters",
     sector: "Bulk supply and conveyance",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Design, build, operate",
     sizeMinUsd: 25_000_000,
     sizeMaxUsd: 35_000_000,
-    tenderTimeline: "To be confirmed",
-    documentsPrepared: "Draft concept note",
-    feedbackSought: "Bundling of small schemes",
-    revenueModel: null,
-    counterparty: null,
+    developmentStage: null,
     lat: 11.8,
     lon: 40.4,
     status: ProjectStatus.DRAFT,
@@ -365,18 +557,14 @@ export const projects = [
   {
     id: "seed-project-b1",
     countryId: "seed-country-b",
-    name: "Wastewater treatment plants, PPP",
+    submissionId: "seed-submission-b",
+    title: "Wastewater treatment plants, PPP",
     sector: "Wastewater and reuse",
-    tier: ProjectTier.TIER1,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Design, build, finance, operate",
     sizeMinUsd: 180_000_000,
     sizeMaxUsd: 220_000_000,
-    tenderTimeline: "RFQ planned Q2 2027",
-    documentsPrepared: "Pre-feasibility study",
-    feedbackSought: "Risk allocation, revenue model",
-    revenueModel: "Availability payments",
-    counterparty: "Water authority (fictional)",
+    developmentStage: "Feasibility",
     lat: 24.1,
     lon: 52.8,
     status: ProjectStatus.PUBLISHED,
@@ -385,38 +573,31 @@ export const projects = [
   {
     id: "seed-project-b2",
     countryId: "seed-country-b",
-    name: "Seawater desalination and conveyance",
+    submissionId: "seed-submission-b",
+    title: "Seawater desalination and conveyance",
     sector: "Desalination",
-    tier: ProjectTier.TIER1,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Build, operate, transfer",
     sizeMinUsd: 450_000_000,
     sizeMaxUsd: 600_000_000,
-    tenderTimeline: "Transaction adviser appointed; RFP Q3 2027",
-    documentsPrepared: "Feasibility study, environmental scoping",
-    feedbackSought: "Energy supply options, currency risk",
-    revenueModel: "Take-or-pay water purchase agreement",
-    counterparty: "Bulk water company (fictional)",
+    developmentStage: "Transaction structuring",
     lat: 25.0,
     lon: 54.1,
     status: ProjectStatus.PUBLISHED,
     publishedAt: gst("2026-11-11T09:30"),
   },
   {
+    // Added in the portal workspace; no teaser yet.
     id: "seed-project-b3",
     countryId: "seed-country-b",
-    name: "Sludge to energy facility",
+    submissionId: null,
+    title: "Sludge to energy facility",
     sector: "Wastewater and reuse",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Design, build, finance, operate",
     sizeMinUsd: 30_000_000,
     sizeMaxUsd: 45_000_000,
-    tenderTimeline: null,
-    documentsPrepared: null,
-    feedbackSought: null,
-    revenueModel: null,
-    counterparty: null,
+    developmentStage: null,
     lat: 24.6,
     lon: 53.3,
     status: ProjectStatus.DRAFT,
@@ -425,18 +606,14 @@ export const projects = [
   {
     id: "seed-project-c1",
     countryId: "seed-country-c",
-    name: "Bulk water supply scheme",
+    submissionId: "seed-submission-c",
+    title: "Bulk water supply scheme",
     sector: "Bulk supply and conveyance",
-    tier: ProjectTier.TIER1,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Build, own, operate",
     sizeMinUsd: 120_000_000,
     sizeMaxUsd: 150_000_000,
-    tenderTimeline: "Prequalification Q1 2027",
-    documentsPrepared: "Feasibility study",
-    feedbackSought: "Guarantee structure",
-    revenueModel: "Bulk water tariff",
-    counterparty: "Regional utility (fictional)",
+    developmentStage: "Procurement",
     lat: -1.5,
     lon: 36.2,
     status: ProjectStatus.PUBLISHED,
@@ -445,18 +622,14 @@ export const projects = [
   {
     id: "seed-project-c2",
     countryId: "seed-country-c",
-    name: "Irrigation modernisation, phase 1",
+    submissionId: "seed-submission-c",
+    title: "Irrigation modernisation, phase 1",
     sector: "Irrigation",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Hybrid PPP",
     sizeMinUsd: 85_000_000,
     sizeMaxUsd: 110_000_000,
-    tenderTimeline: "On hold",
-    documentsPrepared: "Concept note",
-    feedbackSought: "Blended finance options",
-    revenueModel: "Service fees from water user associations",
-    counterparty: "Irrigation board (fictional)",
+    developmentStage: "Concept",
     lat: -2.3,
     lon: 37.4,
     // Was published, then withdrawn by the country: investors must no longer see it.
@@ -466,18 +639,14 @@ export const projects = [
   {
     id: "seed-project-d1",
     countryId: "seed-country-d",
-    name: "Utility non-revenue water programme",
+    submissionId: "seed-submission-d",
+    title: "Utility non-revenue water programme",
     sector: "Network efficiency",
-    tier: ProjectTier.TIER1,
     projectType: ProjectType.SUMMIT_PIPELINE,
     pppModel: "Lease",
     sizeMinUsd: 70_000_000,
     sizeMaxUsd: 95_000_000,
-    tenderTimeline: "RFP Q2 2027",
-    documentsPrepared: "Pre-feasibility study",
-    feedbackSought: "Baseline data requirements",
-    revenueModel: "Share of tariff revenue",
-    counterparty: "Municipal utility (fictional)",
+    developmentStage: "Pre-feasibility",
     lat: 6.4,
     lon: 3.6,
     status: ProjectStatus.PUBLISHED,
@@ -486,18 +655,14 @@ export const projects = [
   {
     id: "seed-project-e1",
     countryId: "seed-country-e",
-    name: "Regional reservoir and treatment works",
+    submissionId: "seed-submission-e",
+    title: "Regional reservoir and treatment works",
     sector: "Bulk supply and conveyance",
-    tier: ProjectTier.TIER2,
     projectType: ProjectType.OTHER_PROPONENT,
     pppModel: "Design, build, operate",
     sizeMinUsd: 200_000_000,
     sizeMaxUsd: 260_000_000,
-    tenderTimeline: "Feasibility Q4 2027",
-    documentsPrepared: "Concept note",
-    feedbackSought: "Interest from operators",
-    revenueModel: "Bulk water tariff",
-    counterparty: "River basin authority (fictional)",
+    developmentStage: "Concept",
     lat: 31.2,
     lon: 70.1,
     status: ProjectStatus.PUBLISHED,
@@ -506,7 +671,8 @@ export const projects = [
 ];
 
 // ---------------------------------------------------------------------------
-// Documents (placeholder PDFs generated deterministically)
+// Documents (placeholder PDFs generated deterministically). Each points at the Submission whose
+// acknowledgement covers it; uploadedById is empty for upload link files (the Submission names the uploader).
 // ---------------------------------------------------------------------------
 
 function sha256Hex(input: string | Uint8Array): string {
@@ -520,14 +686,13 @@ function formatSize(min: number, max: number): string {
 interface DocumentSpec {
   id: string;
   projectId: string;
+  submissionId: string;
   kind: DocumentKind;
-  title: string;
   filename: string;
   version: number;
-  docDate: string;
   allowDownload: boolean;
   scanStatus: ScanStatus;
-  uploadedById: string;
+  uploadedById: string | null;
   uploadedAt: Date;
   supersededById: string | null;
 }
@@ -536,40 +701,38 @@ const documentSpecs: DocumentSpec[] = [
   {
     id: "seed-doc-a1-teaser-v1",
     projectId: "seed-project-a1",
+    submissionId: "seed-submission-a",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-a-network-efficiency-teaser.pdf",
     version: 1,
-    docDate: "2026-11-09",
     allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-a-member",
+    uploadedById: null,
     uploadedAt: gst("2026-11-11T14:00"),
     supersededById: null,
   },
   {
+    // View only: shows that a teaser can still be switched to view only.
     id: "seed-doc-a2-teaser-v1",
     projectId: "seed-project-a2",
+    submissionId: "seed-submission-a",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-a-wastewater-reuse-teaser.pdf",
     version: 1,
-    docDate: "2026-11-09",
     allowDownload: false,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-a-focal",
-    uploadedAt: gst("2026-11-11T14:30"),
+    uploadedById: null,
+    uploadedAt: gst("2026-11-11T14:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-a3-teaser-v1",
     projectId: "seed-project-a3",
+    submissionId: "seed-submission-a3-workspace",
     kind: DocumentKind.TEASER,
-    title: "Draft teaser",
     filename: "country-a-rural-supply-draft.pdf",
     version: 1,
-    docDate: "2026-11-15",
-    allowDownload: false,
+    allowDownload: true,
     scanStatus: ScanStatus.PENDING,
     uploadedById: "seed-user-country-a-member",
     uploadedAt: gst("2026-11-15T16:00"),
@@ -578,116 +741,116 @@ const documentSpecs: DocumentSpec[] = [
   {
     id: "seed-doc-b1-teaser-v1",
     projectId: "seed-project-b1",
+    submissionId: "seed-submission-b",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-b-wastewater-ppp-teaser-v1.pdf",
     version: 1,
-    docDate: "2026-11-08",
-    allowDownload: false,
+    allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-b-member",
+    uploadedById: null,
     uploadedAt: gst("2026-11-10T12:00"),
     supersededById: "seed-doc-b1-teaser-v2",
   },
   {
     id: "seed-doc-b1-teaser-v2",
     projectId: "seed-project-b1",
+    submissionId: "seed-submission-b1-v2-workspace",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-b-wastewater-ppp-teaser-v2.pdf",
     version: 2,
-    docDate: "2026-11-14",
-    allowDownload: false,
+    allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
     uploadedById: "seed-user-country-b-focal",
     uploadedAt: gst("2026-11-14T09:00"),
     supersededById: null,
   },
   {
+    // Extra material (v0.2 F11). PLAN v0.3 drops it; it goes with ProjectGrant in M3.
     id: "seed-doc-b1-extra-v1",
     projectId: "seed-project-b1",
+    submissionId: "seed-submission-b1-extra-workspace",
     kind: DocumentKind.EXTRA,
-    title: "Post-meeting slides",
     filename: "country-b-wastewater-ppp-extra-slides.pdf",
     version: 1,
-    docDate: "2026-11-16",
     allowDownload: false,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-b-focal",
+    uploadedById: "seed-user-summit-admin",
     uploadedAt: gst("2026-11-16T10:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-b2-teaser-v1",
     projectId: "seed-project-b2",
+    submissionId: "seed-submission-b",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-b-desalination-teaser.pdf",
     version: 1,
-    docDate: "2026-11-08",
     allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-b-focal",
-    uploadedAt: gst("2026-11-10T12:30"),
+    uploadedById: null,
+    uploadedAt: gst("2026-11-10T12:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-c1-teaser-v1",
     projectId: "seed-project-c1",
+    submissionId: "seed-submission-c",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-c-bulk-supply-teaser.pdf",
     version: 1,
-    docDate: "2026-11-12",
     allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-c-focal",
+    uploadedById: null,
     uploadedAt: gst("2026-11-13T10:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-c2-teaser-v1",
     projectId: "seed-project-c2",
+    submissionId: "seed-submission-c",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-c-irrigation-teaser.pdf",
     version: 1,
-    docDate: "2026-11-12",
-    allowDownload: false,
+    allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-country-c-focal",
-    uploadedAt: gst("2026-11-13T10:30"),
+    uploadedById: null,
+    uploadedAt: gst("2026-11-13T10:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-d1-teaser-v1",
     projectId: "seed-project-d1",
+    submissionId: "seed-submission-d",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-d-nrw-teaser.pdf",
     version: 1,
-    docDate: "2026-11-13",
-    allowDownload: false,
+    allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-summit-admin",
+    uploadedById: null,
     uploadedAt: gst("2026-11-14T14:00"),
     supersededById: null,
   },
   {
     id: "seed-doc-e1-teaser-v1",
     projectId: "seed-project-e1",
+    submissionId: "seed-submission-e",
     kind: DocumentKind.TEASER,
-    title: "Project teaser",
     filename: "country-e-reservoir-teaser.pdf",
     version: 1,
-    docDate: "2026-11-13",
     allowDownload: true,
     scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-summit-admin",
+    uploadedById: null,
     uploadedAt: gst("2026-11-14T14:30"),
     supersededById: null,
   },
 ];
+
+const dateOnly = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Dubai",
+});
 
 function pdfFor(spec: DocumentSpec): Uint8Array {
   const project = projects.find((p) => p.id === spec.projectId);
@@ -702,16 +865,16 @@ function pdfFor(spec: DocumentSpec): Uint8Array {
         ]
       : [
           `Sector: ${project.sector}`,
-          `Tier: ${project.tier === ProjectTier.TIER1 ? "Tier 1, presented at the Summit" : "Tier 2"}`,
           `PPP model: ${project.pppModel ?? "To be confirmed"}`,
           `Indicative size: ${formatSize(project.sizeMinUsd, project.sizeMaxUsd)}`,
-          `Tender timeline: ${project.tenderTimeline ?? "To be confirmed"}`,
-          `Documents prepared: ${project.documentsPrepared ?? "None yet"}`,
-          `Feedback sought: ${project.feedbackSought ?? "To be confirmed"}`,
+          `Development stage: ${project.developmentStage ?? "To be confirmed"}`,
+          "Fictional demo teaser. Not a real project.",
         ];
+  const label =
+    spec.kind === DocumentKind.EXTRA ? "Additional material" : "Project teaser";
   return buildPlaceholderPdf({
-    title: project.name,
-    subtitle: `${country.name}. ${spec.title}, version ${spec.version}, ${spec.docDate}`,
+    title: project.title,
+    subtitle: `${country.name}. ${label}, version ${spec.version}, ${dateOnly.format(spec.uploadedAt)}`,
     lines,
   });
 }
@@ -725,7 +888,6 @@ export const documents = documentSpecs.map((spec) => {
   documentFiles.set(blobKey, bytes);
   return {
     ...spec,
-    docDate: new Date(`${spec.docDate}T00:00:00Z`),
     blobKey,
     sha256: sha256Hex(bytes),
     sizeBytes: bytes.byteLength,
@@ -733,103 +895,36 @@ export const documents = documentSpecs.map((spec) => {
 });
 
 // ---------------------------------------------------------------------------
-// Acknowledgements (one per publication; documentation-range IPs only)
+// Publications (for the seed audit trail): who published each project that went to the pipeline.
 // ---------------------------------------------------------------------------
 
-function ack(
-  id: string,
-  projectId: string,
-  documentId: string,
-  userId: string,
-  acceptedAt: Date,
-  onBehalf?: { evidenceNote: string },
-) {
-  return {
-    id: `seed-ack-${id}`,
-    projectId,
-    documentId,
-    userId,
-    textVersion: ACKNOWLEDGEMENT_TEXT_VERSION,
-    acceptedAt,
-    ip: "203.0.113.10",
-    onBehalfOfCountry: Boolean(onBehalf),
-    evidenceNote: onBehalf?.evidenceNote ?? null,
-  };
-}
+const publishedBy: Record<string, string> = {
+  "seed-country-a": "seed-user-country-a-focal",
+  "seed-country-b": "seed-user-country-b-focal",
+  "seed-country-c": "seed-user-country-c-focal",
+  "seed-country-d": "seed-user-summit-admin",
+  "seed-country-e": "seed-user-summit-admin",
+};
 
-export const acknowledgements = [
-  ack(
-    "a1",
-    "seed-project-a1",
-    "seed-doc-a1-teaser-v1",
-    "seed-user-country-a-focal",
-    gst("2026-11-12T09:58"),
-  ),
-  ack(
-    "a2",
-    "seed-project-a2",
-    "seed-doc-a2-teaser-v1",
-    "seed-user-country-a-focal",
-    gst("2026-11-12T10:28"),
-  ),
-  ack(
-    "b1-v1",
-    "seed-project-b1",
-    "seed-doc-b1-teaser-v1",
-    "seed-user-country-b-focal",
-    gst("2026-11-11T08:58"),
-  ),
-  ack(
-    "b1-v2",
-    "seed-project-b1",
-    "seed-doc-b1-teaser-v2",
-    "seed-user-country-b-focal",
-    gst("2026-11-14T09:05"),
-  ),
-  ack(
-    "b2",
-    "seed-project-b2",
-    "seed-doc-b2-teaser-v1",
-    "seed-user-country-b-focal",
-    gst("2026-11-11T09:28"),
-  ),
-  ack(
-    "c1",
-    "seed-project-c1",
-    "seed-doc-c1-teaser-v1",
-    "seed-user-country-c-focal",
-    gst("2026-11-13T10:58"),
-  ),
-  ack(
-    "c2",
-    "seed-project-c2",
-    "seed-doc-c2-teaser-v1",
-    "seed-user-country-c-focal",
-    gst("2026-11-13T11:28"),
-  ),
-  ack(
-    "d1",
-    "seed-project-d1",
-    "seed-doc-d1-teaser-v1",
-    "seed-user-summit-admin",
-    gst("2026-11-14T14:58"),
-    {
-      evidenceNote:
-        "Fictional: email from the Country D focal point, 13 Nov 2026, confirming the teaser may be shared.",
-    },
-  ),
-  ack(
-    "e1",
-    "seed-project-e1",
-    "seed-doc-e1-teaser-v1",
-    "seed-user-summit-admin",
-    gst("2026-11-14T15:28"),
-    {
-      evidenceNote:
-        "Fictional: email from the Country E ministry, 13 Nov 2026, confirming the teaser may be shared.",
-    },
-  ),
-];
+const publications = projects.flatMap((p) =>
+  p.publishedAt
+    ? [
+        {
+          projectId: p.id,
+          actorId: publishedBy[p.countryId],
+          at: p.publishedAt,
+          documentId:
+            documents.find(
+              (d) =>
+                d.projectId === p.id &&
+                d.kind === DocumentKind.TEASER &&
+                d.supersededById === null,
+            )?.id ?? null,
+          onBehalf: publishedBy[p.countryId] === "seed-user-summit-admin",
+        },
+      ]
+    : [],
+);
 
 // ---------------------------------------------------------------------------
 // Meeting requests (only on PUBLISHED projects; requesters are investors)
@@ -1089,21 +1184,32 @@ export const projectGrants = [
 // ---------------------------------------------------------------------------
 
 export const auditEvents = [
-  ...acknowledgements.map((a) => ({
-    id: `seed-audit-publish-${a.id.replace("seed-ack-", "")}`,
-    actorId: a.userId,
-    action: "project.publish",
-    entityType: "Project",
-    entityId: a.projectId,
-    ip: a.ip,
+  ...submissions.map((s) => ({
+    id: `seed-audit-${s.id.replace("seed-", "")}`,
+    actorId: null,
+    action: "submission.create",
+    entityType: "Submission",
+    entityId: s.id,
+    ip: s.ip,
     userAgent: "seed",
-    at: a.acceptedAt,
+    at: s.createdAt,
     metadata: {
       seed: true,
-      acknowledgementId: a.id,
-      documentId: a.documentId,
-      onBehalfOfCountry: a.onBehalfOfCountry,
+      countryId: s.countryId,
+      uploadLinkId: s.uploadLinkId,
+      ackTextVersion: s.ackTextVersion,
     },
+  })),
+  ...publications.map((p) => ({
+    id: `seed-audit-publish-${p.projectId.replace("seed-project-", "")}`,
+    actorId: p.actorId,
+    action: "project.publish",
+    entityType: "Project",
+    entityId: p.projectId,
+    ip: "203.0.113.10",
+    userAgent: "seed",
+    at: p.at,
+    metadata: { seed: true, documentId: p.documentId, onBehalf: p.onBehalf },
   })),
   {
     id: "seed-audit-withdraw-c2",
@@ -1146,10 +1252,12 @@ export const seedData = {
   memberships,
   pipelineCountries,
   invitations,
+  uploadLinks,
+  submissions,
+  countryContacts,
   projects,
   documents,
   documentFiles,
-  acknowledgements,
   meetingRequests,
   rooms,
   slots,

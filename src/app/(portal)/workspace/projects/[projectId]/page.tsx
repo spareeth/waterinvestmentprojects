@@ -18,7 +18,7 @@ import {
 import { TeaserUploadForm } from "@/components/workspace/teaser-upload-form";
 import { requestMetaFrom } from "@/lib/audit";
 import { requirePortalUser } from "@/lib/authz";
-import { acknowledgementText } from "@/lib/workspace/acknowledgement";
+import { workspaceUploadAcknowledgement } from "@/lib/workspace/acknowledgement";
 import { usdToMillion } from "@/lib/workspace/project-input";
 import { getWorkspaceProject } from "@/lib/workspace/service";
 import { formatBytes } from "@/lib/workspace/teaser-file";
@@ -49,10 +49,9 @@ export default async function WorkspaceProjectPage({
     meta: requestMetaFrom(await headers()),
   });
   if (!data) notFound();
-  const { project, teasers, currentTeaser, acknowledgements, permissions } =
-    data;
+  const { project, teasers, currentTeaser, permissions } = data;
   const countryName = project.country.name;
-  const ackText = acknowledgementText(countryName, permissions.onBehalf);
+  const ackText = workspaceUploadAcknowledgement(permissions.onBehalf).text;
   const cleanCurrent =
     currentTeaser?.scanStatus === "CLEAN" ? currentTeaser : null;
   const published = project.status === "PUBLISHED";
@@ -70,7 +69,7 @@ export default async function WorkspaceProjectPage({
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
-              {project.name}
+              {project.title}
             </h1>
             <StatusBadge status={project.status} />
           </div>
@@ -108,7 +107,14 @@ export default async function WorkspaceProjectPage({
                         <span className="text-xs text-muted-foreground">
                           {formatBytes(t.sizeBytes)} · uploaded{" "}
                           {dateTime.format(t.uploadedAt)} by{" "}
-                          {t.uploadedBy?.name ?? "the country (upload link)"}
+                          {t.uploadedBy?.name ??
+                            `${t.submission.uploaderName} (upload link)`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Consent given{" "}
+                          {dateTime.format(t.submission.ackAcceptedAt)} by{" "}
+                          {t.submission.uploaderName} · wording{" "}
+                          {t.submission.ackTextVersion}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -142,10 +148,8 @@ export default async function WorkspaceProjectPage({
                   <TeaserUploadForm
                     projectId={project.id}
                     nextVersion={(teasers[0]?.version ?? 0) + 1}
-                    published={published}
                     acknowledgementText={ackText}
-                    onBehalf={permissions.onBehalf}
-                    defaultAllowDownload={currentTeaser?.allowDownload ?? false}
+                    defaultAllowDownload={currentTeaser?.allowDownload ?? true}
                   />
                 </div>
               ) : null}
@@ -166,20 +170,13 @@ export default async function WorkspaceProjectPage({
                 projectId={project.id}
                 readOnly={!permissions.edit}
                 defaults={{
-                  name: project.name,
+                  title: project.title,
                   sector: project.sector,
-                  tier: project.tier ?? undefined,
                   projectType: project.projectType,
                   pppModel: project.pppModel ?? "",
                   sizeMinUsdMillion: usdToMillion(project.sizeMinUsd),
                   sizeMaxUsdMillion: usdToMillion(project.sizeMaxUsd),
-                  tenderTimeline: project.tenderTimeline ?? "",
-                  documentsPrepared: project.documentsPrepared ?? "",
-                  feedbackSought: project.feedbackSought ?? "",
-                  revenueModel: project.revenueModel ?? "",
-                  counterparty: project.counterparty ?? "",
-                  lat: project.lat?.toString() ?? "",
-                  lon: project.lon?.toString() ?? "",
+                  developmentStage: project.developmentStage ?? "",
                 }}
               />
             </section>
@@ -229,8 +226,6 @@ export default async function WorkspaceProjectPage({
                   {permissions.publish ? (
                     <PublishForm
                       projectId={project.id}
-                      acknowledgementText={ackText}
-                      onBehalf={permissions.onBehalf}
                       teaser={
                         cleanCurrent
                           ? {
@@ -242,46 +237,13 @@ export default async function WorkspaceProjectPage({
                     />
                   ) : (
                     <Notice tone="info">
-                      Your country focal point publishes projects to the
-                      pipeline, after confirming the teaser can be shared.
+                      Your country focal point or the Summit team publishes
+                      projects to the pipeline.
                     </Notice>
                   )}
                 </>
               )}
             </section>
-
-            {acknowledgements.length > 0 ? (
-              <section
-                aria-labelledby="ack-heading"
-                className="rounded-xl border bg-card p-6"
-              >
-                <h2 id="ack-heading" className="text-base font-semibold">
-                  Confirmations
-                </h2>
-                <ul className="mt-3 flex flex-col gap-3 text-sm">
-                  {acknowledgements.map((a) => (
-                    <li key={a.id} className="flex flex-col gap-0.5">
-                      <span>
-                        {a.user.name}
-                        {a.onBehalfOfCountry ? " for the country" : ""},{" "}
-                        {dateTime.format(a.acceptedAt)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Teaser version{" "}
-                        {teasers.find((t) => t.id === a.documentId)?.version ??
-                          "?"}{" "}
-                        · wording {a.textVersion}
-                      </span>
-                      {a.evidenceNote ? (
-                        <span className="text-xs text-muted-foreground">
-                          Evidence: {a.evidenceNote}
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
           </aside>
         </div>
       </main>

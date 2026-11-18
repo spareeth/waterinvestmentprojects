@@ -1,9 +1,10 @@
-// Project key fields from the workspace form (PLAN F3 and data model section 5). Pure and browser-safe.
-// Sizes are typed in USD million and stored in USD. Empty optional fields are stored as null, so a field can be
-// cleared again.
+// Project key fields from the workspace form (PLAN v0.3 F3/F7 and data model section 6). Pure and browser-safe.
+// PLAN v0.3: governments only give country and sector; PPP model, size and development stage are entered by the
+// admin team from the teasers. No tiers. Sizes are typed in USD million and stored in USD. Empty optional fields
+// are stored as null, so a field can be cleared again.
 
 import { z } from "zod";
-import { ProjectTier, ProjectType } from "@/generated/prisma/enums";
+import { ProjectType } from "@/generated/prisma/enums";
 
 /** Suggestions for the sector field (free text, so new sectors need no release). */
 export const SECTOR_SUGGESTIONS = [
@@ -27,10 +28,15 @@ export const PPP_MODEL_SUGGESTIONS = [
   "Performance-based contract",
 ] as const;
 
-export const TIER_LABEL: Record<ProjectTier, string> = {
-  TIER1: "Tier 1 · presented at the Summit",
-  TIER2: "Tier 2 · listed in the portal",
-};
+/** Suggestions for the development stage (free text until WBG confirms the list). */
+export const DEVELOPMENT_STAGE_SUGGESTIONS = [
+  "Concept",
+  "Pre-feasibility",
+  "Feasibility",
+  "Transaction structuring",
+  "Procurement",
+  "Financial close",
+] as const;
 
 export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   SUMMIT_PIPELINE: "Summit pipeline project",
@@ -39,20 +45,13 @@ export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
 
 /** Form field names, shared by the form and the parser. */
 export const PROJECT_FIELDS = [
-  "name",
+  "title",
   "sector",
-  "tier",
   "projectType",
   "pppModel",
   "sizeMinUsdMillion",
   "sizeMaxUsdMillion",
-  "tenderTimeline",
-  "documentsPrepared",
-  "feedbackSought",
-  "revenueModel",
-  "counterparty",
-  "lat",
-  "lon",
+  "developmentStage",
 ] as const;
 export type ProjectField = (typeof PROJECT_FIELDS)[number];
 export type ProjectFormValues = Partial<Record<ProjectField, string>>;
@@ -90,9 +89,8 @@ function optionalNumber(message: string, min: number, max: number) {
 
 const schema = z
   .object({
-    name: requiredText("project name", 3, 200),
+    title: requiredText("project title", 3, 200),
     sector: requiredText("sector", 2, 100),
-    tier: z.enum(ProjectTier, { error: "Choose a tier." }),
     projectType: z.enum(ProjectType, { error: "Choose a project type." }),
     pppModel: optionalText("PPP model", 100),
     sizeMinUsdMillion: optionalNumber(
@@ -105,13 +103,7 @@ const schema = z
       0,
       MAX_SIZE_MILLION,
     ),
-    tenderTimeline: optionalText("tender timeline", 500),
-    documentsPrepared: optionalText("documents prepared", 1000),
-    feedbackSought: optionalText("feedback sought", 1000),
-    revenueModel: optionalText("revenue model", 500),
-    counterparty: optionalText("counterparty", 300),
-    lat: optionalNumber("Enter a latitude between -90 and 90.", -90, 90),
-    lon: optionalNumber("Enter a longitude between -180 and 180.", -180, 180),
+    developmentStage: optionalText("development stage", 100),
   })
   .superRefine((v, ctx) => {
     if (
@@ -125,31 +117,17 @@ const schema = z
         message: "The upper size must not be below the lower size.",
       });
     }
-    if ((v.lat === null) !== (v.lon === null)) {
-      ctx.addIssue({
-        code: "custom",
-        path: [v.lat === null ? "lat" : "lon"],
-        message: "Enter both latitude and longitude, or neither.",
-      });
-    }
   });
 
 /** What the service writes to Project. Sizes in whole USD as decimal strings (Prisma Decimal). */
 export interface ProjectInput {
-  name: string;
+  title: string;
   sector: string;
-  tier: ProjectTier;
   projectType: ProjectType;
   pppModel: string | null;
   sizeMinUsd: string | null;
   sizeMaxUsd: string | null;
-  tenderTimeline: string | null;
-  documentsPrepared: string | null;
-  feedbackSought: string | null;
-  revenueModel: string | null;
-  counterparty: string | null;
-  lat: number | null;
-  lon: number | null;
+  developmentStage: string | null;
 }
 
 export type ParseResult =

@@ -8,42 +8,20 @@ import {
   type WorkspaceFormState,
 } from "@/app/(portal)/workspace/actions";
 import { Button } from "@/components/ui/button";
-import { AcknowledgementFields } from "./acknowledgement-fields";
-import { FieldShell, Notice, Select } from "./form-controls";
+import { DownloadSelect } from "./download-select";
+import { Notice } from "./form-controls";
 
 const initial: WorkspaceFormState = {};
 
-function DownloadSelect({
-  id,
-  allowDownload,
-}: {
-  id: string;
-  allowDownload: boolean;
-}) {
-  return (
-    <FieldShell id={id} label="Allow download?">
-      <Select
-        id={id}
-        name="allowDownload"
-        defaultValue={allowDownload ? "download" : "view"}
-      >
-        <option value="view">View only (recommended)</option>
-        <option value="download">Allow download</option>
-      </Select>
-    </FieldShell>
-  );
-}
-
-/** "Before you publish": confirmation, download choice and the publish button (mockup 04). */
+/**
+ * "Before you publish": download choice and the publish button (mockup 04). PLAN v0.3: the government's consent
+ * was recorded with the teaser upload (its Submission), so there is no second tick here.
+ */
 export function PublishForm({
   projectId,
-  acknowledgementText,
-  onBehalf,
   teaser,
 }: {
   projectId: string;
-  acknowledgementText: string;
-  onBehalf: boolean;
   /** The current CLEAN teaser, or null when there is nothing to publish yet. */
   teaser: { version: number; allowDownload: boolean } | null;
 }) {
@@ -51,7 +29,6 @@ export function PublishForm({
     publishProjectAction.bind(null, projectId),
     initial,
   );
-  const e = state.fieldErrors ?? {};
   if (!teaser) {
     return (
       <Notice tone="info">
@@ -64,14 +41,9 @@ export function PublishForm({
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
       {state.success ? <Notice tone="success">{state.success}</Notice> : null}
       <p className="text-sm text-muted-foreground">
-        You are publishing teaser version {teaser.version}.
+        You are publishing teaser version {teaser.version}. Invited investors
+        and operators will see it in the pipeline.
       </p>
-      <AcknowledgementFields
-        idPrefix="publish"
-        text={acknowledgementText}
-        onBehalf={onBehalf}
-        errors={e}
-      />
       <DownloadSelect
         id="publish-download"
         allowDownload={teaser.allowDownload}
@@ -82,8 +54,7 @@ export function PublishForm({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        The confirmation is recorded with your name, date and time in the audit
-        log.
+        Publishing is recorded with your name, date and time in the audit log.
       </p>
     </form>
   );

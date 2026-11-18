@@ -3,6 +3,7 @@
 // Run with `npm run db:seed` (Prisma calls this file via the seed setting in prisma.config.ts).
 
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -122,6 +123,33 @@ async function main(): Promise<void> {
             update: data,
           });
         }
+        // Upload links are history only: revoked, with a random token hash set on first insert (never updated,
+        // never derivable from the repository), so no seed link can be opened.
+        for (const { id, ...data } of d.uploadLinks) {
+          await tx.uploadLink.upsert({
+            where: { id },
+            create: {
+              id,
+              ...data,
+              tokenHash: randomBytes(32).toString("hex"),
+            },
+            update: data,
+          });
+        }
+        for (const { id, ...data } of d.submissions) {
+          await tx.submission.upsert({
+            where: { id },
+            create: { id, ...data },
+            update: data,
+          });
+        }
+        for (const { id, ...data } of d.countryContacts) {
+          await tx.countryContact.upsert({
+            where: { id },
+            create: { id, ...data },
+            update: data,
+          });
+        }
         for (const { id, ...data } of d.projects) {
           await tx.project.upsert({
             where: { id },
@@ -142,13 +170,6 @@ async function main(): Promise<void> {
           await tx.document.update({
             where: { id: doc.id },
             data: { supersededById: doc.supersededById },
-          });
-        }
-        for (const { id, ...data } of d.acknowledgements) {
-          await tx.acknowledgement.upsert({
-            where: { id },
-            create: { id, ...data },
-            update: data,
           });
         }
         for (const { id, ...data } of d.meetingRequests) {
@@ -203,9 +224,11 @@ async function main(): Promise<void> {
       memberships: await prisma.countryMembership.count(),
       pipelineCountries: await prisma.pipelineCountry.count(),
       invitations: await prisma.invitation.count(),
+      uploadLinks: await prisma.uploadLink.count(),
+      submissions: await prisma.submission.count(),
+      countryContacts: await prisma.countryContact.count(),
       projects: await prisma.project.count(),
       documents: await prisma.document.count(),
-      acknowledgements: await prisma.acknowledgement.count(),
       meetingRequests: await prisma.meetingRequest.count(),
       rooms: await prisma.room.count(),
       slots: await prisma.slot.count(),

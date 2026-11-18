@@ -11,7 +11,7 @@ import {
   canWithdrawProject,
   NO_PROJECT,
 } from "./projects";
-import { canAcknowledge, canUploadDocument } from "./documents";
+import { canUploadDocument } from "./documents";
 import {
   actsOnBehalf,
   isAdminViewer,
@@ -53,8 +53,7 @@ export interface WorkspacePermissions {
   uploadTeaser: boolean;
   publish: boolean;
   withdraw: boolean;
-  acknowledge: boolean;
-  /** An admin acting for the country: acknowledgements need an evidence note. */
+  /** An admin acting for the country: the upload consent records the government's written consent. */
   onBehalf: boolean;
 }
 
@@ -67,7 +66,6 @@ export function workspacePermissions(
     uploadTeaser: canUploadDocument(viewer, project, DocumentKind.TEASER),
     publish: canPublishProject(viewer, project),
     withdraw: canWithdrawProject(viewer, project),
-    acknowledge: canAcknowledge(viewer, project),
     onBehalf: actsOnBehalf(viewer, project.countryId),
   };
 }

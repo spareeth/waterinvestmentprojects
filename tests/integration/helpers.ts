@@ -196,19 +196,30 @@ export async function cleanUp(): Promise<void> {
   await db.projectGrant.deleteMany({
     where: { OR: [{ project: itProject }, { userId: { in: ids } }] },
   });
-  await db.acknowledgement.deleteMany({ where: { project: itProject } });
-  await db.document.deleteMany({ where: { project: itProject } });
-  await db.project.deleteMany({ where: itProject });
-  // Upload links (M0) and their submissions: for "it-" countries, or created by integration test users.
+  // Upload links (M0) and submissions: for "it-" countries, created by integration test users, or (portal
+  // uploads, M1) sent by an integration test user.
   const itLink = {
     OR: [{ countryId: { startsWith: "it-" } }, { createdById: { in: ids } }],
   };
-  await db.submission.deleteMany({
-    where: {
-      OR: [{ countryId: { startsWith: "it-" } }, { uploadLink: itLink }],
-    },
+  const itSubmission = {
+    OR: [
+      { countryId: { startsWith: "it-" } },
+      { uploadLink: itLink },
+      { uploaderEmail: { endsWith: `@${IT_DOMAIN}` } },
+    ],
+  };
+  await db.document.deleteMany({
+    where: { OR: [{ project: itProject }, { submission: itSubmission }] },
   });
+  await db.project.deleteMany({
+    where: { OR: [itProject, { submission: itSubmission }] },
+  });
+  await db.submission.deleteMany({ where: itSubmission });
   await db.uploadLink.deleteMany({ where: itLink });
+  // Contacts made from test uploaders (M1); contacts of "it-" countries go with the country.
+  await db.countryContact.deleteMany({
+    where: { email: { endsWith: `@${IT_DOMAIN}` } },
+  });
   await db.auditEvent.deleteMany({
     where: {
       OR: [

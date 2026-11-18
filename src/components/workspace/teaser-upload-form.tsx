@@ -8,33 +8,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatBytes, MAX_TEASER_BYTES } from "@/lib/workspace/teaser-file";
 import { AcknowledgementFields } from "./acknowledgement-fields";
-import {
-  describe,
-  FieldShell,
-  Notice,
-  Select,
-  TextInput,
-} from "./form-controls";
+import { DownloadSelect } from "./download-select";
+import { describe, FieldShell, Notice } from "./form-controls";
 
 const initial: WorkspaceFormState = {};
 
 /**
- * Upload a teaser version (PDF, max 25 MB). On a published project the confirmation is required at upload,
- * because the new version replaces what investors see. Shown only when the policy module allows uploading.
+ * Upload a teaser version (PDF, max 25 MB). The consent tick is required on every upload: the service stores it as
+ * a Submission that the new file points at. Shown only when the policy module allows uploading.
  */
 export function TeaserUploadForm({
   projectId,
   nextVersion,
-  published,
   acknowledgementText,
-  onBehalf,
   defaultAllowDownload,
 }: {
   projectId: string;
   nextVersion: number;
-  published: boolean;
   acknowledgementText: string;
-  onBehalf: boolean;
   defaultAllowDownload: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -66,42 +57,23 @@ export function TeaserUploadForm({
           className="rounded-lg border-2 border-dashed border-brand-aqua/70 bg-secondary/40 p-6 text-sm file:me-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:font-medium file:text-primary-foreground"
         />
       </FieldShell>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FieldShell id="teaser-title" label="Title shown to investors">
-          <TextInput
-            id="teaser-title"
-            name="title"
-            defaultValue="Project teaser"
-            maxLength={200}
-          />
-        </FieldShell>
-        <FieldShell id="teaser-date" label="Teaser date (optional)">
-          <TextInput id="teaser-date" type="date" name="docDate" />
-        </FieldShell>
-      </div>
-      <FieldShell id="teaser-download" label="Allow download?">
-        <Select
-          id="teaser-download"
-          name="allowDownload"
-          defaultValue={defaultAllowDownload ? "download" : "view"}
-        >
-          <option value="view">View only (recommended)</option>
-          <option value="download">Allow download</option>
-        </Select>
-      </FieldShell>
-      {published ? (
-        <AcknowledgementFields
-          idPrefix="upload"
-          text={acknowledgementText}
-          onBehalf={onBehalf}
-          errors={e}
-        />
-      ) : null}
+      <DownloadSelect
+        id="teaser-download"
+        allowDownload={defaultAllowDownload}
+      />
+      <AcknowledgementFields
+        idPrefix="upload"
+        text={acknowledgementText}
+        errors={e}
+      />
       <div>
         <Button type="submit" size="lg" variant="outline" disabled={pending}>
           {pending ? "Uploading…" : "Upload teaser"}
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        The consent is recorded with your name, date and time.
+      </p>
     </form>
   );
 }

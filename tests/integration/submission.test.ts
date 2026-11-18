@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  CountryContactRole,
   CountryStatus,
   DocumentKind,
   MembershipRole,
@@ -342,7 +343,7 @@ describe("submitting through a country link", () => {
     const submission = await db.submission.findUniqueOrThrow({
       where: { id: submissionId },
       include: {
-        projects: { include: { documents: true }, orderBy: { name: "asc" } },
+        projects: { include: { documents: true }, orderBy: { title: "asc" } },
       },
     });
     expect(submission).toMatchObject({
@@ -353,17 +354,18 @@ describe("submitting through a country link", () => {
       ip: meta.ip,
     });
     expect(submission.ackAcceptedAt.getTime()).toBe(now.getTime());
-    expect(submission.projects.map((p) => p.name)).toEqual([
+    expect(submission.projects.map((p) => p.title)).toEqual([
       "Coastal desal plant",
       "Valley irrigation",
     ]);
     for (const p of submission.projects) {
       expect(p.countryId).toBe(C.a);
       expect(p.status).toBe(ProjectStatus.DRAFT);
-      expect(p.tier).toBeNull();
+      expect(p.developmentStage).toBeNull();
       expect(p.documents).toHaveLength(1);
       const [d] = p.documents;
       expect(d).toMatchObject({
+        submissionId,
         kind: DocumentKind.TEASER,
         version: 1,
         allowDownload: true,
@@ -424,6 +426,42 @@ describe("submitting through a country link", () => {
     }
   });
 
+  it("makes the uploader country A's focal point contact, once per address", async () => {
+    const contacts = await db.countryContact.findMany({
+      where: { countryId: C.a },
+    });
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]).toMatchObject({
+      name: "Ada Uploader",
+      email: "ada.uploader@it.example",
+      role: CountryContactRole.FOCAL_POINT,
+      userId: null,
+    });
+    expect(await auditActions(contacts[0].id)).toEqual([
+      "country_contact.create",
+    ]);
+    // Same person again (address typed differently, new name): no second contact, the first is unchanged.
+    await submitTeasers(
+      tokenA,
+      input({
+        uploaderName: "Ada U.",
+        uploaderEmail: "ADA.Uploader@it.example",
+      }),
+      opts,
+    );
+    const again = await db.countryContact.findMany({
+      where: { countryId: C.a },
+    });
+    expect(again).toHaveLength(1);
+    expect(again[0].name).toBe("Ada Uploader");
+    // A contact is only ever made for the link's own country.
+    expect(
+      await db.countryContact.count({
+        where: { email: "ada.uploader@it.example", countryId: { not: C.a } },
+      }),
+    ).toBe(0);
+  });
+
   it("keeps country B's link to country B, whatever the form says", async () => {
     const receipt = await submitTeasers(
       tokenB,
@@ -440,6 +478,13 @@ describe("submitting through a country link", () => {
     expect(
       await db.project.count({ where: { submissionId, countryId: C.a } }),
     ).toBe(2);
+    // The B uploader became B's contact, never A's.
+    expect(
+      await db.countryContact.findMany({
+        where: { email: "bea@it.example" },
+        select: { countryId: true },
+      }),
+    ).toEqual([{ countryId: C.b }]);
   });
 
   it("lets admins list every submission and nobody else", async () => {
@@ -447,11 +492,14 @@ describe("submitting through a country link", () => {
     const mine = list.filter((s) =>
       ([C.a, C.b] as string[]).includes(s.country.id),
     );
-    expect(mine.map((s) => s.country.id).sort()).toEqual([C.a, C.b]);
+    expect([...new Set(mine.map((s) => s.country.id))].sort()).toEqual([
+      C.a,
+      C.b,
+    ]);
     expect(
       list
         .find((s) => s.id === submissionId)
-        ?.projects.flatMap((p) => p.documents.map((d) => d.id))
+        ?.documents.map((d) => d.id)
         .sort(),
     ).toEqual([...documentIds].sort());
     for (const viewer of [v.focalA, v.focalB, v.investor]) {
@@ -773,7 +821,7 @@ describe("generic link", () => {
       where: { id: receipt.submissionId },
       select: { uploadLink: { select: { countryId: true } } },
     });
-    expect(submission.uploadLink.countryId).toBeNull();
+    expect(submission.uploadLink?.countryId).toBeNull();
   });
 
   it("refuses a missing, unknown or inactive country", async () => {

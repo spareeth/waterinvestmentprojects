@@ -1,7 +1,8 @@
-// M5: the country workspace service against real PostgreSQL. Proves that every action goes through the policy
-// module (cross-country and cross-project isolation, member versus focal point versus admin on behalf), that
-// publishing is impossible without a stored Acknowledgement on the current clean teaser, that teaser versions form
-// a linear supersededById chain, and that each write leaves its AuditEvent.
+// M5, updated for PLAN v0.3 in M1: the country workspace service against real PostgreSQL. Proves that every
+// action goes through the policy module (cross-country and cross-project isolation, member versus focal point
+// versus admin on behalf), that no teaser is stored without a Submission carrying the consent wording version and
+// time (one per upload, the signed-in user as uploader), that publishing needs a current clean teaser, that
+// teaser versions form a linear supersededById chain, and that each write leaves its AuditEvent.
 
 import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
@@ -12,7 +13,6 @@ import {
   MembershipRole,
   PipelineScope,
   ProjectStatus,
-  ProjectTier,
   ProjectType,
   ScanStatus,
   UserRole,
@@ -24,12 +24,9 @@ import {
   projectWhere,
   type Viewer,
 } from "@/lib/authz";
+import { appConfig } from "@/lib/config";
 import { db } from "@/lib/db";
 import { LocalBlobStore } from "@/lib/storage";
-import {
-  ACKNOWLEDGEMENT_ON_BEHALF_TEXT_VERSION,
-  ACKNOWLEDGEMENT_TEXT_VERSION,
-} from "@/lib/workspace/acknowledgement";
 import type { ProjectInput } from "@/lib/workspace/project-input";
 import {
   createProject,
@@ -55,22 +52,16 @@ const v = {} as Record<
   "admin" | "focalA" | "memberA" | "focalB" | "investor",
   Viewer
 >;
+const email = {} as Record<keyof typeof v, string>;
 
-const input = (name: string): ProjectInput => ({
-  name,
+const input = (title: string): ProjectInput => ({
+  title,
   sector: "Desalination",
-  tier: ProjectTier.TIER1,
   projectType: ProjectType.SUMMIT_PIPELINE,
   pppModel: null,
   sizeMinUsd: "10000000",
   sizeMaxUsd: "20000000",
-  tenderTimeline: null,
-  documentsPrepared: null,
-  feedbackSought: null,
-  revenueModel: null,
-  counterparty: null,
-  lat: null,
-  lon: null,
+  developmentStage: null,
 });
 
 const pdf = (label: string) => ({
@@ -78,6 +69,7 @@ const pdf = (label: string) => ({
   bytes: new TextEncoder().encode(`%PDF-1.7\n% ${label}\n%%EOF\n`),
 });
 const view = { allowDownload: false };
+const consent = { acknowledged: true };
 
 async function refusal(promise: Promise<unknown>): Promise<string> {
   try {
@@ -106,6 +98,10 @@ async function auditActions(entityId: string): Promise<string[]> {
   return rows.map((r) => r.action);
 }
 
+/** Submissions of the two test countries. */
+const submissionCount = () =>
+  db.submission.count({ where: { countryId: { in: [C.a, C.b] } } });
+
 beforeAll(async () => {
   await cleanUp();
   blobDir = await mkdtemp(path.join(tmpdir(), "it-ws-blobs-"));
@@ -118,6 +114,7 @@ beforeAll(async () => {
     ],
   });
   const make = async (
+    key: keyof typeof v,
     role: UserRole,
     membershipRole?: MembershipRole,
     countryId?: string,
@@ -131,19 +128,22 @@ beforeAll(async () => {
       termsAccepted: true,
       mfaEnabled: true,
     });
-    return (await viewerFor(u.id))!;
+    v[key] = (await viewerFor(u.id))!;
+    email[key] = u.email;
   };
-  v.admin = await make(UserRole.SUMMIT_ADMIN);
-  v.focalA = await make(UserRole.COUNTRY, MembershipRole.FOCAL_POINT, C.a);
-  v.memberA = await make(UserRole.COUNTRY, MembershipRole.MEMBER, C.a);
+  await make("admin", UserRole.SUMMIT_ADMIN);
+  await make("focalA", UserRole.COUNTRY, MembershipRole.FOCAL_POINT, C.a);
+  await make("memberA", UserRole.COUNTRY, MembershipRole.MEMBER, C.a);
   // Country B's focal point also sees the whole pipeline, which must not open A's workspace.
-  v.focalB = await make(
+  await make(
+    "focalB",
     UserRole.COUNTRY,
     MembershipRole.FOCAL_POINT,
     C.b,
     PipelineScope.ALL,
   );
-  v.investor = await make(
+  await make(
+    "investor",
     UserRole.INVESTOR,
     undefined,
     undefined,
@@ -173,6 +173,7 @@ describe("country workspace", () => {
     });
     expect(project.status).toBe(ProjectStatus.DRAFT);
     expect(project.countryId).toBe(C.a);
+    expect(project.title).toBe("Workspace one");
     expect(await auditActions(projectId)).toEqual(["project.create"]);
 
     expect(await refusal(createProject(v.memberA, C.b, input("x"), opts))).toBe(
@@ -196,22 +197,19 @@ describe("country workspace", () => {
     expect(own?.permissions).toMatchObject({ edit: true, publish: false });
   });
 
-  it("updates key fields and records which ones changed", async () => {
+  it("updates key fields (title, development stage) and records which ones changed", async () => {
     const changed = await updateProject(
       v.memberA,
       projectId,
-      { ...input("Workspace one, renamed"), counterparty: "Fictional Utility" },
+      { ...input("Workspace one, renamed"), developmentStage: "Feasibility" },
       opts,
     );
-    expect(changed.sort()).toEqual(["counterparty", "name"]);
+    expect(changed.sort()).toEqual(["developmentStage", "title"]);
     expect(
       await updateProject(
         v.memberA,
         projectId,
-        {
-          ...input("Workspace one, renamed"),
-          counterparty: "Fictional Utility",
-        },
+        { ...input("Workspace one, renamed"), developmentStage: "Feasibility" },
         opts,
       ),
     ).toEqual([]);
@@ -230,10 +228,31 @@ describe("country workspace", () => {
     expect(audit.metadata).toMatchObject({ changed: expect.any(Array) });
   });
 
-  it("stores a teaser version with sha256, scan status and audit, and refuses bad files", async () => {
+  it("refuses an upload without the consent tick, storing nothing", async () => {
+    const [blobs, submissions] = [await blobCount(), await submissionCount()];
+    for (const ack of [null, { acknowledged: false }]) {
+      expect(
+        await refusal(
+          uploadTeaser(v.memberA, projectId, pdf("v1"), view, ack, opts),
+        ),
+      ).toBe("ack_required");
+    }
+    expect(await blobCount()).toBe(blobs);
+    expect(await submissionCount()).toBe(submissions);
+    expect(await db.document.count({ where: { projectId } })).toBe(0);
+  });
+
+  it("stores a teaser with its own Submission (consent version and time), sha256, scan status and audit", async () => {
     const file = pdf("v1");
-    v1 = await uploadTeaser(v.memberA, projectId, file, view, null, opts);
-    const doc = await db.document.findUniqueOrThrow({ where: { id: v1 } });
+    const now = new Date("2026-11-19T08:00:00Z");
+    v1 = await uploadTeaser(v.memberA, projectId, file, view, consent, {
+      ...opts,
+      now,
+    });
+    const doc = await db.document.findUniqueOrThrow({
+      where: { id: v1 },
+      include: { submission: true },
+    });
     expect(doc).toMatchObject({
       version: 1,
       kind: "TEASER",
@@ -244,14 +263,36 @@ describe("country workspace", () => {
       filename: "v1.pdf",
       uploadedById: v.memberA.id,
     });
+    expect(doc.submission).toMatchObject({
+      countryId: C.a,
+      uploadLinkId: null,
+      uploaderName: "Integration Tester",
+      uploaderEmail: email.memberA,
+      ackTextVersion: appConfig.uploadAcknowledgement.version,
+      ip: meta.ip,
+    });
+    expect(doc.submission.ackAcceptedAt.getTime()).toBe(now.getTime());
+    // The project keeps no link submission; only link projects carry Project.submissionId.
+    expect(
+      (await db.project.findUniqueOrThrow({ where: { id: projectId } }))
+        .submissionId,
+    ).toBeNull();
+    // A portal uploader is not made a request-inbox contact (they already have an account).
+    expect(await db.countryContact.count({ where: { countryId: C.a } })).toBe(
+      0,
+    );
     expect(doc.blobKey).toMatch(new RegExp(`^projects/${projectId}/teaser/`));
     expect(await store.get(doc.blobKey)).not.toBeNull();
     expect(await auditActions(v1)).toEqual([
       "document.upload",
       "document.scan",
     ]);
+    expect(await auditActions(doc.submissionId)).toEqual(["submission.create"]);
+  });
 
-    const before = await blobCount();
+  it("refuses bad files and other countries' or investors' uploads, storing nothing", async () => {
+    const [blobs, submissions] = [await blobCount(), await submissionCount()];
+    const file = pdf("bad");
     expect(
       await refusal(
         uploadTeaser(
@@ -259,7 +300,7 @@ describe("country workspace", () => {
           projectId,
           { name: "deck.pptx", bytes: file.bytes },
           view,
-          null,
+          consent,
           opts,
         ),
       ),
@@ -271,86 +312,73 @@ describe("country workspace", () => {
           projectId,
           { name: "fake.pdf", bytes: new TextEncoder().encode("hello") },
           view,
-          null,
+          consent,
           opts,
         ),
       ),
     ).toBe("file_not_pdf");
+    // Cross-country and investor: the project does not even exist for them.
     expect(
       await refusal(
-        uploadTeaser(v.focalB, projectId, pdf("x"), view, null, opts),
+        uploadTeaser(v.focalB, projectId, pdf("x"), view, consent, opts),
       ),
     ).toBe("not_found");
     expect(
       await refusal(
-        uploadTeaser(v.investor, projectId, pdf("x"), view, null, opts),
+        uploadTeaser(v.investor, projectId, pdf("x"), view, consent, opts),
       ),
     ).toBe("not_found");
-    // Refused uploads never reach storage.
-    expect(await blobCount()).toBe(before);
+    expect(await blobCount()).toBe(blobs);
+    expect(await submissionCount()).toBe(submissions);
+    expect(await db.submission.count({ where: { countryId: C.b } })).toBe(0);
   });
 
-  it("does not let a member publish, and needs the tick from the focal point", async () => {
-    expect(
-      await refusal(
-        publishProject(v.memberA, projectId, { acknowledged: true }, opts),
-      ),
-    ).toBe("forbidden");
-    expect(
-      await refusal(
-        publishProject(v.focalB, projectId, { acknowledged: true }, opts),
-      ),
-    ).toBe("not_found");
-    expect(
-      await refusal(
-        publishProject(v.focalA, projectId, { acknowledged: false }, opts),
-      ),
-    ).toBe("ack_required");
-    expect(await db.acknowledgement.count({ where: { projectId } })).toBe(0);
+  it("does not let a member or another country publish", async () => {
+    expect(await refusal(publishProject(v.memberA, projectId, opts))).toBe(
+      "forbidden",
+    );
+    expect(await refusal(publishProject(v.focalB, projectId, opts))).toBe(
+      "not_found",
+    );
+    expect(await refusal(publishProject(v.investor, projectId, opts))).toBe(
+      "not_found",
+    );
     expect(
       (await db.project.findUniqueOrThrow({ where: { id: projectId } })).status,
     ).toBe(ProjectStatus.DRAFT);
   });
 
-  it("publishes with a stored acknowledgement on the current clean teaser", async () => {
-    await publishProject(
-      v.focalA,
-      projectId,
-      { acknowledged: true },
-      { ...opts, allowDownload: true },
-    );
+  it("publishes the current clean teaser, whose Submission holds the consent", async () => {
+    await publishProject(v.focalA, projectId, {
+      ...opts,
+      allowDownload: true,
+    });
     const project = await db.project.findUniqueOrThrow({
       where: { id: projectId },
     });
     expect(project.status).toBe(ProjectStatus.PUBLISHED);
     expect(project.publishedAt).not.toBeNull();
-    const ack = await db.acknowledgement.findFirstOrThrow({
-      where: { projectId },
-    });
-    expect(ack).toMatchObject({
-      documentId: v1,
-      userId: v.focalA.id,
-      textVersion: ACKNOWLEDGEMENT_TEXT_VERSION,
-      onBehalfOfCountry: false,
-      evidenceNote: null,
-      ip: meta.ip,
-    });
     expect(
       (await db.document.findUniqueOrThrow({ where: { id: v1 } }))
         .allowDownload,
     ).toBe(true);
-    expect(await auditActions(projectId)).toContain("project.publish");
-    expect(await auditActions(ack.id)).toEqual(["acknowledgement.create"]);
+    const publish = await db.auditEvent.findFirstOrThrow({
+      where: { entityId: projectId, action: "project.publish" },
+    });
+    expect(publish.metadata).toMatchObject({
+      documentId: v1,
+      submissionId: (await db.document.findUniqueOrThrow({ where: { id: v1 } }))
+        .submissionId,
+      onBehalf: false,
+    });
     // Investors now see it.
     const visible = await db.project.findFirst({
       where: { AND: [{ id: projectId }, projectWhere(v.investor)] },
     });
     expect(visible).not.toBeNull();
-    expect(
-      await refusal(
-        publishProject(v.focalA, projectId, { acknowledged: true }, opts),
-      ),
-    ).toBe("already_published");
+    expect(await refusal(publishProject(v.focalA, projectId, opts))).toBe(
+      "already_published",
+    );
   });
 
   it("stops a member changing a published project", async () => {
@@ -361,7 +389,7 @@ describe("country workspace", () => {
     ).toBe("forbidden");
     expect(
       await refusal(
-        uploadTeaser(v.memberA, projectId, pdf("m"), view, null, opts),
+        uploadTeaser(v.memberA, projectId, pdf("m"), view, consent, opts),
       ),
     ).toBe("forbidden");
     expect(await refusal(withdrawProject(v.memberA, projectId, opts))).toBe(
@@ -369,7 +397,7 @@ describe("country workspace", () => {
     );
   });
 
-  it("needs the tick again when a new version replaces the live teaser", async () => {
+  it("gives every new version its own Submission and keeps a linear chain", async () => {
     expect(
       await refusal(
         uploadTeaser(
@@ -387,19 +415,25 @@ describe("country workspace", () => {
       projectId,
       pdf("v2"),
       view,
-      { acknowledged: true },
+      consent,
       opts,
     );
     const [doc1, doc2] = await Promise.all([
       db.document.findUniqueOrThrow({ where: { id: v1 } }),
-      db.document.findUniqueOrThrow({ where: { id: v2 } }),
+      db.document.findUniqueOrThrow({
+        where: { id: v2 },
+        include: { submission: true },
+      }),
     ]);
     expect(doc2.version).toBe(2);
     expect(doc1.supersededById).toBe(v2);
     expect(doc2.supersededById).toBeNull();
-    expect(
-      await db.acknowledgement.count({ where: { projectId, documentId: v2 } }),
-    ).toBe(1);
+    expect(doc2.submissionId).not.toBe(doc1.submissionId);
+    expect(doc2.submission).toMatchObject({
+      countryId: C.a,
+      uploaderEmail: email.focalA,
+      ackTextVersion: appConfig.uploadAcknowledgement.version,
+    });
     // The pipeline shows only the new version.
     const investorDocs = await db.document.findMany({
       where: {
@@ -467,45 +501,41 @@ describe("country workspace", () => {
     expect(await auditActions(projectId)).toContain("project.withdraw");
   });
 
-  it("lets an admin publish on behalf of the country only with an evidence note", async () => {
-    const acksBefore = await db.acknowledgement.count({ where: { projectId } });
-    expect(
-      await refusal(
-        publishProject(v.admin, projectId, { acknowledged: true }, opts),
-      ),
-    ).toBe("evidence_required");
-    expect(
-      await refusal(
-        publishProject(
-          v.admin,
-          projectId,
-          { acknowledged: true, evidenceNote: "short" },
-          opts,
-        ),
-      ),
-    ).toBe("evidence_required");
-    // A refused publish leaves nothing behind.
-    expect(await db.acknowledgement.count({ where: { projectId } })).toBe(
-      acksBefore,
-    );
-    await publishProject(
+  it("lets an admin upload for the country, recording the on-behalf consent wording", async () => {
+    const v3 = await uploadTeaser(
       v.admin,
       projectId,
-      {
-        acknowledged: true,
-        evidenceNote: "Email from the focal point, 18 Nov 2026, Summit mailbox",
-      },
+      pdf("v3"),
+      view,
+      consent,
       opts,
     );
-    const ack = await db.acknowledgement.findFirstOrThrow({
-      where: { projectId, userId: v.admin.id },
+    const doc = await db.document.findUniqueOrThrow({
+      where: { id: v3 },
+      include: { submission: true },
     });
-    expect(ack).toMatchObject({
-      documentId: v2,
-      onBehalfOfCountry: true,
-      textVersion: ACKNOWLEDGEMENT_ON_BEHALF_TEXT_VERSION,
-      evidenceNote: "Email from the focal point, 18 Nov 2026, Summit mailbox",
+    expect(doc.uploadedById).toBe(v.admin.id);
+    expect(doc.submission).toMatchObject({
+      countryId: C.a,
+      uploadLinkId: null,
+      uploaderEmail: email.admin,
+      ackTextVersion: appConfig.uploadAcknowledgementOnBehalf.version,
     });
+    const audit = await db.auditEvent.findFirstOrThrow({
+      where: { entityId: doc.submissionId, action: "submission.create" },
+    });
+    expect(audit.actorId).toBe(v.admin.id);
+    expect(audit.metadata).toMatchObject({
+      source: "workspace",
+      onBehalf: true,
+    });
+  });
+
+  it("lets an admin publish on behalf of the country", async () => {
+    await publishProject(v.admin, projectId, opts);
+    expect(
+      (await db.project.findUniqueOrThrow({ where: { id: projectId } })).status,
+    ).toBe(ProjectStatus.PUBLISHED);
     const publish = await db.auditEvent.findFirstOrThrow({
       where: {
         entityId: projectId,
@@ -513,29 +543,26 @@ describe("country workspace", () => {
         actorId: v.admin.id,
       },
     });
-    expect(publish.metadata).toMatchObject({ onBehalf: true, version: 2 });
+    expect(publish.metadata).toMatchObject({ onBehalf: true, version: 3 });
   });
 
   it("cannot publish while the only teaser waits for its virus check", async () => {
     const id = await createProject(v.focalA, C.a, input("Pending scan"), opts);
-    expect(
-      await refusal(publishProject(v.focalA, id, { acknowledged: true }, opts)),
-    ).toBe("no_clean_teaser");
-    const doc = await uploadTeaser(v.focalA, id, pdf("p"), view, null, {
+    expect(await refusal(publishProject(v.focalA, id, opts))).toBe(
+      "no_clean_teaser",
+    );
+    const doc = await uploadTeaser(v.focalA, id, pdf("p"), view, consent, {
       ...opts,
       scanMode: "pending",
     });
     expect(
       (await db.document.findUniqueOrThrow({ where: { id: doc } })).scanStatus,
     ).toBe(ScanStatus.PENDING);
-    expect(
-      await refusal(publishProject(v.focalA, id, { acknowledged: true }, opts)),
-    ).toBe("no_clean_teaser");
+    expect(await refusal(publishProject(v.focalA, id, opts))).toBe(
+      "no_clean_teaser",
+    );
     await expect(
       authorizeDocumentFile(v.focalA, doc, "view", { meta }),
     ).rejects.toMatchObject({ code: "forbidden" });
-    expect(await db.acknowledgement.count({ where: { projectId: id } })).toBe(
-      0,
-    );
   });
 });

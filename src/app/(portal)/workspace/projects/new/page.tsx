@@ -40,7 +40,7 @@ export default async function NewProjectPage() {
           <ProjectForm
             mode="create"
             countries={countries}
-            defaults={{ tier: "TIER1", projectType: "SUMMIT_PIPELINE" }}
+            defaults={{ projectType: "SUMMIT_PIPELINE" }}
           />
         </section>
       </main>

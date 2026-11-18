@@ -11,7 +11,6 @@ import {
   AUTHZ_AUDIT,
   actsOnBehalf,
   auditAccess,
-  canAcknowledge,
   canCreateProject,
   canEditProject,
   canPublishProject,
@@ -28,19 +27,19 @@ import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { type BlobStore, getBlobStore, teaserBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
-import {
-  acknowledgementTextVersion,
-  EVIDENCE_NOTE_MAX,
-  EVIDENCE_NOTE_MIN,
-} from "./acknowledgement";
+import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WorkspaceError } from "./errors";
 import type { ProjectInput } from "./project-input";
 import { cleanFilename, teaserFileProblem } from "./teaser-file";
 
-// Country workspace (M5, PLAN F3/F4): create and edit projects, upload teaser versions, acknowledge, publish and
-// withdraw. Every function takes the Viewer from requireViewer() and checks it through src/lib/authz; every
+// Country workspace (M5, PLAN F3/F4; v0.3 since M1): create and edit projects, upload teaser versions, publish
+// and withdraw. Every function takes the Viewer from requireViewer() and checks it through src/lib/authz; every
 // write and its AuditEvent happen in one transaction. Server actions are thin wrappers around these functions,
 // and the integration tests call them directly.
+//
+// PLAN v0.3 / CLAUDE.md: a teaser cannot be stored without a Submission carrying the acknowledgement text version
+// and timestamp. Each workspace upload therefore needs the consent tick and creates its own Submission (no upload
+// link, the signed-in user as uploader), which the new Document points at (Document.submissionId).
 
 export const WORKSPACE_AUDIT = {
   PROJECT_CREATE: "project.create",
@@ -50,7 +49,7 @@ export const WORKSPACE_AUDIT = {
   DOCUMENT_UPLOAD: "document.upload",
   DOCUMENT_SCAN: "document.scan",
   DOCUMENT_UPDATE: "document.update",
-  ACKNOWLEDGEMENT_CREATE: "acknowledgement.create",
+  SUBMISSION_CREATE: "submission.create",
 } as const;
 
 export { WorkspaceError, type WorkspaceErrorCode } from "./errors";
@@ -64,12 +63,9 @@ export interface WorkspaceOptions {
   scanMode?: ScanMode;
 }
 
-type Tx = Prisma.TransactionClient;
-
-/** Acknowledgement fields from the "Before you publish" panel or the upload form on a published project. */
+/** The consent tick on the workspace upload form. */
 export interface AcknowledgementInput {
   acknowledged: boolean;
-  evidenceNote?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,10 +74,8 @@ export interface AcknowledgementInput {
 
 const TEASER_SELECT = {
   id: true,
-  title: true,
   filename: true,
   version: true,
-  docDate: true,
   allowDownload: true,
   sha256: true,
   sizeBytes: true,
@@ -89,6 +83,15 @@ const TEASER_SELECT = {
   uploadedAt: true,
   supersededById: true,
   uploadedBy: { select: { name: true } },
+  submission: {
+    select: {
+      id: true,
+      uploaderName: true,
+      ackTextVersion: true,
+      ackAcceptedAt: true,
+      uploadLinkId: true,
+    },
+  },
 } satisfies Prisma.DocumentSelect;
 
 /** "My projects": the viewer's workspace projects with their latest teaser version. */
@@ -98,9 +101,8 @@ export async function listWorkspaceProjects(viewer: Viewer) {
     orderBy: [{ country: { name: "asc" } }, { updatedAt: "desc" }],
     select: {
       id: true,
-      name: true,
+      title: true,
       sector: true,
-      tier: true,
       status: true,
       publishedAt: true,
       updatedAt: true,
@@ -129,8 +131,8 @@ export async function listWorkspaceCountries(viewer: Viewer) {
 }
 
 /**
- * One workspace project with its teaser versions, the latest acknowledgements and what the viewer may do.
- * Null when the project is not in the viewer's workspace. Records a project.view audit event.
+ * One workspace project with its teaser versions (each with the Submission that records its consent) and what
+ * the viewer may do. Null when the project is not in the viewer's workspace. Records a project.view audit event.
  */
 export async function getWorkspaceProject(
   viewer: Viewer,
@@ -139,27 +141,11 @@ export async function getWorkspaceProject(
 ) {
   const project = await findWorkspaceProjectFor(viewer, projectId);
   if (!project) return null;
-  const [teasers, acknowledgements] = await Promise.all([
-    db.document.findMany({
-      where: { projectId, kind: DocumentKind.TEASER },
-      orderBy: { version: "desc" },
-      select: TEASER_SELECT,
-    }),
-    db.acknowledgement.findMany({
-      where: { projectId },
-      orderBy: { acceptedAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        documentId: true,
-        textVersion: true,
-        acceptedAt: true,
-        onBehalfOfCountry: true,
-        evidenceNote: true,
-        user: { select: { name: true } },
-      },
-    }),
-  ]);
+  const teasers = await db.document.findMany({
+    where: { projectId, kind: DocumentKind.TEASER },
+    orderBy: { version: "desc" },
+    select: TEASER_SELECT,
+  });
   await auditAccess(viewer, {
     action: AUTHZ_AUDIT.PROJECT_VIEW,
     entityType: "Project",
@@ -173,9 +159,8 @@ export async function getWorkspaceProject(
     project,
     teasers,
     currentTeaser: current,
-    acknowledgements,
     permissions: workspacePermissions(viewer, project),
-    /** Why publishing would fail right now (before the tick), or null. */
+    /** Why publishing would fail right now, or null. */
     publishBlocker: blocker,
   };
 }
@@ -186,20 +171,13 @@ export async function getWorkspaceProject(
 
 function projectData(input: ProjectInput) {
   return {
-    name: input.name,
+    title: input.title,
     sector: input.sector,
-    tier: input.tier,
     projectType: input.projectType,
     pppModel: input.pppModel,
     sizeMinUsd: input.sizeMinUsd,
     sizeMaxUsd: input.sizeMaxUsd,
-    tenderTimeline: input.tenderTimeline,
-    documentsPrepared: input.documentsPrepared,
-    feedbackSought: input.feedbackSought,
-    revenueModel: input.revenueModel,
-    counterparty: input.counterparty,
-    lat: input.lat,
-    lon: input.lon,
+    developmentStage: input.developmentStage,
   };
 }
 
@@ -232,7 +210,7 @@ export async function createProject(
         meta,
         metadata: {
           countryId,
-          name: input.name,
+          title: input.title,
           onBehalf: actsOnBehalf(viewer, countryId),
         },
       },
@@ -293,70 +271,6 @@ export async function updateProject(
 }
 
 // ---------------------------------------------------------------------------
-// Acknowledgement (inside a transaction)
-// ---------------------------------------------------------------------------
-
-function checkAcknowledgement(
-  viewer: Viewer,
-  countryId: string,
-  ack: AcknowledgementInput,
-): { onBehalf: boolean; evidenceNote: string | null } {
-  if (!canAcknowledge(viewer, { countryId })) {
-    throw new WorkspaceError("forbidden");
-  }
-  if (!ack.acknowledged) throw new WorkspaceError("ack_required");
-  const onBehalf = actsOnBehalf(viewer, countryId);
-  const note = ack.evidenceNote?.trim() ?? "";
-  if (onBehalf && note.length < EVIDENCE_NOTE_MIN) {
-    throw new WorkspaceError("evidence_required");
-  }
-  return {
-    onBehalf,
-    evidenceNote: note ? note.slice(0, EVIDENCE_NOTE_MAX) : null,
-  };
-}
-
-async function recordAcknowledgement(
-  tx: Tx,
-  viewer: Viewer,
-  project: { id: string; countryId: string },
-  document: { id: string; version: number },
-  checked: { onBehalf: boolean; evidenceNote: string | null },
-  meta: RequestMeta | undefined,
-): Promise<string> {
-  const ack = await tx.acknowledgement.create({
-    data: {
-      projectId: project.id,
-      documentId: document.id,
-      userId: viewer.id,
-      textVersion: acknowledgementTextVersion(checked.onBehalf),
-      ip: meta?.ip ?? null,
-      onBehalfOfCountry: checked.onBehalf,
-      evidenceNote: checked.evidenceNote,
-    },
-    select: { id: true },
-  });
-  await writeAudit(
-    {
-      actorId: viewer.id,
-      action: WORKSPACE_AUDIT.ACKNOWLEDGEMENT_CREATE,
-      entityType: "Acknowledgement",
-      entityId: ack.id,
-      meta,
-      metadata: {
-        projectId: project.id,
-        documentId: document.id,
-        version: document.version,
-        textVersion: acknowledgementTextVersion(checked.onBehalf),
-        onBehalfOfCountry: checked.onBehalf,
-      },
-    },
-    tx,
-  );
-  return ack.id;
-}
-
-// ---------------------------------------------------------------------------
 // Teasers
 // ---------------------------------------------------------------------------
 
@@ -367,16 +281,14 @@ export interface TeaserUpload {
 }
 
 export interface TeaserFields {
-  title?: string | null;
-  docDate?: Date | null;
   allowDownload: boolean;
 }
 
 /**
  * Stores a new teaser version: PDF only, max 25 MB, sha256, version = latest + 1, and the previous current
- * version is superseded (linear supersededById chain). Scan status starts as UPLOAD_SCAN says. On a PUBLISHED
- * project the acknowledgement is required at upload and stored on the new version, so the live teaser is never
- * replaced by one nobody confirmed. Returns the new document id.
+ * version is superseded (linear supersededById chain). Scan status starts as UPLOAD_SCAN says. The consent tick
+ * is required on every upload: in the same transaction a Submission is created (no link; uploader = the signed-in
+ * user; wording version and time from config) and the new Document points at it. Returns the new document id.
  */
 export async function uploadTeaser(
   viewer: Viewer,
@@ -384,7 +296,7 @@ export async function uploadTeaser(
   file: TeaserUpload,
   fields: TeaserFields,
   ack: AcknowledgementInput | null,
-  { meta, store, scanMode }: WorkspaceOptions = {},
+  { meta, store, scanMode, now = new Date() }: WorkspaceOptions = {},
 ): Promise<string> {
   // Permission first, so nothing is written to storage for someone who may not upload.
   const before = await findWorkspaceProjectFor(viewer, projectId);
@@ -394,13 +306,7 @@ export async function uploadTeaser(
   }
   const problem = teaserFileProblem(file);
   if (problem) throw new WorkspaceError(problem);
-  if (before.status === ProjectStatus.PUBLISHED) {
-    checkAcknowledgement(
-      viewer,
-      before.countryId,
-      ack ?? { acknowledged: false },
-    );
-  }
+  if (!ack?.acknowledged) throw new WorkspaceError("ack_required");
 
   const blobs = store ?? getBlobStore();
   const scan = initialScan(scanMode ?? getEnv().UPLOAD_SCAN);
@@ -418,14 +324,26 @@ export async function uploadTeaser(
       if (!canUploadDocument(viewer, project, DocumentKind.TEASER)) {
         throw new WorkspaceError("forbidden");
       }
-      const published = project.status === ProjectStatus.PUBLISHED;
-      const checked = published
-        ? checkAcknowledgement(
-            viewer,
-            project.countryId,
-            ack ?? { acknowledged: false },
-          )
-        : null;
+      const uploader = await tx.user.findUnique({
+        where: { id: viewer.id },
+        select: { name: true, email: true },
+      });
+      if (!uploader) throw new WorkspaceError("forbidden");
+      const onBehalf = actsOnBehalf(viewer, project.countryId);
+      const consent = workspaceUploadAcknowledgement(onBehalf);
+
+      const submission = await tx.submission.create({
+        data: {
+          countryId: project.countryId,
+          uploadLinkId: null,
+          uploaderName: uploader.name,
+          uploaderEmail: uploader.email,
+          ackTextVersion: consent.version,
+          ackAcceptedAt: now,
+          ip: meta?.ip ?? null,
+        },
+        select: { id: true },
+      });
 
       const previous = await tx.document.findFirst({
         where: { projectId, kind: DocumentKind.TEASER },
@@ -436,11 +354,10 @@ export async function uploadTeaser(
       const doc = await tx.document.create({
         data: {
           projectId,
+          submissionId: submission.id,
           kind: DocumentKind.TEASER,
-          title: fields.title?.trim() || "Project teaser",
           filename,
           version,
-          docDate: fields.docDate ?? null,
           allowDownload: fields.allowDownload,
           blobKey,
           sha256,
@@ -462,12 +379,34 @@ export async function uploadTeaser(
       await writeAudit(
         {
           actorId: viewer.id,
+          action: WORKSPACE_AUDIT.SUBMISSION_CREATE,
+          entityType: "Submission",
+          entityId: submission.id,
+          meta,
+          metadata: {
+            countryId: project.countryId,
+            source: "workspace",
+            uploaderName: uploader.name,
+            uploaderEmail: uploader.email,
+            ackTextVersion: consent.version,
+            ackAcceptedAt: now.toISOString(),
+            onBehalf,
+            projectId,
+            documentIds: [doc.id],
+          },
+        },
+        tx,
+      );
+      await writeAudit(
+        {
+          actorId: viewer.id,
           action: WORKSPACE_AUDIT.DOCUMENT_UPLOAD,
           entityType: "Document",
           entityId: doc.id,
           meta,
           metadata: {
             projectId,
+            submissionId: submission.id,
             kind: DocumentKind.TEASER,
             version,
             filename,
@@ -475,7 +414,8 @@ export async function uploadTeaser(
             sizeBytes: file.bytes.byteLength,
             allowDownload: fields.allowDownload,
             supersedes: superseded,
-            onBehalf: actsOnBehalf(viewer, project.countryId),
+            onBehalf,
+            source: "workspace",
           },
         },
         tx,
@@ -491,9 +431,6 @@ export async function uploadTeaser(
         },
         tx,
       );
-      if (checked) {
-        await recordAcknowledgement(tx, viewer, project, doc, checked, meta);
-      }
       return doc.id;
     });
   } catch (error) {
@@ -503,7 +440,7 @@ export async function uploadTeaser(
   }
 }
 
-/** Switches downloading on or off for one teaser version (view only is the default). */
+/** Switches downloading on or off for one teaser version (PLAN v0.3: allowed by default). */
 export async function setTeaserDownload(
   viewer: Viewer,
   documentId: string,
@@ -551,14 +488,13 @@ export async function setTeaserDownload(
 // ---------------------------------------------------------------------------
 
 /**
- * Publishes to the pipeline. In one transaction: stores the Acknowledgement on the current CLEAN teaser (with
- * evidence note when an admin acts on behalf), applies the download choice, asks publishBlocker() and only then
- * sets PUBLISHED. Every publish needs a fresh tick, including publishing again after a withdrawal.
+ * Publishes to the pipeline. PLAN v0.3: the consent was given at upload (every teaser has a Submission), so
+ * publishing needs no further tick. In one transaction: applies the download choice, asks publishBlocker() (a
+ * current CLEAN teaser) and only then sets PUBLISHED.
  */
 export async function publishProject(
   viewer: Viewer,
   projectId: string,
-  ack: AcknowledgementInput,
   options: { allowDownload?: boolean } & WorkspaceOptions = {},
 ): Promise<void> {
   const { meta, now = new Date() } = options;
@@ -583,18 +519,14 @@ export async function publishProject(
         scanStatus: ScanStatus.CLEAN,
       },
       orderBy: { version: "desc" },
-      select: { id: true, version: true, allowDownload: true },
+      select: {
+        id: true,
+        version: true,
+        allowDownload: true,
+        submissionId: true,
+      },
     });
     if (!teaser) throw new WorkspaceError("no_clean_teaser");
-    const checked = checkAcknowledgement(viewer, project.countryId, ack);
-    const acknowledgementId = await recordAcknowledgement(
-      tx,
-      viewer,
-      project,
-      teaser,
-      checked,
-      meta,
-    );
     if (
       options.allowDownload !== undefined &&
       options.allowDownload !== teaser.allowDownload
@@ -615,7 +547,7 @@ export async function publishProject(
         tx,
       );
     }
-    // The policy module has the last word (CLAUDE.md: no publishing without a stored Acknowledgement).
+    // The policy module has the last word.
     const blocker = await publishBlocker(viewer, projectId, { client: tx });
     if (blocker) throw new WorkspaceError(blocker);
     const updated = await tx.project.updateMany({
@@ -634,8 +566,8 @@ export async function publishProject(
           previousStatus: project.status,
           documentId: teaser.id,
           version: teaser.version,
-          acknowledgementId,
-          onBehalf: checked.onBehalf,
+          submissionId: teaser.submissionId,
+          onBehalf: actsOnBehalf(viewer, project.countryId),
         },
       },
       tx,

@@ -16,4 +16,13 @@ export const appConfig = {
     version: "country-upload-ack-v1",
     text: "I confirm, on behalf of the represented Government, consent for the uploaded project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
   },
+  /**
+   * M1: what a Summit or platform admin confirms when uploading a teaser for a country in the portal workspace
+   * (an admin cannot consent for a government, only record that its consent was received). Terra wording, to be
+   * confirmed with WBG. Stored on the Submission like the uploader's acknowledgement.
+   */
+  uploadAcknowledgementOnBehalf: {
+    version: "country-upload-ack-v1-on-behalf",
+    text: "I confirm that the represented Government has given its consent, in writing, for this project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
+  },
 } as const;
