@@ -22,6 +22,7 @@ import {
 import { appConfig } from "@/lib/config";
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
 import { type BlobStore, getBlobStore, submissionBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import {
@@ -30,6 +31,11 @@ import {
   submissionFileProblem,
   type TeaserFileType,
 } from "@/lib/workspace/teaser-file";
+import {
+  type SubmissionMailFacts,
+  summitSubmissionNotice,
+  uploaderConfirmationEmail,
+} from "./emails";
 import { FIELD_MESSAGES, SubmissionError } from "./errors";
 import {
   isSubmissionSector,
@@ -47,8 +53,9 @@ import {
 //   function takes the Viewer and checks it through src/lib/authz.
 // Every write and its AuditEvent happen in one transaction. Server actions are thin wrappers; the integration
 // tests call these functions directly.
-// No email for now (user decision, 18 Nov): the uploader sees a confirmation page with a reference, and the
-// admin submissions page is the notification (getSubmissionCounts, "new" markers).
+// After each submission (user decision, 18 Nov): a confirmation email to the uploader and a notice to the Summit
+// team mailbox, both from the Summit mailbox through src/lib/mail. The confirmation page and the admin counts
+// ("new" markers) stay, so nothing depends on email arriving.
 
 export const SUBMISSION_AUDIT = {
   LINK_CREATE: "upload_link.create",
@@ -77,6 +84,10 @@ export interface SubmissionOptions {
   store?: BlobStore;
   /** Defaults to UPLOAD_SCAN. */
   scanMode?: ScanMode;
+  /** Defaults to the configured mailer (MAIL_DRIVER). */
+  mailer?: Mailer;
+  /** Defaults to ADMIN_NOTIFY_EMAIL. */
+  summitEmails?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +175,8 @@ export interface SubmissionReceipt {
   projectIds: string[];
   documentIds: string[];
   files: { filename: string; sector: string }[];
+  /** True when the confirmation email really left the server (smtp driver accepted it). */
+  emailSent: boolean;
 }
 
 interface CheckedTeaser {
@@ -175,8 +188,8 @@ interface CheckedTeaser {
 /**
  * Stores one government submission: a Submission with the single acknowledgement, and per teaser a DRAFT
  * project with its first teaser version. Files are written first under fresh keys and removed again if the
- * transaction fails. No email is sent (user decision, 18 Nov): the receipt is shown on the confirmation page
- * and the submission appears on the admin submissions page.
+ * transaction fails. After the commit, a confirmation email goes to the uploader and a notice to the Summit team
+ * mailbox; an email failure is audited (mail.failed) and never undoes the submission.
  */
 export async function submitTeasers(
   token: string,
@@ -262,7 +275,7 @@ export async function submitTeasers(
     filename: string;
   })[] = [];
 
-  let receipt: SubmissionReceipt;
+  let receipt: Omit<SubmissionReceipt, "emailSent">;
   try {
     for (const teaser of checked) {
       const blobKey = submissionBlobKey(uploadId, randomUUID(), teaser.type);
@@ -432,7 +445,34 @@ export async function submitTeasers(
     throw error;
   }
 
-  return receipt;
+  const facts: SubmissionMailFacts = {
+    submissionId: receipt.submissionId,
+    countryName: receipt.countryName,
+    uploaderName,
+    uploaderEmail,
+    acceptedAt: receipt.acceptedAt,
+    ackText: appConfig.uploadAcknowledgement.text,
+    files: receipt.files,
+  };
+  const mailOptions = {
+    mailer: options.mailer,
+    meta,
+    entityType: "Submission",
+    entityId: receipt.submissionId,
+  };
+  const emailSent = await sendMail(
+    "submission.uploader_confirmation",
+    { to: [uploaderEmail], ...uploaderConfirmationEmail(facts) },
+    mailOptions,
+  );
+  await notifySummitTeam(
+    "submission.summit_notice",
+    {
+      ...summitSubmissionNotice(facts),
+    },
+    { ...mailOptions, recipients: options.summitEmails },
+  );
+  return { ...receipt, emailSent };
 }
 
 // ---------------------------------------------------------------------------

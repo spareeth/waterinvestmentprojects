@@ -25,6 +25,7 @@ import {
   teaserFileProblem,
 } from "@/lib/workspace/teaser-file";
 import { FIELD_MESSAGES, SUBMISSION_MESSAGES } from "./errors";
+import { summitSubmissionNotice, uploaderConfirmationEmail } from "./emails";
 import { formatUaeTime } from "./format";
 import {
   defaultLinkExpiryDate,
@@ -252,8 +253,39 @@ describe("texts", () => {
     );
   });
 
+  const facts = {
+    submissionId: "sub-1",
+    countryName: "Country A",
+    uploaderName: "Ada",
+    uploaderEmail: "ada@ministry.example",
+    acceptedAt: new Date("2026-11-19T08:30:00Z"),
+    ackText: appConfig.uploadAcknowledgement.text,
+    files: [{ filename: "Teaser.pdf", sector: "Desalination" }],
+  };
+
+  it("writes the uploader confirmation and the Summit notice", () => {
+    const confirmation = uploaderConfirmationEmail(facts);
+    expect(confirmation.subject).toBe(
+      `${appConfig.name}: we received your 1 teaser (Country A)`,
+    );
+    expect(confirmation.text).toContain("Teaser.pdf (sector: Desalination)");
+    expect(confirmation.text).toContain(facts.ackText);
+    expect(confirmation.text).toContain("19 November 2026 at 12:30 (UAE time)");
+    expect(confirmation.text).toContain("Reference: sub-1");
+    const notice = summitSubmissionNotice(facts);
+    expect(notice.subject).toBe("New teaser submission: Country A (1 file)");
+    expect(notice.text).toContain("Ada <ada@ministry.example>");
+    expect(notice.text).toMatch(/\/admin\/submissions$/m);
+  });
+
   it("writes messages without em dashes or tiers", () => {
+    const confirmation = uploaderConfirmationEmail(facts);
+    const notice = summitSubmissionNotice(facts);
     const all = [
+      confirmation.subject,
+      confirmation.text,
+      notice.subject,
+      notice.text,
       appConfig.uploadAcknowledgement.text,
       ...Object.values(SUBMISSION_MESSAGES),
       ...Object.values(FIELD_MESSAGES),

@@ -18,6 +18,60 @@ describe("parseEnv", () => {
     expect(env.SESSION_MAX_HOURS).toBe(12);
   });
 
+  it("logs email by default and needs a server and sender for smtp", () => {
+    const env = parseEnv(base);
+    expect(env.MAIL_DRIVER).toBe("log");
+    expect(env.ADMIN_NOTIFY_EMAIL).toEqual([]);
+    expect(env.SMTP_PORT).toBe(587);
+    expect(() => parseEnv({ ...base, MAIL_DRIVER: "smtp" })).toThrow(
+      /SMTP_HOST.*MAIL_FROM|MAIL_FROM.*SMTP_HOST/,
+    );
+    const smtp = parseEnv({
+      ...base,
+      MAIL_DRIVER: "smtp",
+      SMTP_HOST: "smtp.example.org",
+      SMTP_PORT: "465",
+      SMTP_SECURE: "true",
+      SMTP_USER: "summit@example.org",
+      SMTP_PASSWORD: "app-password",
+      MAIL_FROM: "summit@example.org",
+      ADMIN_NOTIFY_EMAIL: "summit@example.org, team@example.org",
+    });
+    expect(smtp).toMatchObject({
+      MAIL_DRIVER: "smtp",
+      SMTP_PORT: 465,
+      SMTP_SECURE: true,
+      ADMIN_NOTIFY_EMAIL: ["summit@example.org", "team@example.org"],
+    });
+    expect(() =>
+      parseEnv({
+        ...base,
+        MAIL_DRIVER: "smtp",
+        SMTP_HOST: "smtp.example.org",
+        MAIL_FROM: "summit@example.org",
+        SMTP_USER: "summit@example.org",
+      }),
+    ).toThrow(/SMTP_USER/);
+    expect(() =>
+      parseEnv({ ...base, ADMIN_NOTIFY_EMAIL: "summit, nope" }),
+    ).toThrow(/ADMIN_NOTIFY_EMAIL/);
+  });
+
+  it("never echoes the SMTP password in an error", () => {
+    let message = "";
+    try {
+      parseEnv({
+        ...base,
+        MAIL_DRIVER: "smtp",
+        SMTP_PASSWORD: "very-secret-pass",
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/SMTP/);
+    expect(message).not.toContain("very-secret-pass");
+  });
+
   it("rejects a missing DATABASE_URL", () => {
     expect(() =>
       parseEnv({ BETTER_AUTH_SECRET: base.BETTER_AUTH_SECRET }),

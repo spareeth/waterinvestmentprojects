@@ -14,6 +14,7 @@ Terra (Expo City Dubai) builds and hosts it. Project data belongs to the countri
 Next.js (App Router, TypeScript strict), Tailwind + shadcn/ui, Prisma + PostgreSQL 16, Better Auth (email + password only for now, see PLAN section 0a),
 private object storage behind `src/lib/storage` (local disk now; S3-compatible/MinIO on the server), React-Leaflet, Vitest + Playwright, docker-compose for local dev.
 Hosting (decided 18 Nov, for the time being): Docker Compose on Terra's Hetzner server. Azure UAE North is not used for now.
+Email: sent from the Summit mailbox (summit@waterinvestmentprojects.org) only through `src/lib/mail` (`sendMail`, `notifySummitTeam`), after the transaction commits, never failing the work; addresses from config (`MAIL_FROM`, `ADMIN_NOTIFY_EMAIL`), SMTP secrets only in the server's `.env`. Locally use Mailpit (`npm run mail:up`, inbox at http://localhost:8025).
 Develop in the WSL copy (`~/UNWC_ProjectPlatform`). Colour and type tokens live in `src/app/globals.css`.
 
 ## Non-negotiable rules

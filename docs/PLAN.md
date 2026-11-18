@@ -55,14 +55,21 @@ and Jacob differ, Jacob's WBG answers are treated as the working decision unless
 
 ### 0a. Decisions by Sajid, 18 Nov (after v0.3; these override the points above where they differ)
 1. **Hosting:** Terra's Hetzner server for the time being (see section 5). All other v0.3 points stand.
-2. **No email for now.** The portal sends no email until a provider is chosen.
+2. **Email from the Summit mailbox** (revised later on 18 Nov; replaces "no email for now"). The portal sends from
+   summit@waterinvestmentprojects.org over SMTP (`MAIL_DRIVER=smtp`, details in the server's `.env`); the inbox is
+   read at the mail provider (Outlook or webmail), not in the portal. Provider still to be chosen (Microsoft 365
+   in the ECD tenant, Google Workspace or Zoho); domain DNS needs MX, SPF, DKIM and DMARC. Locally, Mailpit shows
+   every email at http://localhost:8025.
 3. **Sign-in: email + password only for now.** No second step (neither email code nor authenticator app) until
    email is set up. Self-registration stays off.
 4. **Accounts are handed out by admins:** an admin creates each account with a generated temporary password that
    must be changed at first sign-in; the admin passes on the email and temporary password personally. No
    invitation emails.
-5. **Notifications: admin page only.** New uploads and meeting requests appear on admin pages (with counts and CSV
-   export) that the admin checks; no emails to focal points, WBG coordinators, investors or uploaders for now.
+5. **Notifications:** every teaser submission emails a confirmation to the uploader and a notice to the Summit
+   mailbox (`ADMIN_NOTIFY_EMAIL`); new projects and bilateral meeting requests will notify the Summit mailbox too
+   (M5, M7, through `notifySummitTeam` in `src/lib/mail`). Admin pages keep counts and "new" markers, so nothing
+   depends on email arriving. Emails to focal points, WBG coordinators and investors: not decided yet.
+   Sign-in (point 3) and account hand-out (point 4) stay as they are until decided otherwise.
 
 ---
 

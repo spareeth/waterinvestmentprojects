@@ -18,5 +18,14 @@ services:
       timeout: 5s
       retries: 10
 
+  # Local test mail server: catches every email the portal sends (nothing leaves this machine).
+  # Inbox: http://localhost:8025. Portal settings: MAIL_DRIVER=smtp, SMTP_HOST=localhost, SMTP_PORT=1025.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
 volumes:
   pgdata:

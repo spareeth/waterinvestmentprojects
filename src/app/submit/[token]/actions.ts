@@ -28,7 +28,7 @@ export interface SubmitFormState {
   fieldErrors?: Record<string, string>;
   /** What the person typed, so a refused form keeps it (files have to be chosen again). */
   values?: SubmitFormValues;
-  /** Shown as the confirmation page; no email is sent (user decision, 18 Nov). */
+  /** Shown as the confirmation page (also emailed when email is set up). */
   receipt?: {
     submissionId: string;
     countryName: string;
@@ -37,6 +37,8 @@ export interface SubmitFormState {
     /** When the acknowledgement was given, already formatted in UAE time. */
     acceptedAt: string;
     files: { filename: string; sector: string }[];
+    /** True when a confirmation email really went out. */
+    emailSent: boolean;
   };
 }
 
@@ -102,6 +104,7 @@ export async function submitTeasersAction(
         uploaderEmail: receipt.uploaderEmail,
         acceptedAt: formatUaeTime(receipt.acceptedAt),
         files: receipt.files,
+        emailSent: receipt.emailSent,
       },
     };
   } catch (error) {

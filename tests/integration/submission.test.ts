@@ -33,6 +33,7 @@ import {
 } from "@/lib/authz";
 import { appConfig } from "@/lib/config";
 import { db } from "@/lib/db";
+import { type Mailer, MemoryMailer } from "@/lib/mail";
 import { type BlobStore, LocalBlobStore } from "@/lib/storage";
 import {
   createUploadLink,
@@ -52,9 +53,11 @@ import { cleanUp, createUser, viewerFor } from "./helpers";
 const C = { a: "it-sub-a", b: "it-sub-b", x: "it-sub-x" } as const;
 const meta = { ip: "198.51.100.7", userAgent: "integration-test" };
 const DAY = 24 * 60 * 60 * 1000;
+const SUMMIT_MAILBOX = "summit@it.example";
 
 let blobDir: string;
 let store: LocalBlobStore;
+let mailer: MemoryMailer;
 let opts: SubmissionOptions;
 const v = {} as Record<
   "admin" | "platformAdmin" | "focalA" | "focalB" | "investor",
@@ -142,7 +145,14 @@ beforeAll(async () => {
   await cleanUp();
   blobDir = await mkdtemp(path.join(tmpdir(), "it-sub-blobs-"));
   store = new LocalBlobStore(blobDir);
-  opts = { meta, store, scanMode: "pending" };
+  mailer = new MemoryMailer();
+  opts = {
+    meta,
+    store,
+    scanMode: "pending",
+    mailer,
+    summitEmails: [SUMMIT_MAILBOX],
+  };
   await db.country.createMany({
     data: [
       { id: C.a, name: "IT Upload A", iso3: "XUA" },
@@ -298,6 +308,7 @@ describe("submitting through a country link", () => {
 
   it("stores a Submission with the acknowledgement and DRAFT projects for the link's country only", async () => {
     const before = await counts();
+    mailer.sent.length = 0;
     const now = new Date();
     const receipt = await submitTeasers(
       tokenA,
@@ -314,7 +325,7 @@ describe("submitting through a country link", () => {
     );
     submissionId = receipt.submissionId;
     documentIds = receipt.documentIds;
-    // The receipt is what the confirmation page shows (no email is sent).
+    // The receipt is what the confirmation page shows.
     expect(receipt).toMatchObject({
       countryId: C.a,
       countryName: "IT Upload A",
@@ -325,6 +336,7 @@ describe("submitting through a country link", () => {
         { filename: "Coastal_desal-plant.pdf", sector: "Desalination" },
         { filename: "Valley irrigation.pptx", sector: "Irrigation" },
       ],
+      emailSent: true,
     });
 
     const submission = await db.submission.findUniqueOrThrow({
@@ -379,13 +391,36 @@ describe("submitting through a country link", () => {
     expect(await db.submission.count({ where: { countryId: C.b } })).toBe(0);
     expect(await db.project.count({ where: { countryId: C.b } })).toBe(0);
 
-    expect(await auditActions(submissionId)).toEqual(["submission.create"]);
+    expect(await auditActions(submissionId)).toEqual([
+      "submission.create",
+      "mail.sent",
+      "mail.sent",
+    ]);
     for (const p of submission.projects) {
       expect(await auditActions(p.id)).toEqual(["project.create"]);
       expect(await auditActions(p.documents[0].id)).toEqual([
         "document.upload",
         "document.scan",
       ]);
+    }
+  });
+
+  it("emails a confirmation to the uploader and a notice to the Summit mailbox", () => {
+    const [confirmation, notice] = mailer.sent;
+    expect(mailer.sent).toHaveLength(2);
+    expect(confirmation.to).toEqual(["ada.uploader@it.example"]);
+    expect(confirmation.subject).toContain("IT Upload A");
+    expect(confirmation.text).toContain("Coastal_desal-plant.pdf");
+    expect(confirmation.text).toContain("Valley irrigation.pptx");
+    expect(confirmation.text).toContain(appConfig.uploadAcknowledgement.text);
+    expect(confirmation.text).toContain(submissionId);
+    expect(notice.to).toEqual([SUMMIT_MAILBOX]);
+    expect(notice.subject).toBe("New teaser submission: IT Upload A (2 files)");
+    expect(notice.text).toContain("ada.uploader@it.example");
+    expect(notice.text).toContain("/admin/submissions");
+    for (const m of mailer.sent) {
+      expect(`${m.subject}\n${m.text}`).not.toMatch(/—/);
+      expect(`${m.subject}\n${m.text}`).not.toMatch(/tier/i);
     }
   });
 
@@ -752,7 +787,66 @@ describe("generic link", () => {
   });
 });
 
-describe("admin notification (counts, no email)", () => {
+describe("email delivery", () => {
+  let token: string;
+
+  beforeAll(async () => {
+    token = tokenOf(
+      (
+        await createUploadLink(
+          v.admin,
+          { countryId: C.a, expiresAt: new Date(Date.now() + DAY) },
+          opts,
+        )
+      ).url,
+    );
+  });
+
+  it("keeps the submission and audits the failure when the mail server is down", async () => {
+    const down: Mailer = {
+      delivers: true,
+      send: async () => {
+        throw new Error("mail server down");
+      },
+    };
+    const receipt = await submitTeasers(token, input(), {
+      ...opts,
+      mailer: down,
+    });
+    expect(receipt.emailSent).toBe(false);
+    expect(
+      await db.submission.count({ where: { id: receipt.submissionId } }),
+    ).toBe(1);
+    expect(await auditActions(receipt.submissionId)).toEqual([
+      "submission.create",
+      "mail.failed",
+      "mail.failed",
+    ]);
+  });
+
+  it("does not claim an email was sent when the log driver is used", async () => {
+    const logOnly = new MemoryMailer(false);
+    const receipt = await submitTeasers(token, input(), {
+      ...opts,
+      mailer: logOnly,
+    });
+    expect(receipt.emailSent).toBe(false);
+    expect(logOnly.sent).toHaveLength(2);
+  });
+
+  it("skips the Summit notice when no mailbox is configured", async () => {
+    const quiet = new MemoryMailer();
+    const receipt = await submitTeasers(token, input(), {
+      ...opts,
+      mailer: quiet,
+      summitEmails: [],
+    });
+    expect(receipt.emailSent).toBe(true);
+    expect(quiet.sent.map((m) => m.to)).toEqual([["ada.uploader@it.example"]]);
+  });
+});
+
+describe("admin notification (counts)", () => {
   it("counts a new submission for admins and shows nobody else anything", async () => {
     const token = tokenOf(
       (

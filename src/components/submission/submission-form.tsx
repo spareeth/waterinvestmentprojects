@@ -85,9 +85,11 @@ export function SubmissionForm({
           <p className="mt-1">{acknowledgementText}</p>
         </div>
         <p className="text-sm text-muted-foreground">
-          No email is sent, so please print or save this page, or note the
-          reference. To replace a file, send it again through this link and tell
-          the Summit team which one it replaces.
+          {r.emailSent
+            ? `We have also emailed this confirmation to ${r.uploaderEmail}. You can print or save this page too.`
+            : "Please print or save this page, or note the reference."}{" "}
+          To replace a file, send it again through this link and tell the Summit
+          team which one it replaces.
         </p>
         <div className="flex flex-wrap gap-3 print:hidden">
           <Button type="button" onClick={() => window.print()}>
@@ -202,7 +204,7 @@ export function SubmissionForm({
         <FieldShell
           id="submit-email"
           label="Your email address"
-          hint="The Summit team uses this address if they have questions about your teasers. Unless they are told otherwise, it also becomes your country's contact for meeting requests."
+          hint="We send your confirmation here, and the Summit team uses it if they have questions. Unless they are told otherwise, it also becomes your country's contact for meeting requests."
           error={e[F.uploaderEmail]}
         >
           <TextInput

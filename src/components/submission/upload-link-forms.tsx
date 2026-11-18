@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { type FormEvent, useState, useTransition } from "react";
 import {
   createUploadLinkAction,
   type LinkFormState,
@@ -9,7 +9,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Notice, TextInput } from "@/components/workspace/form-controls";
 
-const initial: LinkFormState = {};
+// The link forms call their server actions from a submit handler instead of useActionState. With useActionState,
+// the production build failed to hydrate the revoke form (React error 418), React then rebuilt the page, and a
+// freshly created link (shown only once) could vanish before the admin copied it. Admin pages need JavaScript
+// anyway, so these forms do not need to work without it.
+
+type LinkAction = (
+  prev: LinkFormState,
+  formData: FormData,
+) => Promise<LinkFormState>;
+
+function useLinkAction(action: LinkAction) {
+  const [state, setState] = useState<LinkFormState>({});
+  const [pending, startTransition] = useTransition();
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      setState(await action(state, formData));
+    });
+  }
+  return { state, pending, submit };
+}
 
 /** Creates (or replaces) a link and shows its URL once, with a copy button. */
 export function CreateLinkForm({
@@ -25,16 +46,14 @@ export function CreateLinkForm({
   /** True when the country already has a link that this one will replace. */
   replaces: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const { state, pending, submit } = useLinkAction(
     createUploadLinkAction.bind(null, countryId),
-    initial,
   );
   const [copied, setCopied] = useState(false);
   const dateId = `expires-${countryId ?? "generic"}`;
   return (
     <div className="flex flex-col gap-3">
       <form
-        action={formAction}
         className="flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
           if (
@@ -44,8 +63,10 @@ export function CreateLinkForm({
             )
           ) {
             event.preventDefault();
+            return;
           }
           setCopied(false);
+          submit(event);
         }}
       >
         <div className="flex flex-col gap-1">
@@ -110,13 +131,12 @@ export function RevokeLinkForm({
   linkId: string;
   label: string;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const { state, pending, submit } = useLinkAction(
     revokeUploadLinkAction.bind(null, linkId),
-    initial,
   );
   const boxId = `revoke-${linkId}`;
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-3">
+    <form onSubmit={submit} className="flex flex-wrap items-center gap-3">
       <label htmlFor={boxId} className="flex items-center gap-2 text-xs">
         <input id={boxId} type="checkbox" name="confirm" value="yes" />
         Stop the link for {label}

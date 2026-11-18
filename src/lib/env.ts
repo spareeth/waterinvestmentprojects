@@ -58,18 +58,56 @@ const envSchema = z
         value === "assume-clean" ? value : "pending",
       ),
     /**
-     * How email would be sent. No email is sent for now (user decision, 18 Nov); only the "log" driver exists,
-     * which writes a message to the server log instead of sending it.
+     * How email is sent (user decision, 18 Nov: from the Summit mailbox, provider still to be chosen).
+     * "log" (default) writes each message to the server log; "smtp" sends through SMTP_HOST, which works with any
+     * provider (Microsoft 365, Google Workspace, Zoho) and with Mailpit locally.
      */
     MAIL_DRIVER: z
-      .enum(["log", ""])
+      .enum(["log", "smtp", ""])
       .optional()
-      .transform((): "log" => "log"),
-    /** Sender address for outgoing email. */
+      .transform((value): "log" | "smtp" => (value === "smtp" ? value : "log")),
+    /** Sender address, e.g. summit@waterinvestmentprojects.org. Required for smtp. */
     MAIL_FROM: z
       .union([z.email(), z.literal("")])
       .optional()
-      .transform((value) => value || "no-reply@localhost"),
+      .transform((value) => value || null),
+    /** Summit team mailbox told about uploads (and later projects and bookings). Comma-separated; empty = none. */
+    ADMIN_NOTIFY_EMAIL: z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        const list = (value ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        for (const address of list) {
+          if (!z.email().safeParse(address).success) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "ADMIN_NOTIFY_EMAIL must be a comma-separated list of email addresses",
+            });
+            return z.NEVER;
+          }
+        }
+        return list;
+      }),
+    SMTP_HOST: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim() || null),
+    SMTP_PORT: intInRange(1, 65535, 587),
+    /** "true" for implicit TLS (port 465); otherwise STARTTLS is required, except on localhost (Mailpit). */
+    SMTP_SECURE: flag,
+    SMTP_USER: z
+      .string()
+      .optional()
+      .transform((value) => value || null),
+    /** Secret: only in the server's root-only .env, never in the repo. */
+    SMTP_PASSWORD: z
+      .string()
+      .optional()
+      .transform((value) => value || null),
   })
   .transform(({ APP_ENV, ...rest }) => ({
     ...rest,
@@ -85,6 +123,24 @@ const envSchema = z
         message:
           "the two-step switch is for local and staging demos only and cannot be used when APP_ENV is production",
       });
+    }
+    if (env.MAIL_DRIVER === "smtp") {
+      for (const key of ["SMTP_HOST", "MAIL_FROM"] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: "custom",
+            path: [key],
+            message: `${key} is required when MAIL_DRIVER is smtp`,
+          });
+        }
+      }
+      if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["SMTP_USER"],
+          message: "set both SMTP_USER and SMTP_PASSWORD, or neither",
+        });
+      }
     }
     if (env.UPLOAD_SCAN === "assume-clean" && env.APP_ENV === "production") {
       ctx.addIssue({
