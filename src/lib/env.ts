@@ -43,6 +43,20 @@ const envSchema = z
     SESSION_IDLE_MINUTES: intInRange(5, 24 * 60, 120),
     /** Signed out this many hours after signing in, whatever the activity. */
     SESSION_MAX_HOURS: intInRange(1, 72, 12),
+    /** Where uploaded files live. Only "local" exists until M10 adds S3-compatible storage (MinIO). */
+    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    /** Folder for the local driver, relative to the app folder unless absolute. Git-ignored. */
+    STORAGE_LOCAL_DIR: z.string().min(1).default(".data/blobs"),
+    /**
+     * Virus scan of uploads until ClamAV arrives (M10). "pending" (default) leaves uploads PENDING, so nobody
+     * can open or publish them; "assume-clean" marks them CLEAN at once, for local and staging demos only.
+     */
+    UPLOAD_SCAN: z
+      .enum(["pending", "assume-clean", ""])
+      .optional()
+      .transform((value): "pending" | "assume-clean" =>
+        value === "assume-clean" ? value : "pending",
+      ),
   })
   .transform(({ APP_ENV, ...rest }) => ({
     ...rest,
@@ -57,6 +71,14 @@ const envSchema = z
         path: ["AUTH_SKIP_SECOND_STEP"],
         message:
           "the two-step switch is for local and staging demos only and cannot be used when APP_ENV is production",
+      });
+    }
+    if (env.UPLOAD_SCAN === "assume-clean" && env.APP_ENV === "production") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["UPLOAD_SCAN"],
+        message:
+          "assume-clean skips the virus scan and cannot be used when APP_ENV is production",
       });
     }
   });

@@ -19,6 +19,7 @@ export * from "./grants";
 export * from "./requests";
 export * from "./slots";
 export * from "./people";
+export * from "./workspace";
 export * from "./audit";
 export * from "./data";
 
@@ -48,10 +49,18 @@ export async function requireActiveUser(): Promise<CurrentSession> {
 
 /** The Viewer for pages and server actions; redirects anyone without an active account. */
 export async function requireViewer(): Promise<Viewer> {
+  return (await requirePortalUser()).viewer;
+}
+
+/** The Viewer plus the signed-in user's display details (name for the header), from one session read. */
+export async function requirePortalUser(): Promise<{
+  user: CurrentSession["user"];
+  viewer: Viewer;
+}> {
   const session = await requireActiveUser();
   const viewer = viewerFrom(session);
   if (!viewer) redirect(STAGE_PATH[session.stage]);
-  return viewer;
+  return { user: session.user, viewer };
 }
 
 /** The Viewer or null, without redirecting: for route handlers that answer 404 instead (file routes). */

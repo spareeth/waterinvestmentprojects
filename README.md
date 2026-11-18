@@ -68,6 +68,15 @@ Two seed invitations are still open, for trying the invitation flow locally: `/i
 
 There is no HTTP endpoint for Better Auth: every sign-in step is a server action that calls it directly. Password reset needs the email provider and is not built yet; until then the Summit team re-invites people who lose access.
 
+## Country workspace (M5)
+
+- **My projects** (`/workspace`): country users manage their own country's projects; Summit and platform admins manage every country's. Investors have no workspace. Members add and edit drafts and upload teasers; the focal point (or an admin on the country's behalf) publishes, withdraws and changes published projects.
+- **Teasers:** PDF only (checked by content, not the file name), up to 25 MB. Each upload is a new version with its SHA-256; the previous version is linked to it through `supersededById`, and only the current version is shown to investors. View only by default; download can be switched on per teaser.
+- **Confidentiality acknowledgement:** publishing needs the tick box every time; it is stored as an `Acknowledgement` on the current clean teaser (user, time, IP, wording version) inside the same transaction as the publish. Uploading a new version to a published project needs the tick too. Admins acting for a country must add an evidence note (where the country's written confirmation is kept).
+- **Files** live in a private store behind `src/lib/storage` (`STORAGE_DRIVER=local`: `.data/blobs/`, git-ignored; S3-compatible storage in M10). They are only served by `/files/<id>` after the policy module allows it, with private no-store headers.
+- **Virus scan:** ClamAV arrives in M10. Until then `UPLOAD_SCAN=pending` (default) keeps uploads PENDING, so they cannot be opened or published; `UPLOAD_SCAN=assume-clean` marks them clean at once for local and staging demos, and the audit log records that no scanner ran. The server refuses to start with `assume-clean` when `APP_ENV=production`.
+- **Audit:** `project.create`, `project.update`, `project.publish`, `project.withdraw`, `project.view`, `document.upload`, `document.scan`, `document.update`, `acknowledgement.create`, plus `document.view` / `document.download` / `access.denied` from the file route.
+
 ## Scripts
 
 | Script                            | Purpose                             |

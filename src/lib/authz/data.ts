@@ -15,6 +15,7 @@ import { canPublishProject, projectWhere } from "./projects";
 import { meetingRequestWhere } from "./requests";
 import { SLOT_POLICY_SELECT, type SlotView, slotView } from "./slots";
 import { AuthzError, PROJECT_POLICY_SELECT, type Viewer } from "./viewer";
+import { workspaceProjectWhere } from "./workspace";
 
 // Server-side data access through the policy module, for M5 to M7. Each helper takes the Viewer explicitly
 // (from requireViewer()) plus an optional client and clock, so integration tests can call it directly.
@@ -33,6 +34,21 @@ export async function findProjectFor(
 ) {
   return client.project.findFirst({
     where: { AND: [{ id: projectId }, projectWhere(viewer)] },
+    include: { country: { select: { id: true, name: true, status: true } } },
+  });
+}
+
+/**
+ * A project in the viewer's workspace (own country, or any for admins), or null. Projects a country user only
+ * sees through the pipeline are not in their workspace, so they come back as null here.
+ */
+export async function findWorkspaceProjectFor(
+  viewer: Viewer | null,
+  projectId: string,
+  { client = db }: DataOptions = {},
+) {
+  return client.project.findFirst({
+    where: { AND: [{ id: projectId }, workspaceProjectWhere(viewer)] },
     include: { country: { select: { id: true, name: true, status: true } } },
   });
 }

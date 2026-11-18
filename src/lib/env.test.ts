@@ -56,6 +56,44 @@ describe("parseEnv", () => {
   });
 });
 
+describe("upload scan setting", () => {
+  it("leaves uploads pending by default and uses local storage", () => {
+    const env = parseEnv(base);
+    expect(env.UPLOAD_SCAN).toBe("pending");
+    expect(env.STORAGE_DRIVER).toBe("local");
+    expect(env.STORAGE_LOCAL_DIR).toBe(".data/blobs");
+  });
+
+  it("allows assume-clean locally and on staging", () => {
+    expect(parseEnv({ ...base, UPLOAD_SCAN: "assume-clean" }).UPLOAD_SCAN).toBe(
+      "assume-clean",
+    );
+    const staging = parseEnv({
+      ...base,
+      NODE_ENV: "production",
+      APP_ENV: "staging",
+      UPLOAD_SCAN: "assume-clean",
+    });
+    expect(staging.UPLOAD_SCAN).toBe("assume-clean");
+  });
+
+  it("refuses assume-clean in production, including the production default", () => {
+    expect(() =>
+      parseEnv({
+        ...base,
+        NODE_ENV: "production",
+        UPLOAD_SCAN: "assume-clean",
+      }),
+    ).toThrow(/UPLOAD_SCAN/);
+  });
+
+  it("rejects an unknown scan mode", () => {
+    expect(() => parseEnv({ ...base, UPLOAD_SCAN: "off" })).toThrow(
+      /UPLOAD_SCAN/,
+    );
+  });
+});
+
 describe("staging switch to skip the second step", () => {
   it("is allowed locally and on staging", () => {
     const local = parseEnv({ ...base, AUTH_SKIP_SECOND_STEP: "true" });

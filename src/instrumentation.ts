@@ -22,4 +22,9 @@ export async function register(): Promise<void> {
       `[auth] Two-step verification is OPTIONAL (AUTH_SKIP_SECOND_STEP=true, APP_ENV=${env.APP_ENV}). Demo use only.`,
     );
   }
+  if (env.UPLOAD_SCAN === "assume-clean") {
+    console.warn(
+      `[storage] Uploads are NOT virus scanned and are marked clean at once (UPLOAD_SCAN=assume-clean, APP_ENV=${env.APP_ENV}). Demo use only.`,
+    );
+  }
 }
