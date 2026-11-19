@@ -11,7 +11,6 @@ import {
   canCreateAccount,
   canManageAccounts,
   canResetPassword,
-  defaultPipelineScope,
 } from "@/lib/authz/account-policies";
 import { userWhere } from "@/lib/authz/people";
 import type { Viewer } from "@/lib/authz/viewer";
@@ -127,7 +126,6 @@ export async function createAccount(
         // The admin knows the person and hands the details over personally.
         emailVerified: true,
         mustChangePassword: true,
-        pipelineScope: defaultPipelineScope(input.role),
       },
       select: { id: true, email: true },
     });

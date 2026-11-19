@@ -1,10 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  MembershipRole,
-  PipelineScope,
-  UserRole,
-  UserStatus,
-} from "@/generated/prisma/enums";
+import { MembershipRole, UserRole, UserStatus } from "@/generated/prisma/enums";
 import {
   acceptInvitation,
   createInvitation,
@@ -125,53 +120,6 @@ describe("invitations", () => {
         role: MembershipRole.MEMBER,
       }),
     ]);
-  });
-
-  it("gives invited investors the whole pipeline and country users none, unless an admin chooses", async () => {
-    const investor = await createInvitation(admin, {
-      email: uniqueEmail("scope-investor"),
-      role: UserRole.INVESTOR,
-    });
-    expect(investor.invitation.pipelineScope).toBe(PipelineScope.ALL);
-    const investorUser = await accept(investor.token);
-
-    const member = await createInvitation(focalPoint, {
-      email: uniqueEmail("scope-member"),
-      role: UserRole.COUNTRY,
-      countryId: COUNTRY_ID,
-      membershipRole: MembershipRole.MEMBER,
-    });
-    expect(member.invitation.pipelineScope).toBe(PipelineScope.NONE);
-
-    const widened = await createInvitation(admin, {
-      email: uniqueEmail("scope-widened"),
-      role: UserRole.COUNTRY,
-      countryId: COUNTRY_ID,
-      membershipRole: MembershipRole.MEMBER,
-      pipelineScope: PipelineScope.ALL,
-    });
-    const widenedUser = await accept(widened.token);
-
-    const scopes = await db.user.findMany({
-      where: { id: { in: [investorUser.userId, widenedUser.userId] } },
-      select: { id: true, pipelineScope: true },
-    });
-    expect(scopes).toEqual(
-      expect.arrayContaining([
-        { id: investorUser.userId, pipelineScope: PipelineScope.ALL },
-        { id: widenedUser.userId, pipelineScope: PipelineScope.ALL },
-      ]),
-    );
-
-    await expect(
-      createInvitation(focalPoint, {
-        email: uniqueEmail("scope-refused"),
-        role: UserRole.COUNTRY,
-        countryId: COUNTRY_ID,
-        membershipRole: MembershipRole.MEMBER,
-        pipelineScope: PipelineScope.ALL,
-      }),
-    ).rejects.toThrow(/Not allowed/);
   });
 
   it("does not let a focal point invite another focal point", async () => {

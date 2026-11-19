@@ -1,7 +1,7 @@
 // Prisma schema for the Water Investment Summit Secure Project Portal.
 // Models and field names follow docs/PLAN.md section 6 (data model v0.3). M1 (18 Nov) brought projects,
-// teasers, submissions and country contacts in line; users, roles, invitations, grants, pipeline scopes and
-// meeting requests still follow v0.2 until M2 (auth), M3 (authz) and M5 (meeting requests).
+// teasers, submissions and country contacts in line; M3 (authz) removed pipeline scopes, ProjectGrant and the
+// EXTRA/DATAROOM document kinds. Meeting requests still follow v0.2 until M5.
 // Ask before renaming or restructuring anything here.
 
 generator client {
@@ -41,8 +41,6 @@ enum ProjectStatus {
 
 enum DocumentKind {
   TEASER
-  EXTRA
-  DATAROOM
 }
 
 /// Not bracketed in the PLAN; result of the ClamAV scan. A file is visible only when CLEAN.
@@ -67,15 +65,6 @@ enum UserStatus {
   PENDING_APPROVAL
   ACTIVE
   DEACTIVATED
-}
-
-/// Added in M4 (user decision, 17 Nov): which countries' PUBLISHED projects a user sees in the pipeline.
-/// Admins see everything regardless; a country user's own workspace does not depend on it.
-/// SELECTED means only the countries listed in PipelineCountry.
-enum PipelineScope {
-  NONE
-  ALL
-  SELECTED
 }
 
 enum MeetingRequestType {
@@ -103,10 +92,6 @@ enum SlotStatus {
   BOOKED
 }
 
-enum GrantScope {
-  EXTRA
-}
-
 // ---------------------------------------------------------------------------
 // Countries and people
 // ---------------------------------------------------------------------------
@@ -122,7 +107,6 @@ model Country {
   memberships     CountryMembership[]
   projects        Project[]
   invitations     Invitation[]
-  pipelineViewers PipelineCountry[]
   uploadLinks     UploadLink[]
   submissions     Submission[]
   contacts        CountryContact[]
@@ -164,19 +148,6 @@ model CountryMembership {
   @@index([countryId])
 }
 
-/// Added in M4: the countries whose published projects a user with pipelineScope SELECTED may see.
-model PipelineCountry {
-  userId    String
-  countryId String
-  createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
-
-  @@id([userId, countryId])
-  @@index([countryId])
-}
-
 /// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
 /// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
@@ -195,8 +166,6 @@ model User {
   /// wording version in config changes. Investors see no pipeline before it.
   investorAckTextVersion String?
   investorAckAcceptedAt  DateTime?
-  /// M4: pipeline visibility. NONE by default (default deny); invitations set ALL for investors.
-  pipelineScope          PipelineScope @default(NONE)
   /// Required by Better Auth. True for invited users (the invitation link proves the address).
   emailVerified          Boolean       @default(false)
   /// Required by Better Auth; not used by the portal.
@@ -208,14 +177,11 @@ model User {
   accounts            Account[]
   twoFactors          TwoFactor[]
   memberships         CountryMembership[]
-  pipelineCountries   PipelineCountry[]
   documentsUploaded   Document[]          @relation("DocumentUploadedBy")
   countryContacts     CountryContact[]
   invitationsSent     Invitation[]        @relation("InvitationInvitedBy")
   meetingRequests     MeetingRequest[]    @relation("MeetingRequestRequester")
   meetingDecisions    MeetingRequest[]    @relation("MeetingRequestDecidedBy")
-  projectGrants       ProjectGrant[]      @relation("ProjectGrantUser")
-  projectGrantsIssued ProjectGrant[]      @relation("ProjectGrantGrantedBy")
   auditEvents         AuditEvent[]
   uploadLinksCreated  UploadLink[]        @relation("UploadLinkCreatedBy")
 
@@ -229,8 +195,6 @@ model Invitation {
   countryId      String?
   /// Required when role is COUNTRY: the CountryMembership role created on accept.
   membershipRole MembershipRole?
-  /// M4: copied to User.pipelineScope on accept. SELECTED countries are chosen on the user afterwards.
-  pipelineScope  PipelineScope   @default(NONE)
   /// SHA-256 of the one-time token sent by email; the token itself is never stored.
   tokenHash      String          @unique
   expiresAt      DateTime
@@ -403,7 +367,6 @@ model Project {
   submission      Submission?      @relation(fields: [submissionId], references: [id])
   documents       Document[]
   meetingRequests MeetingRequest[]
-  grants          ProjectGrant[]
 
   @@index([countryId, status])
   @@index([submissionId])
@@ -499,27 +462,8 @@ model Slot {
 }
 
 // ---------------------------------------------------------------------------
-// Grants and audit (F11, audit log)
+// Audit log
 // ---------------------------------------------------------------------------
-
-/// Explicit, expiring access to extra material on one project for one user.
-model ProjectGrant {
-  id          String     @id @default(cuid())
-  userId      String
-  projectId   String
-  scope       GrantScope
-  grantedById String
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime   @default(now())
-
-  user      User    @relation("ProjectGrantUser", fields: [userId], references: [id])
-  project   Project @relation(fields: [projectId], references: [id])
-  grantedBy User    @relation("ProjectGrantGrantedBy", fields: [grantedById], references: [id])
-
-  @@index([userId, projectId])
-  @@index([projectId])
-}
 
 /// Append-only audit trail. actorId is empty for failed logins and system actions.
 model AuditEvent {

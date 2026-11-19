@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { ProjectForm } from "@/components/workspace/project-form";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { canCreateProject, requirePortalUser } from "@/lib/authz";
 import { listWorkspaceCountries } from "@/lib/workspace/service";
 
 // Reads the session and the database on the server before rendering, so it may block.
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Add a project" };
 
 export default async function NewProjectPage() {
   const { user, viewer } = await requirePortalUser();
-  if (!canUseWorkspace(viewer)) notFound();
+  if (!canCreateProject(viewer)) notFound();
   const countries = await listWorkspaceCountries(viewer);
   if (countries.length === 0) notFound();
   return (

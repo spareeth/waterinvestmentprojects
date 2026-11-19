@@ -1,11 +1,12 @@
 // Users, countries, audit log and exports. Pure: no database access.
 
 import type { Prisma } from "@/generated/prisma/client";
-import { CountryStatus } from "@/generated/prisma/enums";
+import { CountryStatus, UserRole } from "@/generated/prisma/enums";
 import {
+  coordinatedCountryIds,
+  hasPipeline,
   isAdminViewer,
   ownCountryIds,
-  pipelineCountries,
   type Viewer,
 } from "./viewer";
 
@@ -15,9 +16,9 @@ export const NO_COUNTRY: Prisma.CountryWhereInput = { id: { in: [] } };
 export const NO_AUDIT_EVENT: Prisma.AuditEventWhereInput = { id: { in: [] } };
 
 /**
- * People the viewer may list. Admins: everyone. Country users: themselves and the members of their own
- * country ("People" page). Investors: themselves. Requesters on a country's requests are reached through the
- * request, not through this list.
+ * People the viewer may list. Admins: everyone. Country users: themselves and the other country users of their
+ * own countries. Everyone else: themselves. Requesters on a country's requests are reached through the request,
+ * not through this list.
  */
 export function userWhere(viewer: Viewer | null): Prisma.UserWhereInput {
   if (!viewer) return NO_USER;
@@ -27,23 +28,25 @@ export function userWhere(viewer: Viewer | null): Prisma.UserWhereInput {
   return {
     OR: [
       { id: viewer.id },
-      { memberships: { some: { countryId: { in: own } } } },
+      {
+        role: UserRole.COUNTRY,
+        memberships: { some: { countryId: { in: own } } },
+      },
     ],
   };
 }
 
-/** Countries the viewer may see named (filters, workspace switcher): own countries plus the pipeline's. */
+/**
+ * Countries the viewer may see named (filters, headings): own or coordinated countries, plus every ACTIVE
+ * country for pipeline roles.
+ */
 export function countryWhere(viewer: Viewer | null): Prisma.CountryWhereInput {
   if (!viewer) return NO_COUNTRY;
   if (isAdminViewer(viewer)) return {};
   const branches: Prisma.CountryWhereInput[] = [];
-  const own = ownCountryIds(viewer);
-  if (own.length > 0) branches.push({ id: { in: own } });
-  const pipeline = pipelineCountries(viewer);
-  if (pipeline === "all") branches.push({ status: CountryStatus.ACTIVE });
-  else if (pipeline.length > 0) {
-    branches.push({ status: CountryStatus.ACTIVE, id: { in: pipeline } });
-  }
+  const mine = [...ownCountryIds(viewer), ...coordinatedCountryIds(viewer)];
+  if (mine.length > 0) branches.push({ id: { in: mine } });
+  if (hasPipeline(viewer)) branches.push({ status: CountryStatus.ACTIVE });
   if (branches.length === 0) return NO_COUNTRY;
   return branches.length === 1 ? branches[0] : { OR: branches };
 }

@@ -111,11 +111,20 @@ async function main(): Promise<void> {
             update: { role: m.role },
           });
         }
-        // Selected pipeline countries are replaced as a whole, so a country removed from the list disappears.
-        await tx.pipelineCountry.deleteMany({
-          where: { userId: { in: seedUserIds } },
+        // M3 retired the extra-material example (its document went with the EXTRA kind in the migration).
+        await tx.submission.deleteMany({
+          where: { id: "seed-submission-b1-extra-workspace" },
         });
-        await tx.pipelineCountry.createMany({ data: d.pipelineCountries });
+        await tx.auditEvent.deleteMany({
+          where: {
+            id: {
+              in: [
+                "seed-audit-submission-b1-extra-workspace",
+                "seed-audit-grant-b1",
+              ],
+            },
+          },
+        });
         for (const { id, ...data } of d.invitations) {
           await tx.invitation.upsert({
             where: { id },
@@ -198,13 +207,6 @@ async function main(): Promise<void> {
             update: data,
           });
         }
-        for (const { id, ...data } of d.projectGrants) {
-          await tx.projectGrant.upsert({
-            where: { id },
-            create: { id, ...data },
-            update: data,
-          });
-        }
         for (const { id, ...data } of d.auditEvents) {
           await tx.auditEvent.upsert({
             where: { id },
@@ -222,7 +224,6 @@ async function main(): Promise<void> {
       countries: await prisma.country.count(),
       users: await prisma.user.count(),
       memberships: await prisma.countryMembership.count(),
-      pipelineCountries: await prisma.pipelineCountry.count(),
       invitations: await prisma.invitation.count(),
       uploadLinks: await prisma.uploadLink.count(),
       submissions: await prisma.submission.count(),
@@ -232,7 +233,6 @@ async function main(): Promise<void> {
       meetingRequests: await prisma.meetingRequest.count(),
       rooms: await prisma.room.count(),
       slots: await prisma.slot.count(),
-      projectGrants: await prisma.projectGrant.count(),
       auditEvents: await prisma.auditEvent.count(),
     };
     console.log("Seed complete (fictional demo data). Row counts:");

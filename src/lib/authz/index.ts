@@ -8,6 +8,7 @@ import { type Viewer, viewerFrom } from "./viewer";
 // - Account gate (M3): requireSession / requireStage / requireActiveUser.
 // - Data permissions (M4): requireViewer() gives the Viewer; scope every query with the where builders
 //   (projectWhere, documentWhere, meetingRequestWhere, ...) and check actions with the can-functions.
+//   Rules: PLAN v0.3 section 4 (M3).
 //   Files only through authorizeDocumentFile(). Default deny: a null Viewer matches nothing.
 
 export { type AccountStage, STAGE_PATH } from "./account-gate";
@@ -15,7 +16,6 @@ export type { CurrentSession, CurrentUser } from "@/lib/auth/session";
 export * from "./viewer";
 export * from "./projects";
 export * from "./documents";
-export * from "./grants";
 export * from "./requests";
 export * from "./slots";
 export * from "./people";

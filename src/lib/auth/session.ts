@@ -1,11 +1,7 @@
 import "server-only";
 import { headers as nextHeaders } from "next/headers";
 import { connection } from "next/server";
-import type {
-  MembershipRole,
-  PipelineScope,
-  UserRole,
-} from "@/generated/prisma/enums";
+import type { MembershipRole, UserRole } from "@/generated/prisma/enums";
 import { requestMetaFrom, writeAudit } from "@/lib/audit";
 import {
   type AccountStage,
@@ -31,11 +27,8 @@ export interface CurrentUser {
   organisation: string | null;
   role: UserRole;
   mfaEnabled: boolean;
+  /** Country memberships: a COUNTRY user's countries, or a WBG coordinator's. */
   memberships: { countryId: string; role: MembershipRole }[];
-  /** Which countries' published projects this user sees in the pipeline (M4). */
-  pipelineScope: PipelineScope;
-  /** Countries listed for pipelineScope SELECTED; empty otherwise. */
-  pipelineCountryIds: string[];
 }
 
 export interface CurrentSession {
@@ -113,8 +106,6 @@ export async function getCurrentSession(
       organisation: true,
       ...GATE_USER_SELECT,
       memberships: { select: { countryId: true, role: true } },
-      pipelineScope: true,
-      pipelineCountries: { select: { countryId: true } },
     },
   });
   if (!session || !user) return null;
@@ -161,8 +152,6 @@ export async function getCurrentSession(
       role: user.role,
       mfaEnabled: user.mfaEnabled,
       memberships: user.memberships,
-      pipelineScope: user.pipelineScope,
-      pipelineCountryIds: user.pipelineCountries.map((p) => p.countryId),
     },
   };
 }

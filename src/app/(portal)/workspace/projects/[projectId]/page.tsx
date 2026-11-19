@@ -210,8 +210,7 @@ export default async function WorkspaceProjectPage({
                     <WithdrawForm projectId={project.id} />
                   ) : (
                     <Notice tone="info">
-                      Your country focal point or the Summit team can withdraw
-                      this project.
+                      The Summit team can withdraw this project.
                     </Notice>
                   )}
                 </>
@@ -237,8 +236,7 @@ export default async function WorkspaceProjectPage({
                     />
                   ) : (
                     <Notice tone="info">
-                      Your country focal point or the Summit team publishes
-                      projects to the pipeline.
+                      The Summit team publishes projects to the pipeline.
                     </Notice>
                   )}
                 </>

@@ -1,15 +1,22 @@
-// Who is looking: the input to every data permission in the policy module (PLAN section 3).
+// Who is looking: the input to every data permission in the policy module (PLAN v0.3 section 4).
 // Pure functions (no database, no request), so the rules can be unit tested directly.
 //
 // A Viewer exists only for an account at the "active" stage of the account gate. Everyone else (no session,
-// pending approval, two-step enrolment or terms still to do) gets null, and every where builder and
-// can-function in src/lib/authz treats null as "nothing". That is how "a pending account sees nothing" holds
-// even if a page forgets the account gate.
+// a password still to change, an investor who has not accepted the investor acknowledgement, ...) gets null,
+// and every where builder and can-function in src/lib/authz treats null as "nothing". That is how "investors
+// see no pipeline before the acknowledgement" holds even if a page forgets the account gate.
+//
+// Roles (PLAN v0.3 section 4):
+// - PLATFORM_ADMIN, SUMMIT_ADMIN: everything.
+// - COUNTRY: their own countries' projects (any status) and requests; accept or decline those requests.
+// - WBG_COORDINATOR: every published teaser, and read-only the requests of their own countries.
+// - INVESTOR: every published teaser; their own requests.
+// A user's countries are their CountryMembership rows. The membership role (focal point or member) no longer
+// changes what a country user may do (user decision, 18 Nov).
 
 import {
   CountryStatus,
   MembershipRole,
-  PipelineScope,
   ProjectStatus,
   UserRole,
 } from "@/generated/prisma/enums";
@@ -18,12 +25,8 @@ import type { AccountStage } from "./account-gate";
 export interface Viewer {
   id: string;
   role: UserRole;
-  /** Country memberships. Only counted for COUNTRY users. */
+  /** Country memberships. Counted for COUNTRY and WBG_COORDINATOR users only. */
   memberships: { countryId: string; role: MembershipRole }[];
-  /** Which countries' published projects this user sees in the pipeline. Ignored for admins. */
-  pipelineScope: PipelineScope;
-  /** Countries listed for pipelineScope SELECTED. */
-  pipelineCountryIds: string[];
 }
 
 /** The minimum a policy needs about a project. Select it with PROJECT_POLICY_SELECT. */
@@ -52,9 +55,8 @@ export function viewerFrom(
   session: { stage: AccountStage; user: Viewer } | null | undefined,
 ): Viewer | null {
   if (!session || session.stage !== "active") return null;
-  const { id, role, memberships, pipelineScope, pipelineCountryIds } =
-    session.user;
-  return { id, role, memberships, pipelineScope, pipelineCountryIds };
+  const { id, role, memberships } = session.user;
+  return { id, role, memberships };
 }
 
 export function isAdminViewer(viewer: Viewer | null): boolean {
@@ -64,65 +66,53 @@ export function isAdminViewer(viewer: Viewer | null): boolean {
   );
 }
 
-/** Countries whose workspace this viewer belongs to (any membership role). Empty unless role COUNTRY. */
+/** Countries a COUNTRY user belongs to. Empty for every other role. */
 export function ownCountryIds(viewer: Viewer | null): string[] {
   if (viewer?.role !== UserRole.COUNTRY) return [];
   return viewer.memberships.map((m) => m.countryId);
 }
 
-/** Countries where this viewer is focal point. Empty unless role COUNTRY. */
-export function focalCountryIds(viewer: Viewer | null): string[] {
-  if (viewer?.role !== UserRole.COUNTRY) return [];
-  return viewer.memberships
-    .filter((m) => m.role === MembershipRole.FOCAL_POINT)
-    .map((m) => m.countryId);
+/** Countries a WBG coordinator covers. Empty for every other role. */
+export function coordinatedCountryIds(viewer: Viewer | null): string[] {
+  if (viewer?.role !== UserRole.WBG_COORDINATOR) return [];
+  return viewer.memberships.map((m) => m.countryId);
 }
 
 export function isOwnCountry(viewer: Viewer | null, countryId: string) {
   return ownCountryIds(viewer).includes(countryId);
 }
 
-export function isFocalPointOf(viewer: Viewer | null, countryId: string) {
-  return focalCountryIds(viewer).includes(countryId);
+export function coordinatesCountry(viewer: Viewer | null, countryId: string) {
+  return coordinatedCountryIds(viewer).includes(countryId);
 }
 
-/** Admins, or the focal point of that country: the people who act for a country. */
+/** Admins, or any user of that country: the people who decide for a country (meeting requests). */
 export function actsForCountry(viewer: Viewer | null, countryId: string) {
-  return isAdminViewer(viewer) || isFocalPointOf(viewer, countryId);
+  return isAdminViewer(viewer) || isOwnCountry(viewer, countryId);
 }
 
-/** True when an admin (not a member of the country) acts for it, e.g. acknowledging or deciding on behalf. */
+/** True when an admin (not a user of the country) acts for it, e.g. deciding a request on its behalf. */
 export function actsOnBehalf(viewer: Viewer | null, countryId: string) {
   return isAdminViewer(viewer) && !isOwnCountry(viewer, countryId);
 }
 
 /**
- * Countries whose published projects the viewer sees in the pipeline: "all", a list, or none (empty list).
- * Admins are not covered here; they see everything everywhere.
+ * Does the viewer see the pipeline (every published teaser)? Investors and WBG coordinators. Admins see
+ * everything anyway; country users see only their own countries' projects (PLAN v0.3 section 4).
+ * PLAN v0.3 point 8: no per-project or per-country restriction for investors.
  */
-export function pipelineCountries(viewer: Viewer | null): "all" | string[] {
-  if (!viewer) return [];
-  if (viewer.pipelineScope === PipelineScope.ALL) return "all";
-  if (viewer.pipelineScope === PipelineScope.SELECTED) {
-    return viewer.pipelineCountryIds;
-  }
-  return [];
-}
-
-/** Does the viewer see any country's pipeline at all? */
 export function hasPipeline(viewer: Viewer | null): boolean {
-  const countries = pipelineCountries(viewer);
-  return countries === "all" || countries.length > 0;
+  return (
+    viewer?.role === UserRole.INVESTOR ||
+    viewer?.role === UserRole.WBG_COORDINATOR
+  );
 }
 
-/**
- * Is this project in the viewer's pipeline? Only PUBLISHED projects of ACTIVE countries within the viewer's
- * pipeline scope. This is what investors (and country users given a wider scope) see of other countries.
- */
+/** Is this project in the viewer's pipeline? PUBLISHED projects of ACTIVE countries, for pipeline roles. */
 export function inPipeline(viewer: Viewer | null, project: ProjectRef) {
-  if (!viewer) return false;
-  if (project.status !== ProjectStatus.PUBLISHED) return false;
-  if (project.country.status !== CountryStatus.ACTIVE) return false;
-  const countries = pipelineCountries(viewer);
-  return countries === "all" || countries.includes(project.countryId);
+  return (
+    hasPipeline(viewer) &&
+    project.status === ProjectStatus.PUBLISHED &&
+    project.country.status === CountryStatus.ACTIVE
+  );
 }

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PipelineScope, UserRole, UserStatus } from "@/generated/prisma/enums";
+import { UserRole, UserStatus } from "@/generated/prisma/enums";
 import { LOCKOUT_MAX_FAILURES } from "@/lib/auth/constants";
 import {
   approveUser,
@@ -239,11 +239,10 @@ describe("self-registration", () => {
     );
     expect(result.status).toBe("ok");
     const user = await db.user.findUniqueOrThrow({ where: { email } });
-    // A pending account has no pipeline at all; approval gives the investor default.
+    // A pending account has no viewer at all, so no pipeline.
     expect(user).toMatchObject({
       role: UserRole.INVESTOR,
       status: UserStatus.PENDING_APPROVAL,
-      pipelineScope: PipelineScope.NONE,
     });
     const jar = new CookieJar();
     if (result.status === "ok") jar.store(result.headers);
@@ -258,9 +257,9 @@ describe("self-registration", () => {
     expect(
       await db.user.findUniqueOrThrow({
         where: { id: user.id },
-        select: { status: true, pipelineScope: true },
+        select: { status: true },
       }),
-    ).toEqual({ status: UserStatus.ACTIVE, pipelineScope: PipelineScope.ALL });
+    ).toEqual({ status: UserStatus.ACTIVE });
   });
 
   it("ignores a role or status sent with the sign-up form", async () => {

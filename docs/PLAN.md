@@ -204,9 +204,8 @@ Decisions while building (18 Nov):
   `Project.submissionId` is the link submission that created the project. Publishing needs no second tick.
 - **Country contacts (M1):** each upload link submission adds the uploader as a `FOCAL_POINT` contact of the
   country unless that address already is one (existing contacts, for example named by WBG, are never changed).
-- **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Users, roles, invitations, pipeline
-  scopes, `ProjectGrant` and meeting request fields still follow v0.2 until M2 (auth), M3 (authz) and M5 (meeting
-  requests) bring them in line.
+- **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Meeting request fields still follow
+  v0.2 until M5 (meeting requests) brings them in line; users and roles (M2) and authorisation (M3) are done.
 - **Auth (M2, Sajid 18 Nov):** `UserRole.WBG_COORDINATOR` added. `User.countryIds[]` is kept as the existing
   `CountryMembership` table (userId, countryId, role FOCAL_POINT|MEMBER; the role means nothing for coordinators).
   New `User.mustChangePassword` (not in section 6): set when an admin hands out a temporary password (0a.4), cleared
@@ -214,6 +213,14 @@ Decisions while building (18 Nov):
   accept it instead of the draft terms, other roles keep the terms. Second step behind `AUTH_SECOND_STEP`
   (`none` now, `totp` kept dormant, email codes later). `Invitation` keeps its v0.2 extras (`membershipRole`,
   `pipelineScope`) until M3; invitations are unused while admins hand out accounts.
+- **Authorisation (M3, Sajid 18 Nov), rules of section 4 in `src/lib/authz`:** pipeline scopes (`User` and
+  `Invitation.pipelineScope`, `PipelineCountry`), `ProjectGrant`/`GrantScope` and `DocumentKind` EXTRA/DATAROOM are
+  removed (migration `m3_authz_v03`). Investors and WBG coordinators see every PUBLISHED project of an ACTIVE country
+  (current clean teaser, download unless an admin switched it off); country users see only their own countries'
+  projects, any status, and no other country's. Country users only see and decide: create, edit, teaser upload,
+  publish and withdraw in the portal are admin-only (M7 admin console). Any user of a country (focal point or
+  member) accepts or declines its requests; admins may decide on its behalf. Coordinators read and export their
+  own countries' requests (their `CountryMembership` rows) and never decide.
 
 ---
 

@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  MembershipRole,
-  PipelineScope,
-  UserRole,
-  UserStatus,
-} from "@/generated/prisma/enums";
+import { MembershipRole, UserRole, UserStatus } from "@/generated/prisma/enums";
 import type { Actor } from "@/lib/authz/account-policies";
 import { accountStage, type GateConfig } from "@/lib/authz/account-gate";
 import { type Viewer, viewerFrom } from "@/lib/authz/viewer";
@@ -112,7 +107,6 @@ export async function createUser(input: {
   membershipRole?: MembershipRole;
   /** Country for membershipRole; defaults to COUNTRY_ID (which is created on demand). Must exist otherwise. */
   countryId?: string;
-  pipelineScope?: PipelineScope;
 }): Promise<{ id: string; email: string }> {
   const auth = testAuth();
   const email = input.email ?? uniqueEmail("user");
@@ -130,7 +124,6 @@ export async function createUser(input: {
         : null,
       investorAckAcceptedAt: input.termsAccepted ? new Date() : null,
       mustChangePassword: input.mustChangePassword ?? false,
-      pipelineScope: input.pipelineScope ?? PipelineScope.NONE,
       emailVerified: true,
     },
     select: { id: true, email: true },
@@ -175,9 +168,7 @@ export async function viewerFor(
       mustChangePassword: true,
       termsAcceptedAt: true,
       investorAckTextVersion: true,
-      pipelineScope: true,
       memberships: { select: { countryId: true, role: true } },
-      pipelineCountries: { select: { countryId: true } },
     },
   });
   return viewerFrom({
@@ -186,8 +177,6 @@ export async function viewerFor(
       id: user.id,
       role: user.role,
       memberships: user.memberships,
-      pipelineScope: user.pipelineScope,
-      pipelineCountryIds: user.pipelineCountries.map((p) => p.countryId),
     },
   });
 }
@@ -217,9 +206,6 @@ export async function cleanUp(): Promise<void> {
   await db.room.deleteMany({ where: { id: { startsWith: "it-" } } });
   await db.meetingRequest.deleteMany({
     where: { OR: [{ project: itProject }, { requesterId: { in: ids } }] },
-  });
-  await db.projectGrant.deleteMany({
-    where: { OR: [{ project: itProject }, { userId: { in: ids } }] },
   });
   // Upload links (M0) and submissions: for "it-" countries, created by integration test users, or (portal
   // uploads, M1) sent by an integration test user.

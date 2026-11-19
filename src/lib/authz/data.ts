@@ -10,7 +10,6 @@ import {
   canViewDocument,
   documentWhere,
 } from "./documents";
-import { activeGrantWhere } from "./grants";
 import { canPublishProject, projectWhere } from "./projects";
 import { meetingRequestWhere } from "./requests";
 import { SLOT_POLICY_SELECT, type SlotView, slotView } from "./slots";
@@ -57,10 +56,10 @@ export async function findWorkspaceProjectFor(
 export async function findDocumentFor(
   viewer: Viewer | null,
   documentId: string,
-  { client = db, now = new Date() }: DataOptions = {},
+  { client = db }: DataOptions = {},
 ) {
   return client.document.findFirst({
-    where: { AND: [{ id: documentId }, documentWhere(viewer, now)] },
+    where: { AND: [{ id: documentId }, documentWhere(viewer)] },
     omit: { blobKey: true },
     include: { project: { select: PROJECT_POLICY_SELECT } },
   });
@@ -91,11 +90,7 @@ export async function authorizeDocumentFile(
   viewer: Viewer | null,
   documentId: string,
   mode: FileMode,
-  {
-    client = db,
-    now = new Date(),
-    meta,
-  }: DataOptions & { meta?: RequestMeta } = {},
+  { client = db, meta }: DataOptions & { meta?: RequestMeta } = {},
 ) {
   const doc = await client.document.findUnique({
     where: { id: documentId },
@@ -114,28 +109,9 @@ export async function authorizeDocumentFile(
       project: { select: PROJECT_POLICY_SELECT },
     },
   });
-  const grants =
-    viewer && doc
-      ? await client.projectGrant.findMany({
-          where: {
-            AND: [
-              activeGrantWhere(viewer.id, now),
-              { projectId: doc.projectId },
-            ],
-          },
-          select: {
-            userId: true,
-            projectId: true,
-            scope: true,
-            expiresAt: true,
-            revokedAt: true,
-          },
-        })
-      : [];
-  const context = { grants, now };
   const check = mode === "download" ? canDownloadDocument : canOpenDocumentFile;
 
-  if (!doc || !check(viewer, doc, context)) {
+  if (!doc || !check(viewer, doc)) {
     await auditAccess(
       viewer,
       {
@@ -147,7 +123,7 @@ export async function authorizeDocumentFile(
       },
       client,
     );
-    const visible = doc !== null && canViewDocument(viewer, doc, context);
+    const visible = doc !== null && canViewDocument(viewer, doc);
     throw new AuthzError(visible ? "forbidden" : "not_found");
   }
 
@@ -185,8 +161,8 @@ export async function authorizeDocumentFile(
 export type PublishBlocker = "not_found" | "forbidden" | "no_clean_teaser";
 
 /**
- * Why this viewer cannot publish the project now, or null when they can. Needs the publish role (focal point or
- * admin) and a current CLEAN teaser. PLAN v0.3: the consent is the teaser's Submission, given at upload; the
+ * Why this viewer cannot publish the project now, or null when they can. Needs the publish role (admins, PLAN v0.3)
+ * and a current CLEAN teaser. PLAN v0.3: the consent is the teaser's Submission, given at upload; the
  * database guarantees every Document has one (Document.submissionId is required). Call it inside the publishing
  * transaction.
  */

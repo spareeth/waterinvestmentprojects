@@ -7,11 +7,9 @@ import {
   CountryContactRole,
   CountryStatus,
   DocumentKind,
-  GrantScope,
   MeetingRequestStatus,
   MeetingRequestType,
   MembershipRole,
-  PipelineScope,
   ProjectStatus,
   ProjectType,
   ScanStatus,
@@ -91,9 +89,6 @@ function user(
   jobTitle: string,
   role: UserRole,
   status: UserStatus = UserStatus.ACTIVE,
-  pipelineScope: PipelineScope = role === UserRole.INVESTOR
-    ? PipelineScope.ALL
-    : PipelineScope.NONE,
 ) {
   return {
     id: `seed-user-${id}`,
@@ -103,7 +98,6 @@ function user(
     jobTitle,
     role,
     status,
-    pipelineScope,
     // No second step by default (AUTH_SECOND_STEP=none, PLAN 0a.3); with totp, demo users enrol their own
     // authenticator app at first sign-in. Re-running the seed resets enrolment.
     mfaEnabled: false,
@@ -184,9 +178,6 @@ export const users = [
     "PPP Unit, Country C",
     "Focal point",
     UserRole.COUNTRY,
-    UserStatus.ACTIVE,
-    // Shows the M4 option: a country user who also sees the other countries' published teasers.
-    PipelineScope.ALL,
   ),
   // M2: WBG coordinator for Countries A to C (country contacts below), read-only on their requests from M5.
   user(
@@ -228,9 +219,6 @@ export const users = [
     "Developer Four",
     "Managing Director",
     UserRole.INVESTOR,
-    UserStatus.ACTIVE,
-    // Sees only Countries A and B (pipelineCountries below).
-    PipelineScope.SELECTED,
   ),
   // Self-registered, waiting for Summit admin approval: must see nothing.
   user(
@@ -288,12 +276,6 @@ export const memberships = [
   })),
 ];
 
-/** Countries visible to users whose pipelineScope is SELECTED. */
-export const pipelineCountries = [
-  { userId: "seed-user-investor-4", countryId: "seed-country-a" },
-  { userId: "seed-user-investor-4", countryId: "seed-country-b" },
-];
-
 export const invitations = [
   {
     id: "seed-invitation-investor-1",
@@ -301,7 +283,6 @@ export const invitations = [
     role: UserRole.INVESTOR,
     countryId: null,
     membershipRole: null,
-    pipelineScope: PipelineScope.ALL,
     tokenHash: sha256Hex("seed-invitation-investor-1"),
     expiresAt: gst("2026-11-20T23:59"),
     acceptedAt: gst("2026-11-10T08:45"),
@@ -313,7 +294,6 @@ export const invitations = [
     role: UserRole.INVESTOR,
     countryId: null,
     membershipRole: null,
-    pipelineScope: PipelineScope.ALL,
     tokenHash: sha256Hex("seed-invitation-investor-7"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,
@@ -325,7 +305,6 @@ export const invitations = [
     role: UserRole.COUNTRY,
     countryId: "seed-country-c",
     membershipRole: MembershipRole.MEMBER,
-    pipelineScope: PipelineScope.NONE,
     tokenHash: sha256Hex("seed-invitation-country-c-member"),
     expiresAt: gst("2026-12-07T23:59"),
     acceptedAt: null,
@@ -445,16 +424,6 @@ export const submissions = [
     "Blake Example",
     "focal@country-b.example",
     gst("2026-11-14T09:00"),
-  ),
-  // An admin adding material for the country records that its written consent was received.
-  submission(
-    "b1-extra-workspace",
-    "seed-country-b",
-    null,
-    "Sam Summit",
-    "summit.admin@demo.example",
-    gst("2026-11-16T10:00"),
-    UPLOAD_ACK_ON_BEHALF_TEXT_VERSION,
   ),
 ];
 
@@ -803,20 +772,6 @@ const documentSpecs: DocumentSpec[] = [
     supersededById: null,
   },
   {
-    // Extra material (v0.2 F11). PLAN v0.3 drops it; it goes with ProjectGrant in M3.
-    id: "seed-doc-b1-extra-v1",
-    projectId: "seed-project-b1",
-    submissionId: "seed-submission-b1-extra-workspace",
-    kind: DocumentKind.EXTRA,
-    filename: "country-b-wastewater-ppp-extra-slides.pdf",
-    version: 1,
-    allowDownload: false,
-    scanStatus: ScanStatus.CLEAN,
-    uploadedById: "seed-user-summit-admin",
-    uploadedAt: gst("2026-11-16T10:00"),
-    supersededById: null,
-  },
-  {
     id: "seed-doc-b2-teaser-v1",
     projectId: "seed-project-b2",
     submissionId: "seed-submission-b",
@@ -895,24 +850,16 @@ function pdfFor(spec: DocumentSpec): Uint8Array {
   const country = countries.find((c) => c.id === project?.countryId);
   if (!project || !country)
     throw new Error(`Seed document ${spec.id} has no project or country`);
-  const lines =
-    spec.kind === DocumentKind.EXTRA
-      ? [
-          "Additional material shared after a bilateral meeting.",
-          "Visible only to named attendees with a project grant.",
-        ]
-      : [
-          `Sector: ${project.sector}`,
-          `PPP model: ${project.pppModel ?? "To be confirmed"}`,
-          `Indicative size: ${formatSize(project.sizeMinUsd, project.sizeMaxUsd)}`,
-          `Development stage: ${project.developmentStage ?? "To be confirmed"}`,
-          "Fictional demo teaser. Not a real project.",
-        ];
-  const label =
-    spec.kind === DocumentKind.EXTRA ? "Additional material" : "Project teaser";
+  const lines = [
+    `Sector: ${project.sector}`,
+    `PPP model: ${project.pppModel ?? "To be confirmed"}`,
+    `Indicative size: ${formatSize(project.sizeMinUsd, project.sizeMaxUsd)}`,
+    `Development stage: ${project.developmentStage ?? "To be confirmed"}`,
+    "Fictional demo teaser. Not a real project.",
+  ];
   return buildPlaceholderPdf({
     title: project.title,
-    subtitle: `${country.name}. ${label}, version ${spec.version}, ${dateOnly.format(spec.uploadedAt)}`,
+    subtitle: `${country.name}. Project teaser, version ${spec.version}, ${dateOnly.format(spec.uploadedAt)}`,
     lines,
   });
 }
@@ -1202,22 +1149,6 @@ export const slots = rooms.flatMap((room) =>
 );
 
 // ---------------------------------------------------------------------------
-// Project grant for extra material (F11)
-// ---------------------------------------------------------------------------
-
-export const projectGrants = [
-  {
-    id: "seed-grant-b1-investor-3",
-    userId: "seed-user-investor-3",
-    projectId: "seed-project-b1",
-    scope: GrantScope.EXTRA,
-    grantedById: "seed-user-country-b-focal",
-    expiresAt: gst("2026-12-31T23:59"),
-    revokedAt: null,
-  },
-];
-
-// ---------------------------------------------------------------------------
 // A few audit events, so the audit viewer has something to show
 // ---------------------------------------------------------------------------
 
@@ -1261,17 +1192,6 @@ export const auditEvents = [
     metadata: { seed: true },
   },
   {
-    id: "seed-audit-grant-b1",
-    actorId: "seed-user-country-b-focal",
-    action: "grant.create",
-    entityType: "ProjectGrant",
-    entityId: "seed-grant-b1-investor-3",
-    ip: "203.0.113.10",
-    userAgent: "seed",
-    at: gst("2026-11-16T10:05"),
-    metadata: { seed: true, scope: GrantScope.EXTRA },
-  },
-  {
     id: "seed-audit-login-failed",
     actorId: null,
     action: "auth.login_failed",
@@ -1288,7 +1208,6 @@ export const seedData = {
   countries,
   users,
   memberships,
-  pipelineCountries,
   invitations,
   uploadLinks,
   submissions,
@@ -1299,6 +1218,5 @@ export const seedData = {
   meetingRequests,
   rooms,
   slots,
-  projectGrants,
   auditEvents,
 };

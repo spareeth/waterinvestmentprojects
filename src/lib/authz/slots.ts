@@ -1,11 +1,12 @@
 // Bilateral slot permissions (F10). Pure: no database access.
 // Everyone with an active account may see the room grid, but a booking is shown in full only to admins, the
-// investor who made the request and the country that owns the project. Everyone else sees only "Booked":
+// investor who made the request, the country that owns the project and its WBG coordinators. Everyone else sees only "Booked":
 // no request, project, country or investor, and a HELD slot looks the same as a BOOKED one.
 
 import { MeetingRequestStatus, SlotStatus } from "@/generated/prisma/enums";
 import {
   actsForCountry,
+  coordinatesCountry,
   isAdminViewer,
   isOwnCountry,
   type Viewer,
@@ -58,7 +59,8 @@ export function canSeeSlotDetails(
   if (!request) return false;
   return (
     request.requesterId === viewer.id ||
-    isOwnCountry(viewer, request.project.countryId)
+    isOwnCountry(viewer, request.project.countryId) ||
+    coordinatesCountry(viewer, request.project.countryId)
   );
 }
 
@@ -99,7 +101,7 @@ export function slotView(
   };
 }
 
-/** Assigning a slot to an ACCEPTED request: admins, or the focal point of the owning country. */
+/** Assigning a slot to an ACCEPTED request: admins, or a user of the owning country. */
 export function canBookSlot(
   viewer: Viewer | null,
   request: { status: MeetingRequestStatus; project: { countryId: string } },

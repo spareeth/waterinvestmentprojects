@@ -510,7 +510,7 @@ describe("cross-country isolation of handed-out accounts", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 
-  it("gives a WBG coordinator no drafts, no workspace, no other people and no account powers (default deny until M3/M5)", async () => {
+  it("gives a WBG coordinator no drafts, no workspace, no other people and no account powers (M3: published teasers and own countries' requests only)", async () => {
     const created = await createAccount(
       summitAdmin,
       {

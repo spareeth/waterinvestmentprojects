@@ -1,9 +1,9 @@
-// Country workspace (M5, PLAN F3/F4). Pure: no database access.
-// The workspace is where a country manages its own projects. It is NOT the pipeline: a country user whose
-// pipeline scope shows other countries' published teasers still only manages their own country here.
+// Country workspace. Pure: no database access.
+// The workspace lists a country's own projects. v0.3 (user decision, 18 Nov): country users read it only;
+// admins create, edit, upload, publish and withdraw there until the admin console (M7) takes over.
 
 import type { Prisma } from "@/generated/prisma/client";
-import { CountryStatus, DocumentKind } from "@/generated/prisma/enums";
+import { CountryStatus } from "@/generated/prisma/enums";
 import { NO_COUNTRY } from "./people";
 import {
   canEditProject,
@@ -20,7 +20,7 @@ import {
   type Viewer,
 } from "./viewer";
 
-/** Admins (for every country) and country users (for their own countries) have a workspace. */
+/** Admins (for every country) and country users (their own countries, read only) have a workspace. */
 export function canUseWorkspace(viewer: Viewer | null): boolean {
   return isAdminViewer(viewer) || ownCountryIds(viewer).length > 0;
 }
@@ -35,7 +35,10 @@ export function workspaceProjectWhere(
   return own.length > 0 ? { countryId: { in: own } } : NO_PROJECT;
 }
 
-/** Countries the viewer may add projects for: admins any ACTIVE country, country users their own ACTIVE ones. */
+/**
+ * ACTIVE countries in the viewer's workspace: admins all, country users their own. Adding a project also needs
+ * canCreateProject (admins only).
+ */
 export function workspaceCountryWhere(
   viewer: Viewer | null,
 ): Prisma.CountryWhereInput {
@@ -62,8 +65,8 @@ export function workspacePermissions(
   project: Pick<ProjectRef, "countryId" | "status">,
 ): WorkspacePermissions {
   return {
-    edit: canEditProject(viewer, project),
-    uploadTeaser: canUploadDocument(viewer, project, DocumentKind.TEASER),
+    edit: canEditProject(viewer),
+    uploadTeaser: canUploadDocument(viewer),
     publish: canPublishProject(viewer, project),
     withdraw: canWithdrawProject(viewer, project),
     onBehalf: actsOnBehalf(viewer, project.countryId),

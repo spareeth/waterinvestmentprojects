@@ -16,7 +16,6 @@ import {
   CountryStatus,
   DocumentKind,
   MembershipRole,
-  PipelineScope,
   ProjectStatus,
   ScanStatus,
   UserRole,
@@ -170,13 +169,11 @@ beforeAll(async () => {
     role: UserRole,
     membershipRole?: MembershipRole,
     countryId?: string,
-    pipelineScope: PipelineScope = PipelineScope.NONE,
   ) => {
     const u = await createUser({
       role,
       membershipRole,
       countryId,
-      pipelineScope,
       termsAccepted: true,
       mfaEnabled: true,
     });
@@ -185,18 +182,8 @@ beforeAll(async () => {
   v.admin = await make(UserRole.SUMMIT_ADMIN);
   v.platformAdmin = await make(UserRole.PLATFORM_ADMIN);
   v.focalA = await make(UserRole.COUNTRY, MembershipRole.FOCAL_POINT, C.a);
-  v.focalB = await make(
-    UserRole.COUNTRY,
-    MembershipRole.FOCAL_POINT,
-    C.b,
-    PipelineScope.ALL,
-  );
-  v.investor = await make(
-    UserRole.INVESTOR,
-    undefined,
-    undefined,
-    PipelineScope.ALL,
-  );
+  v.focalB = await make(UserRole.COUNTRY, MembershipRole.FOCAL_POINT, C.b);
+  v.investor = await make(UserRole.INVESTOR);
 });
 
 afterAll(async () => {
@@ -553,7 +540,7 @@ describe("submitting through a country link", () => {
     for (const viewer of [v.focalB, v.investor]) {
       expect(
         await db.document.count({
-          where: { AND: [{ id: docId }, documentWhere(viewer, new Date())] },
+          where: { AND: [{ id: docId }, documentWhere(viewer)] },
         }),
       ).toBe(0);
       expect(

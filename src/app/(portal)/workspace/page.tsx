@@ -8,7 +8,12 @@ import {
   StatusBadge,
   Tag,
 } from "@/components/workspace/status-badge";
-import { canUseWorkspace, isAdminViewer, requirePortalUser } from "@/lib/authz";
+import {
+  canCreateProject,
+  canUseWorkspace,
+  isAdminViewer,
+  requirePortalUser,
+} from "@/lib/authz";
 import {
   listWorkspaceCountries,
   listWorkspaceProjects,
@@ -35,9 +40,10 @@ export default async function WorkspacePage() {
     listWorkspaceCountries(viewer),
   ]);
   const admin = isAdminViewer(viewer);
+  const canAdd = canCreateProject(viewer) && countries.length > 0;
   const intro = admin
     ? "All country workspaces. You can add and update projects for a country, upload a teaser once its government has consented in writing, and publish on its behalf."
-    : `${countries.map((c) => c.name).join(", ")} workspace. Only your country team and the Summit administrators can manage this workspace.`;
+    : `${countries.map((c) => c.name).join(", ")} projects. Only your country team and the Summit administrators can see this page. The Summit team publishes teasers and updates project details.`;
 
   return (
     <>
@@ -50,7 +56,7 @@ export default async function WorkspacePage() {
             </h1>
             <p className="mt-1 max-w-3xl text-muted-foreground">{intro}</p>
           </div>
-          {countries.length > 0 ? (
+          {canAdd ? (
             <Button asChild size="lg">
               <Link href="/workspace/projects/new">Add a project</Link>
             </Button>
@@ -61,8 +67,9 @@ export default async function WorkspacePage() {
           <section className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold">No projects yet</h2>
             <p className="mt-2 text-muted-foreground">
-              Add a project, upload its one-page teaser and publish it to the
-              pipeline when it is ready.
+              {canAdd
+                ? "Add a project, upload its one-page teaser and publish it to the pipeline when it is ready."
+                : "Teasers your government submits through its upload link appear here."}
             </p>
           </section>
         ) : (

@@ -81,8 +81,8 @@ export function ProjectForm({
       {state.success ? <Notice tone="success">{state.success}</Notice> : null}
       {readOnly ? (
         <Notice tone="info">
-          This project is no longer a draft. Your country focal point or the
-          Summit team can change it.
+          Project details are kept by the Summit team. Contact them if something
+          needs to change.
         </Notice>
       ) : null}
 

@@ -47,8 +47,6 @@ function viewer(role: Viewer["role"]): Viewer {
     id: `u-${role}`,
     role,
     memberships: [],
-    pipelineScope: "ALL",
-    pipelineCountryIds: [],
   };
 }
 

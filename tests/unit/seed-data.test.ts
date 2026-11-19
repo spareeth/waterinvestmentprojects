@@ -7,7 +7,6 @@ import {
   CountryContactRole,
   MeetingRequestStatus,
   MembershipRole,
-  PipelineScope,
   ProjectStatus,
   SlotStatus,
   UserRole,
@@ -26,7 +25,6 @@ const {
   countries,
   users,
   memberships,
-  pipelineCountries,
   invitations,
   uploadLinks,
   submissions,
@@ -37,7 +35,6 @@ const {
   meetingRequests,
   rooms,
   slots,
-  projectGrants,
   auditEvents,
 } = seedData;
 
@@ -64,7 +61,6 @@ describe("seed data: identity and fiction", () => {
       meetingRequests,
       rooms,
       slots,
-      projectGrants,
       auditEvents,
     };
     for (const [name, rows] of Object.entries(collections)) {
@@ -181,24 +177,6 @@ describe("seed data: users and memberships", () => {
       );
     });
     expect(withBoth.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("gives investors the whole pipeline by default and shows each pipeline option once", () => {
-    const scopeOf = (id: string) => userById.get(id)?.pipelineScope;
-    expect(scopeOf("seed-user-investor-1")).toBe(PipelineScope.ALL);
-    expect(scopeOf("seed-user-country-a-focal")).toBe(PipelineScope.NONE);
-    // One country user who also sees the pipeline, one investor limited to some countries.
-    expect(scopeOf("seed-user-country-c-focal")).toBe(PipelineScope.ALL);
-    expect(scopeOf("seed-user-investor-4")).toBe(PipelineScope.SELECTED);
-    for (const p of pipelineCountries) {
-      expect(scopeOf(p.userId)).toBe(PipelineScope.SELECTED);
-      expect(countries.some((c) => c.id === p.countryId)).toBe(true);
-    }
-    for (const inv of invitations) {
-      expect(inv.pipelineScope).toBe(
-        inv.role === UserRole.INVESTOR ? PipelineScope.ALL : PipelineScope.NONE,
-      );
-    }
   });
 
   it("has invitations that reference real inviters and store only a token hash", () => {
@@ -345,6 +323,13 @@ describe("seed data: projects and documents", () => {
     }
   });
 
+  it("has teasers only: no extra material, data room or grants (PLAN v0.3, M3)", () => {
+    for (const d of documents) expect(d.kind, d.id).toBe("TEASER");
+    expect(Object.keys(seedData)).not.toContain("projectGrants");
+    expect(Object.keys(seedData)).not.toContain("pipelineCountries");
+    for (const u of users) expect(u).not.toHaveProperty("pipelineScope");
+  });
+
   it("published projects only after a teaser was uploaded", () => {
     for (const p of projects.filter((p) => p.status !== ProjectStatus.DRAFT)) {
       expect(
@@ -388,7 +373,7 @@ describe("seed data: projects and documents", () => {
   });
 });
 
-describe("seed data: meeting requests, slots and grants", () => {
+describe("seed data: meeting requests and slots", () => {
   it("has requests in every status, only from investors, only on published projects", () => {
     for (const status of Object.values(MeetingRequestStatus)) {
       expect(
@@ -467,30 +452,6 @@ describe("seed data: meeting requests, slots and grants", () => {
     }
     const requestIds = linked.map((s) => s.meetingRequestId);
     expect(new Set(requestIds).size).toBe(requestIds.length);
-  });
-
-  it("grants EXTRA material only to an investor with an accepted request, with an expiry", () => {
-    expect(projectGrants.length).toBeGreaterThan(0);
-    for (const g of projectGrants) {
-      expect(g.scope).toBe("EXTRA");
-      expect(g.expiresAt.getTime()).toBeGreaterThan(
-        gst("2026-12-09T18:30").getTime(),
-      );
-      expect(g.revokedAt).toBeNull();
-      expect(
-        documents.some(
-          (d) => d.projectId === g.projectId && d.kind === "EXTRA",
-        ),
-      ).toBe(true);
-      expect(
-        meetingRequests.some(
-          (r) =>
-            r.requesterId === g.userId &&
-            r.projectId === g.projectId &&
-            r.status === MeetingRequestStatus.ACCEPTED,
-        ),
-      ).toBe(true);
-    }
   });
 
   it("keeps audit events pointing at real actors, with one anonymous failed login", () => {

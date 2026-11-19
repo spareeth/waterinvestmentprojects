@@ -1,11 +1,12 @@
-// Document permissions (teasers, EXTRA material, Phase 2 DATAROOM). Pure: no database access.
+// Document permissions (teasers). Pure: no database access.
 // Three levels: see the document in a list (metadata), open the file (view), and download it.
-// Files are only ever served when the virus scan says CLEAN, whoever asks.
+// Files are only ever served when the virus scan says CLEAN, whoever asks (one admin exception below).
+// PLAN v0.3: downloads allowed by default (Document.allowDownload defaults to true); no extra material, no
+// per-project grants, no data room.
 
 import type { Prisma } from "@/generated/prisma/client";
 import { DocumentKind, ScanStatus } from "@/generated/prisma/enums";
-import { type GrantRef, activeGrantWhere, isGrantActive } from "./grants";
-import { canEditProject, pipelineProjectWhere } from "./projects";
+import { pipelineProjectWhere } from "./projects";
 import {
   hasPipeline,
   inPipeline,
@@ -17,7 +18,6 @@ import {
 } from "./viewer";
 
 export interface DocumentRef {
-  projectId: string;
   kind: DocumentKind;
   scanStatus: ScanStatus;
   supersededById: string | null;
@@ -25,86 +25,57 @@ export interface DocumentRef {
   project: ProjectRef;
 }
 
-/** Facts the document rules need besides the document: the viewer's grants and the clock. */
-export interface DocumentContext {
-  grants: GrantRef[];
-  now: Date;
-}
-
 /** Matches no document. */
 export const NO_DOCUMENT: Prisma.DocumentWhereInput = { id: { in: [] } };
 
 /**
- * Documents the viewer may see listed. Admins: all. Own country: every document of its projects (any kind,
- * version or scan state). Pipeline: the current CLEAN teaser of each pipeline project, plus current CLEAN
- * EXTRA material where the viewer holds an active grant. DATAROOM is never in the pipeline.
+ * Documents the viewer may see listed. Admins: all. Country users: every document of their own countries'
+ * projects (any version or scan state). Pipeline (investors, coordinators): the current CLEAN teaser of each
+ * pipeline project, never older versions.
  */
 export function documentWhere(
   viewer: Viewer | null,
-  now: Date,
 ): Prisma.DocumentWhereInput {
   if (!viewer) return NO_DOCUMENT;
   if (isAdminViewer(viewer)) return {};
-  const branches: Prisma.DocumentWhereInput[] = [];
   const own = ownCountryIds(viewer);
-  if (own.length > 0) branches.push({ project: { countryId: { in: own } } });
-  if (hasPipeline(viewer)) {
-    branches.push({
-      AND: [
-        { supersededById: null },
-        { scanStatus: ScanStatus.CLEAN },
-        { project: pipelineProjectWhere(viewer) },
-        {
-          OR: [
-            { kind: DocumentKind.TEASER },
-            {
-              kind: DocumentKind.EXTRA,
-              project: { grants: { some: activeGrantWhere(viewer.id, now) } },
-            },
-          ],
-        },
-      ],
-    });
-  }
-  if (branches.length === 0) return NO_DOCUMENT;
-  return branches.length === 1 ? branches[0] : { OR: branches };
+  if (own.length > 0) return { project: { countryId: { in: own } } };
+  if (!hasPipeline(viewer)) return NO_DOCUMENT;
+  return {
+    kind: DocumentKind.TEASER,
+    supersededById: null,
+    scanStatus: ScanStatus.CLEAN,
+    project: pipelineProjectWhere(viewer),
+  };
 }
 
 export function canViewDocument(
   viewer: Viewer | null,
   doc: DocumentRef,
-  context: DocumentContext,
 ): boolean {
   if (!viewer) return false;
   if (isAdminViewer(viewer) || isOwnCountry(viewer, doc.project.countryId)) {
     return true;
   }
-  if (!inPipeline(viewer, doc.project)) return false;
-  if (doc.supersededById !== null || doc.scanStatus !== ScanStatus.CLEAN) {
-    return false;
-  }
-  if (doc.kind === DocumentKind.TEASER) return true;
-  if (doc.kind === DocumentKind.EXTRA) {
-    return context.grants.some((g) =>
-      isGrantActive(g, viewer.id, doc.projectId, context.now),
-    );
-  }
-  return false;
+  return (
+    inPipeline(viewer, doc.project) &&
+    doc.kind === DocumentKind.TEASER &&
+    doc.supersededById === null &&
+    doc.scanStatus === ScanStatus.CLEAN
+  );
 }
 
 /** Opening the file (viewer page, stream or signed URL): visible and scanned CLEAN. */
 export function canOpenDocumentFile(
   viewer: Viewer | null,
   doc: DocumentRef,
-  context: DocumentContext,
 ): boolean {
-  return (
-    doc.scanStatus === ScanStatus.CLEAN && canViewDocument(viewer, doc, context)
-  );
+  return doc.scanStatus === ScanStatus.CLEAN && canViewDocument(viewer, doc);
 }
 
 /**
- * Downloading: the owning country and admins always; pipeline viewers only where allowDownload is on.
+ * Downloading: the owning country and admins always; pipeline viewers unless an admin switched download off
+ * for that teaser (allowDownload, default on).
  * M0 (user decision, 18 Nov): until a virus scanner runs (M10), admins may also download files whose scan is
  * still PENDING, so they can collect government uploads on production. Never INFECTED or FAILED files, never
  * anyone else; the download is audited with its scan status.
@@ -112,12 +83,11 @@ export function canOpenDocumentFile(
 export function canDownloadDocument(
   viewer: Viewer | null,
   doc: DocumentRef,
-  context: DocumentContext,
 ): boolean {
   if (isAdminViewer(viewer) && doc.scanStatus === ScanStatus.PENDING) {
     return true;
   }
-  if (!canOpenDocumentFile(viewer, doc, context)) return false;
+  if (!canOpenDocumentFile(viewer, doc)) return false;
   return (
     doc.allowDownload ||
     isAdminViewer(viewer) ||
@@ -126,14 +96,9 @@ export function canDownloadDocument(
 }
 
 /**
- * Uploading or changing a document (new version, download flag). TEASER and EXTRA follow project editing
- * (members on drafts only). DATAROOM is Phase 2: admins only until it is designed.
+ * Uploading or changing a teaser in the portal (new version, download switch): admins only (user decision,
+ * 18 Nov). Governments upload through the upload link (M0), which the link token authorises.
  */
-export function canUploadDocument(
-  viewer: Viewer | null,
-  project: Pick<ProjectRef, "countryId" | "status">,
-  kind: DocumentKind,
-): boolean {
-  if (kind === DocumentKind.DATAROOM) return isAdminViewer(viewer);
-  return canEditProject(viewer, project);
+export function canUploadDocument(viewer: Viewer | null): boolean {
+  return isAdminViewer(viewer);
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   MembershipRole,
-  PipelineScope,
   ProjectStatus,
   UserRole,
 } from "@/generated/prisma/enums";
@@ -13,20 +12,13 @@ import {
   workspaceProjectWhere,
 } from "./workspace";
 
-// M5: who has a country workspace and what they may do there. Pure matrix; the database side is in
-// tests/integration/workspace.test.ts.
+// Who has a country workspace and what they may do there (M3, PLAN v0.3: countries read, admins act).
+// Pure matrix; the database side is in tests/integration/workspace.test.ts.
 
 const viewer = (
   role: UserRole,
   memberships: Viewer["memberships"] = [],
-  pipelineScope: PipelineScope = PipelineScope.NONE,
-): Viewer => ({
-  id: `v-${role}`,
-  role,
-  memberships,
-  pipelineScope,
-  pipelineCountryIds: [],
-});
+): Viewer => ({ id: `v-${role}`, role, memberships });
 
 const admin = viewer(UserRole.SUMMIT_ADMIN);
 const platform = viewer(UserRole.PLATFORM_ADMIN);
@@ -36,13 +28,10 @@ const focalA = viewer(UserRole.COUNTRY, [
 const memberA = viewer(UserRole.COUNTRY, [
   { countryId: "A", role: MembershipRole.MEMBER },
 ]);
-// A country user who also sees the whole pipeline: still only manages country A.
-const focalAWide = viewer(
-  UserRole.COUNTRY,
-  [{ countryId: "A", role: MembershipRole.FOCAL_POINT }],
-  PipelineScope.ALL,
-);
-const investor = viewer(UserRole.INVESTOR, [], PipelineScope.ALL);
+const coordinatorA = viewer(UserRole.WBG_COORDINATOR, [
+  { countryId: "A", role: MembershipRole.MEMBER },
+]);
+const investor = viewer(UserRole.INVESTOR);
 const countryWithoutMembership = viewer(UserRole.COUNTRY);
 
 const project = (countryId: string, status: ProjectStatus) => ({
@@ -50,30 +39,37 @@ const project = (countryId: string, status: ProjectStatus) => ({
   status,
 });
 
+const NONE = {
+  edit: false,
+  uploadTeaser: false,
+  publish: false,
+  withdraw: false,
+  onBehalf: false,
+};
+
 describe("workspace access", () => {
-  it("is for admins and country members only", () => {
+  it("is for admins and country users only", () => {
     expect(canUseWorkspace(admin)).toBe(true);
     expect(canUseWorkspace(platform)).toBe(true);
     expect(canUseWorkspace(focalA)).toBe(true);
     expect(canUseWorkspace(memberA)).toBe(true);
+    expect(canUseWorkspace(coordinatorA)).toBe(false);
     expect(canUseWorkspace(investor)).toBe(false);
     expect(canUseWorkspace(countryWithoutMembership)).toBe(false);
     expect(canUseWorkspace(null)).toBe(false);
   });
 
-  it("lists only the viewer's own countries' projects, whatever the pipeline scope", () => {
+  it("lists only the viewer's own countries' projects", () => {
     expect(workspaceProjectWhere(admin)).toEqual({});
     expect(workspaceProjectWhere(focalA)).toEqual({
       countryId: { in: ["A"] },
     });
-    expect(workspaceProjectWhere(focalAWide)).toEqual({
-      countryId: { in: ["A"] },
-    });
+    expect(workspaceProjectWhere(coordinatorA)).toEqual({ id: { in: [] } });
     expect(workspaceProjectWhere(investor)).toEqual({ id: { in: [] } });
     expect(workspaceProjectWhere(null)).toEqual({ id: { in: [] } });
   });
 
-  it("offers active countries only: all for admins, own for country users", () => {
+  it("names active countries only: all for admins, own for country users", () => {
     expect(workspaceCountryWhere(admin)).toEqual({ status: "ACTIVE" });
     expect(workspaceCountryWhere(memberA)).toEqual({
       id: { in: ["A"] },
@@ -84,55 +80,34 @@ describe("workspace access", () => {
 });
 
 describe("workspace permissions", () => {
-  it("focal point: edit, upload and publish a draft; no on-behalf", () => {
+  it("country users only read their projects, whatever the status or membership role", () => {
+    for (const v of [focalA, memberA]) {
+      for (const status of Object.values(ProjectStatus)) {
+        expect(workspacePermissions(v, project("A", status))).toEqual(NONE);
+      }
+    }
+  });
+
+  it("admins edit, upload and publish on behalf of the country", () => {
     expect(
-      workspacePermissions(focalA, project("A", ProjectStatus.DRAFT)),
+      workspacePermissions(admin, project("B", ProjectStatus.WITHDRAWN)),
     ).toEqual({
       edit: true,
       uploadTeaser: true,
       publish: true,
       withdraw: false,
-      onBehalf: false,
+      onBehalf: true,
     });
     expect(
-      workspacePermissions(focalA, project("A", ProjectStatus.PUBLISHED)),
-    ).toMatchObject({ edit: true, publish: false, withdraw: true });
+      workspacePermissions(platform, project("A", ProjectStatus.PUBLISHED)),
+    ).toMatchObject({ publish: false, withdraw: true });
   });
 
-  it("member: drafts only, never publishes", () => {
-    expect(
-      workspacePermissions(memberA, project("A", ProjectStatus.DRAFT)),
-    ).toEqual({
-      edit: true,
-      uploadTeaser: true,
-      publish: false,
-      withdraw: false,
-      onBehalf: false,
-    });
-    for (const status of [ProjectStatus.PUBLISHED, ProjectStatus.WITHDRAWN]) {
-      expect(workspacePermissions(memberA, project("A", status))).toMatchObject(
-        { edit: false, uploadTeaser: false, publish: false, withdraw: false },
-      );
-    }
-  });
-
-  it("admin acts on behalf of the country", () => {
-    expect(
-      workspacePermissions(admin, project("B", ProjectStatus.WITHDRAWN)),
-    ).toMatchObject({ edit: true, publish: true, onBehalf: true });
-  });
-
-  it("no rights in another country's project, even with a wide pipeline", () => {
-    for (const v of [focalA, memberA, focalAWide, investor]) {
+  it("gives no rights to anyone else", () => {
+    for (const v of [focalA, memberA, coordinatorA, investor, null]) {
       expect(
         workspacePermissions(v, project("B", ProjectStatus.DRAFT)),
-      ).toEqual({
-        edit: false,
-        uploadTeaser: false,
-        publish: false,
-        withdraw: false,
-        onBehalf: false,
-      });
+      ).toEqual(NONE);
     }
   });
 });

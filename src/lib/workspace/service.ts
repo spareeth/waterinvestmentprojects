@@ -188,7 +188,7 @@ export async function createProject(
   input: ProjectInput,
   { meta }: WorkspaceOptions = {},
 ): Promise<string> {
-  if (!canCreateProject(viewer, countryId)) {
+  if (!canCreateProject(viewer)) {
     throw new WorkspaceError("forbidden");
   }
   return db.$transaction(async (tx) => {
@@ -237,7 +237,7 @@ export async function updateProject(
       client: tx,
     });
     if (!project) throw new WorkspaceError("not_found");
-    if (!canEditProject(viewer, project)) {
+    if (!canEditProject(viewer)) {
       throw new WorkspaceError("forbidden");
     }
     const data = projectData(input);
@@ -301,7 +301,7 @@ export async function uploadTeaser(
   // Permission first, so nothing is written to storage for someone who may not upload.
   const before = await findWorkspaceProjectFor(viewer, projectId);
   if (!before) throw new WorkspaceError("not_found");
-  if (!canUploadDocument(viewer, before, DocumentKind.TEASER)) {
+  if (!canUploadDocument(viewer)) {
     throw new WorkspaceError("forbidden");
   }
   const problem = teaserFileProblem(file);
@@ -321,7 +321,7 @@ export async function uploadTeaser(
         client: tx,
       });
       if (!project) throw new WorkspaceError("not_found");
-      if (!canUploadDocument(viewer, project, DocumentKind.TEASER)) {
+      if (!canUploadDocument(viewer)) {
         throw new WorkspaceError("forbidden");
       }
       const uploader = await tx.user.findUnique({
@@ -461,7 +461,7 @@ export async function setTeaserDownload(
       },
     });
     if (!doc) throw new WorkspaceError("not_found");
-    if (!canUploadDocument(viewer, doc.project, DocumentKind.TEASER)) {
+    if (!canUploadDocument(viewer)) {
       throw new WorkspaceError("forbidden");
     }
     if (doc.allowDownload === allowDownload) return;

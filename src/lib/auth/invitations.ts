@@ -1,7 +1,6 @@
 import "server-only";
 import type {
   MembershipRole,
-  PipelineScope,
   UserRole as UserRoleType,
 } from "@/generated/prisma/enums";
 import { UserRole, UserStatus } from "@/generated/prisma/enums";
@@ -9,7 +8,6 @@ import { type RequestMeta, writeAudit } from "@/lib/audit";
 import {
   type Actor,
   canInvite,
-  defaultPipelineScope,
   invitationShapeError,
 } from "@/lib/authz/account-policies";
 import { appConfig } from "@/lib/config";
@@ -47,8 +45,6 @@ export interface CreateInvitationInput {
   role: UserRoleType;
   countryId?: string | null;
   membershipRole?: MembershipRole | null;
-  /** Pipeline visibility; empty means the role default (investors ALL, others NONE). Only admins may widen it. */
-  pipelineScope?: PipelineScope | null;
   expiresInDays?: number;
 }
 
@@ -66,7 +62,6 @@ export async function createInvitation(
     role: input.role,
     countryId: input.countryId ?? null,
     membershipRole: input.membershipRole ?? null,
-    pipelineScope: input.pipelineScope ?? defaultPipelineScope(input.role),
   };
   const shapeError = invitationShapeError(request);
   if (shapeError) throw new Error(shapeError);
@@ -83,7 +78,6 @@ export async function createInvitation(
         role: request.role,
         countryId: request.countryId,
         membershipRole: request.membershipRole,
-        pipelineScope: request.pipelineScope,
         tokenHash: hashInvitationToken(token),
         expiresAt: new Date(now.getTime() + days * 24 * 60 * 60_000),
         invitedById: actor.id,
@@ -100,7 +94,6 @@ export async function createInvitation(
           role: request.role,
           countryId: request.countryId,
           membershipRole: request.membershipRole,
-          pipelineScope: request.pipelineScope,
         },
       },
       tx,
@@ -210,7 +203,6 @@ export async function acceptInvitation(
         jobTitle: input.jobTitle?.trim() || null,
         role: invitation.role,
         status: UserStatus.ACTIVE,
-        pipelineScope: invitation.pipelineScope,
         emailVerified: true,
       },
       select: { id: true, email: true },
