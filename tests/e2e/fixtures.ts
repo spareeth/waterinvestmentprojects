@@ -65,21 +65,28 @@ async function create(): Promise<void> {
     UserRole.INVESTOR,
     UserStatus.PENDING_APPROVAL,
   );
-  const token = randomBytes(32).toString("base64url");
+  async function invite(email: string): Promise<string> {
+    const token = randomBytes(32).toString("base64url");
+    await prisma.invitation.create({
+      data: {
+        email,
+        role: UserRole.INVESTOR,
+        tokenHash: createHash("sha256").update(token).digest("hex"),
+        expiresAt: new Date(Date.now() + 60 * 60_000),
+        invitedById: admin.id,
+      },
+    });
+    return token;
+  }
   const inviteeEmail = `invitee-${suffix}@${DOMAIN}`;
-  await prisma.invitation.create({
-    data: {
-      email: inviteeEmail,
-      role: UserRole.INVESTOR,
-      tokenHash: createHash("sha256").update(token).digest("hex"),
-      expiresAt: new Date(Date.now() + 60 * 60_000),
-      invitedById: admin.id,
-    },
-  });
+  const totpInviteeEmail = `invitee-totp-${suffix}@${DOMAIN}`;
   process.stdout.write(
     JSON.stringify({
-      token,
+      token: await invite(inviteeEmail),
       inviteeEmail,
+      // Second invitation for the journey with AUTH_SECOND_STEP=totp.
+      totpToken: await invite(totpInviteeEmail),
+      totpInviteeEmail,
       pendingEmail: pending.email,
       password: E2E_PASSWORD,
     }),
