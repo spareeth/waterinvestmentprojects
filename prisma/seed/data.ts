@@ -8,7 +8,6 @@ import {
   CountryStatus,
   DocumentKind,
   MeetingRequestStatus,
-  MeetingRequestType,
   MembershipRole,
   ProjectStatus,
   ProjectType,
@@ -915,33 +914,35 @@ const publications = projects.flatMap((p) =>
 // Meeting requests (only on PUBLISHED projects; requesters are investors)
 // ---------------------------------------------------------------------------
 
+/** M5: organisation and role as the investor typed them on the request, taken from their seed account. */
+function requesterDetails(requesterId: string) {
+  const u = users.find((x) => x.id === requesterId);
+  if (!u) throw new Error(`Seed request by unknown user ${requesterId}`);
+  return { organisation: u.organisation, role: u.jobTitle };
+}
+
 function request(
   id: string,
   projectId: string,
   requesterId: string,
-  type: MeetingRequestType,
   status: MeetingRequestStatus,
   createdAt: Date,
-  message: string,
-  rank: number | null,
-  decision?: { decidedById: string; decidedAt: Date; onBehalf?: boolean },
+  note: string,
+  decision?: { decidedById: string; decidedAt: Date },
 ) {
   return {
     id: `seed-request-${id}`,
     projectId,
     requesterId,
-    type,
-    message,
-    rank,
+    ...requesterDetails(requesterId),
+    note,
     status,
     decidedById: decision?.decidedById ?? null,
-    decidedOnBehalf: decision?.onBehalf ?? false,
     decidedAt: decision?.decidedAt ?? null,
     createdAt,
   };
 }
 
-const { MEETING, INFO } = MeetingRequestType;
 const { PENDING, ACCEPTED, DECLINED, WITHDRAWN } = MeetingRequestStatus;
 
 export const meetingRequests = [
@@ -949,21 +950,17 @@ export const meetingRequests = [
     "01",
     "seed-project-b1",
     "seed-user-investor-1",
-    MEETING,
     PENDING,
     gst("2026-11-15T10:00"),
     "We would welcome a bilateral meeting on the PPP structure.",
-    1,
   ),
   request(
     "02",
     "seed-project-b2",
     "seed-user-investor-2",
-    MEETING,
     ACCEPTED,
     gst("2026-11-15T11:00"),
     "Interested in the energy supply arrangements.",
-    1,
     {
       decidedById: "seed-user-country-b-focal",
       decidedAt: gst("2026-11-16T09:00"),
@@ -973,11 +970,9 @@ export const meetingRequests = [
     "03",
     "seed-project-b1",
     "seed-user-investor-3",
-    MEETING,
     ACCEPTED,
     gst("2026-11-14T12:00"),
     "Keen to discuss the financing plan.",
-    2,
     {
       decidedById: "seed-user-country-b-focal",
       decidedAt: gst("2026-11-15T09:00"),
@@ -987,31 +982,25 @@ export const meetingRequests = [
     "04",
     "seed-project-b2",
     "seed-user-investor-4",
-    MEETING,
     PENDING,
     gst("2026-11-14T16:00"),
     "Request for a meeting with the project team.",
-    null,
   ),
   request(
     "05",
     "seed-project-a1",
     "seed-user-investor-2",
-    INFO,
     PENDING,
     gst("2026-11-15T13:00"),
     "Could you share the baseline loss figures?",
-    2,
   ),
   request(
     "06",
     "seed-project-c1",
     "seed-user-investor-1",
-    MEETING,
     DECLINED,
     gst("2026-11-14T09:00"),
     "Would like to explore participation as operator.",
-    2,
     {
       decidedById: "seed-user-country-c-focal",
       decidedAt: gst("2026-11-15T15:00"),
@@ -1021,51 +1010,41 @@ export const meetingRequests = [
     "07",
     "seed-project-d1",
     "seed-user-investor-3",
-    MEETING,
     ACCEPTED,
     gst("2026-11-15T08:30"),
     "Interested in the lease model.",
-    1,
     {
       decidedById: "seed-user-summit-admin",
       decidedAt: gst("2026-11-16T11:00"),
-      onBehalf: true,
     },
   ),
   request(
     "08",
     "seed-project-a2",
     "seed-user-investor-4",
-    INFO,
     WITHDRAWN,
     gst("2026-11-13T10:00"),
     "Please share the offtake study.",
-    null,
   ),
   request(
     "09",
     "seed-project-e1",
     "seed-user-investor-1",
-    MEETING,
     ACCEPTED,
     gst("2026-11-15T14:00"),
     "Interested in operating the treatment works.",
-    3,
     {
       decidedById: "seed-user-summit-admin",
       decidedAt: gst("2026-11-16T12:00"),
-      onBehalf: true,
     },
   ),
   request(
     "10",
     "seed-project-c1",
     "seed-user-investor-2",
-    INFO,
     DECLINED,
     gst("2026-11-14T17:00"),
     "Is a sovereign guarantee planned?",
-    null,
     {
       decidedById: "seed-user-country-c-focal",
       decidedAt: gst("2026-11-15T15:30"),
@@ -1075,11 +1054,9 @@ export const meetingRequests = [
     "11",
     "seed-project-e1",
     "seed-user-investor-4",
-    INFO,
     WITHDRAWN,
     gst("2026-11-15T09:00"),
     "Could you share the hydrology summary?",
-    null,
   ),
 ];
 

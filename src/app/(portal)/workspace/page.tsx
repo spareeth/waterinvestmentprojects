@@ -47,7 +47,7 @@ export default async function WorkspacePage() {
 
   return (
     <>
-      <PortalHeader name={user.name} showWorkspace />
+      <PortalHeader name={user.name} viewer={viewer} showWorkspace />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

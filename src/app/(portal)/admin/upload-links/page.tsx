@@ -64,6 +64,7 @@ export default async function UploadLinksPage() {
     <>
       <PortalHeader
         name={user.name}
+        viewer={viewer}
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin
       />

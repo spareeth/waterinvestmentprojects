@@ -39,6 +39,7 @@ export default async function AccountsPage() {
     <>
       <PortalHeader
         name={user.name}
+        viewer={viewer}
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin
       />

@@ -25,6 +25,7 @@ export * from "./upload-token";
 export * from "./upload-links";
 export * from "./audit";
 export * from "./data";
+export * from "./admin";
 
 /** Any usable session, whatever the account stage. Redirects to sign-in otherwise. */
 export async function requireSession(): Promise<CurrentSession> {

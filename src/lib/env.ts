@@ -101,6 +101,13 @@ const envSchema = z
         }
         return list;
       }),
+    /**
+     * M5 (user decision, 18 Nov: built but off until WBG decides). "true" emails a country's FOCAL_POINT contacts
+     * about each new meeting request, with its WBG_COORDINATOR contacts in copy. The Summit mailbox is always told.
+     */
+    REQUEST_NOTIFY_FOCAL_POINTS: flag,
+    /** M5: "true" emails the investor when the country accepts or declines their meeting request. Off by default. */
+    REQUEST_NOTIFY_INVESTOR: flag,
     SMTP_HOST: z
       .string()
       .optional()

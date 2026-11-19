@@ -389,7 +389,7 @@ describe("seed data: meeting requests and slots", () => {
     }
   });
 
-  it("records who decided, and only Summit admins decide on behalf", () => {
+  it("records who decided: an admin or a user of the project's country", () => {
     for (const r of meetingRequests) {
       const decided =
         r.status === MeetingRequestStatus.ACCEPTED ||
@@ -401,16 +401,12 @@ describe("seed data: meeting requests and slots", () => {
       }
       expect(r.decidedAt).toBeInstanceOf(Date);
       const decider = userById.get(r.decidedById!);
-      if (r.decidedOnBehalf) {
-        expect(decider?.role).toBe(UserRole.SUMMIT_ADMIN);
-      } else {
+      if (decider?.role !== UserRole.SUMMIT_ADMIN) {
         const countryId = projectById.get(r.projectId)?.countryId;
+        expect(decider?.role).toBe(UserRole.COUNTRY);
         expect(
           memberships.some(
-            (m) =>
-              m.userId === r.decidedById &&
-              m.countryId === countryId &&
-              m.role === MembershipRole.FOCAL_POINT,
+            (m) => m.userId === r.decidedById && m.countryId === countryId,
           ),
         ).toBe(true);
       }

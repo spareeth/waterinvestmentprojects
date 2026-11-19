@@ -66,6 +66,7 @@ export default async function SubmissionsPage() {
     <>
       <PortalHeader
         name={user.name}
+        viewer={viewer}
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin
       />

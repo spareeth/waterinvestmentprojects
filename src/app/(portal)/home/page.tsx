@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import {
   canListSubmissions,
   canUseWorkspace,
+  canViewRequestInbox,
   requirePortalUser,
 } from "@/lib/authz";
 import { ROLE_LABEL } from "@/lib/auth/role-labels";
+import { getRequestCounts } from "@/lib/requests/service";
 import { getSubmissionCounts } from "@/lib/submission/service";
 
 // Reads the session or the database and redirects on the server before rendering, so it may block.
@@ -26,10 +28,15 @@ export default async function HomePage() {
   const admin = canListSubmissions(viewer);
   // No email for now (user decision, 18 Nov): admins see new submissions here and on /admin/submissions.
   const counts = admin ? await getSubmissionCounts(viewer) : null;
+  // M5: the request inbox counts are the notification that does not depend on email (PLAN 0a.5).
+  const requestCounts = canViewRequestInbox(viewer)
+    ? await getRequestCounts(viewer)
+    : null;
   return (
     <>
       <PortalHeader
         name={user.name}
+        viewer={viewer}
         showWorkspace={workspace}
         showAdmin={admin}
       />
@@ -63,6 +70,31 @@ export default async function HomePage() {
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/admin/accounts">Manage accounts</Link>
+              </Button>
+            </div>
+          </section>
+        ) : null}
+        {requestCounts ? (
+          <section className="flex flex-col gap-4 rounded-xl border bg-card p-6">
+            <div>
+              <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+                Meeting requests
+                {requestCounts.newPending > 0 ? (
+                  <span className="rounded-full bg-success px-2.5 py-0.5 text-xs font-semibold text-success-foreground">
+                    {requestCounts.newPending} new
+                  </span>
+                ) : null}
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                {requestCounts.pending === 1
+                  ? "1 request is awaiting a reply"
+                  : `${requestCounts.pending} requests are awaiting a reply`}
+                , out of {requestCounts.total} in total.
+              </p>
+            </div>
+            <div>
+              <Button asChild size="lg">
+                <Link href="/inbox">See meeting requests</Link>
               </Button>
             </div>
           </section>

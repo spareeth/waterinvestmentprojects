@@ -7,6 +7,26 @@ export const appConfig = {
   url: process.env.APP_URL || "http://localhost:3000",
   supportEmail: process.env.SUPPORT_EMAIL || undefined,
   developedBy: "Developed by Expo City Dubai, through Terra",
+  /** M6: the event the portal serves, shown on the landing page. The conference is named in text only: no UN
+   * Water Conference logo or branding without MoFA approval (PLAN v0.3 0.16). */
+  summit: {
+    name: "Water Investment Summit",
+    date: "9 December 2026",
+    conference: "UN Water Conference",
+    city: "Abu Dhabi",
+  },
+  /**
+   * M6: partner marks in the landing page footer (PLAN v0.3 0.16: MoFA, a single World Bank Group mark, GCFC,
+   * Expo City Dubai/Terra). To swap in a real logo, put the file under public/partners/ and set `logo` to its
+   * path and pixel size; until then the page shows a dashed placeholder with the partner's name. Order and
+   * entries can change here without touching components.
+   */
+  partners: [
+    { id: "mofa", name: "MoFA" },
+    { id: "wbg", name: "World Bank Group" },
+    { id: "gcfc", name: "GCFC" },
+    { id: "expo-city-dubai", name: "Expo City Dubai" },
+  ] as readonly PartnerConfig[],
   /**
    * The government uploader's acknowledgement, given once per submission through the upload link (PLAN v0.3
    * section 3). Exact WBG wording (Jacob Kim, 17 Nov). Change the text AND bump the version together: every
@@ -34,6 +54,14 @@ export const appConfig = {
    */
   investorAcknowledgement: investorAcknowledgement(),
 } as const;
+
+/** A partner shown on the landing page. Without `logo`, a placeholder text mark is shown. */
+export type PartnerConfig = {
+  id: string;
+  /** Visible name of the placeholder, and the logo's alt text. */
+  name: string;
+  logo?: { src: string; width: number; height: number };
+};
 
 function investorAcknowledgement(): {
   version: string;

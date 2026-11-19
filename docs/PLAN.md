@@ -204,8 +204,14 @@ Decisions while building (18 Nov):
   `Project.submissionId` is the link submission that created the project. Publishing needs no second tick.
 - **Country contacts (M1):** each upload link submission adds the uploader as a `FOCAL_POINT` contact of the
   country unless that address already is one (existing contacts, for example named by WBG, are never changed).
-- **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Meeting request fields still follow
-  v0.2 until M5 (meeting requests) brings them in line; users and roles (M2) and authorisation (M3) are done.
+- **Kept outside section 6 for now:** `Project.lat/lon` (for the map, M10). Users and roles (M2), authorisation (M3)
+  and meeting requests (M5) are in line.
+- **Meeting requests (M5, Sajid 18 Nov):** `MeetingRequest` as section 6 (organisation, role, note; `type`, `rank`,
+  `message`, `decidedOnBehalf` removed; an admin's decision on behalf is in the audit event). One open (pending or
+  accepted) request per investor and project; decisions are final. The Summit mailbox is told of every request;
+  emails to focal points (WBG coordinators in cc) and to investors on decision are built but off
+  (`REQUEST_NOTIFY_FOCAL_POINTS`, `REQUEST_NOTIFY_INVESTOR`) until WBG decides. WBG coordinators read and export
+  their countries' requests but never decide. Export at `/inbox/export` (formula-injection guard).
 - **Auth (M2, Sajid 18 Nov):** `UserRole.WBG_COORDINATOR` added. `User.countryIds[]` is kept as the existing
   `CountryMembership` table (userId, countryId, role FOCAL_POINT|MEMBER; the role means nothing for coordinators).
   New `User.mustChangePassword` (not in section 6): set when an admin hands out a temporary password (0a.4), cleared
