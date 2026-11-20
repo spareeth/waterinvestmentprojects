@@ -201,7 +201,10 @@ export function UserGuide() {
         </p>
         <ol>
           <li>Open the upload link. Your country is already filled in.</li>
-          <li>Enter your full name and your email address.</li>
+          <li>
+            Enter your name, your email address and the government organisation
+            you represent (for example the ministry, utility or agency).
+          </li>
           <li>
             Add your project teasers: up to {MAX_TEASERS_PER_SUBMISSION} at a
             time. For each one, choose the sector and select the file: PDF or
@@ -246,14 +249,14 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Meeting requests</strong> lists the requests from investors
-            and operators for your country&apos;s projects, with their
-            organisation, role and note. Use the filter to see new, accepted or
-            declined requests.
+            and operators for your country&apos;s projects: who will attend,
+            their organisation and role, their note and the meeting time they
+            chose. Use the filter to see new, accepted or declined requests.
           </li>
           <li>
             Select <strong>Accept</strong> or <strong>Decline</strong> for each
             request. Your decision is final and the investor sees it in their
-            list. Meeting times and rooms are arranged with the Summit team.
+            list. Accepting books the chosen time and room; declining frees it.
           </li>
           <li>
             <strong>Download CSV</strong> gives you the list as a spreadsheet,
@@ -284,8 +287,12 @@ export function UserGuide() {
           </li>
           <li>
             To meet the country, use <strong>Request a meeting</strong> on the
-            project page: give your organisation, your role and, if you wish, a
-            short note. You can have one open request per project.
+            project page: the name and email address of the person who will
+            attend, your organisation and role, and, if you wish, a short note.
+            Choose a <strong>Meeting time</strong>: 30-minute bilateral meetings
+            in Room A or Room B, UAE time. Times you or the country already have
+            are not offered. The time is held for you until the country answers.
+            You can have one open request per project.
           </li>
           <li>
             <strong>My requests</strong> shows each request and its status:
@@ -311,9 +318,10 @@ export function UserGuide() {
           alt="My requests, with the status of each request"
         />
         <p>
-          When a country accepts, the Summit team is in touch to arrange the
-          meeting at the {appConfig.summit.name}. Please use the teasers only
-          for the purposes set out in the acknowledgement.
+          When a country accepts, your meeting time and room are booked; you see
+          them under <strong>My requests</strong>. If every time was taken, the
+          Summit team contacts you about a time. Please use the teasers only for
+          the purposes set out in the acknowledgement.
         </p>
       </Section>
 
@@ -347,6 +355,10 @@ export function UserGuide() {
             <strong>Accounts</strong>: create accounts one by one or from a CSV
             list, hand over temporary passwords personally, issue new ones, and
             deactivate accounts.
+          </li>
+          <li>
+            <strong>Meeting schedule</strong>: the grid of Room A and Room B,
+            with the times held for pending requests and the meetings booked.
           </li>
           <li>
             <strong>Countries and contacts</strong>, <strong>Exports</strong>:
