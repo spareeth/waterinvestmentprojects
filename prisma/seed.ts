@@ -217,14 +217,19 @@ async function main(): Promise<void> {
             update: data,
           });
         }
-        // Clear seed slot links first so a moved booking cannot clash with the unique meetingRequestId.
+        // Clear the seed requests' slot links first (on any slot, including ones the app created) so a moved
+        // booking cannot clash with the unique meetingRequestId.
         await tx.slot.updateMany({
-          where: { id: { startsWith: "seed-" } },
+          where: { meetingRequestId: { startsWith: "seed-" } },
           data: { meetingRequestId: null },
         });
+        // Match slots on their unique room and time, not the id: the app creates missing slots itself (with
+        // random ids) when someone opens a request form, so a re-run must reuse those rows instead of clashing.
         for (const { id, ...data } of d.slots) {
           await tx.slot.upsert({
-            where: { id },
+            where: {
+              roomId_startsAt: { roomId: data.roomId, startsAt: data.startsAt },
+            },
             create: { id, ...data },
             update: data,
           });
