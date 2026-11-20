@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AuthPage } from "@/components/auth/auth-page";
 import { SignInForm } from "@/components/auth/sign-in-form";
+import { getCurrentSession, stagePathForUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default function SignInPage() {
+// Reads the session on the server and may redirect, so it renders per request.
+export const instant = false;
+
+export default async function SignInPage() {
+  // Already signed in: go straight on (portal home, or the next step such as the password change).
+  const session = await getCurrentSession();
+  if (session) redirect(await stagePathForUser(session.user.id));
   return (
     <AuthPage
       title="Sign in"

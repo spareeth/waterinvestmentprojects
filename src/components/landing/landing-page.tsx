@@ -29,11 +29,20 @@ const accessSteps = [
 
 const navLinkClass = "hidden text-white/90 hover:text-white sm:inline";
 
-export function LandingPage() {
+/**
+ * portalHref: set when the visitor is signed in (where their portal starts); the page then offers "Go to the
+ * portal" instead of "Sign in", so returning to the landing page never looks like being signed out.
+ */
+export function LandingPage({
+  portalHref = null,
+}: { portalHref?: string | null } = {}) {
   const { summit, supportEmail } = appConfig;
+  const entry = portalHref
+    ? { href: portalHref, label: "Go to the portal" }
+    : { href: "/sign-in", label: "Sign in" };
   return (
     <>
-      <SiteHeader>
+      <SiteHeader homeHref={portalHref ?? "/"}>
         <a href="#about" className={navLinkClass}>
           About
         </a>
@@ -45,7 +54,7 @@ export function LandingPage() {
           size="lg"
           className="bg-white text-brand-navy hover:bg-white/90"
         >
-          <Link href="/sign-in">Sign in</Link>
+          <Link href={entry.href}>{entry.label}</Link>
         </Button>
       </SiteHeader>
 
@@ -78,8 +87,8 @@ export function LandingPage() {
                 size="lg"
                 className="h-11 bg-white px-5 text-brand-navy hover:bg-white/90"
               >
-                <Link href="/sign-in">
-                  Sign in
+                <Link href={entry.href}>
+                  {entry.label}
                   <ArrowRight aria-hidden="true" />
                 </Link>
               </Button>

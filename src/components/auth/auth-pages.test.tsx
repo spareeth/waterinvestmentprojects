@@ -13,6 +13,11 @@ vi.mock("@/app/(auth)/actions", () => ({
   acceptInvitationAction: vi.fn(),
   registerAction: vi.fn(),
 }));
+// The sign-in page sends someone who is already signed in straight on; these tests are signed out.
+vi.mock("@/lib/auth/session", () => ({
+  getCurrentSession: vi.fn(async () => null),
+  stagePathForUser: vi.fn(async () => "/home"),
+}));
 vi.mock("@/app/(account)/actions", () => ({
   acceptTermsAction: vi.fn(),
   signOutAction: vi.fn(),
@@ -21,8 +26,8 @@ vi.mock("@/app/(account)/actions", () => ({
 }));
 
 describe("sign-in screens", () => {
-  it("asks for email and password, with labelled fields", () => {
-    render(<SignInPage />);
+  it("asks for email and password, with labelled fields", async () => {
+    render(await SignInPage());
     expect(
       screen.getByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
@@ -62,10 +67,11 @@ describe("sign-in screens", () => {
     expect(screen.getByRole("checkbox")).toBeRequired();
   });
 
-  it("uses no em dashes in visible copy or the terms", () => {
+  it("uses no em dashes in visible copy or the terms", async () => {
+    const signIn = await SignInPage();
     const { container } = render(
       <>
-        <SignInPage />
+        {signIn}
         <SecondStepPage />
         <SignedOutPage />
         <TermsForm />
@@ -75,5 +81,17 @@ describe("sign-in screens", () => {
     for (const section of TERMS_SECTIONS) {
       expect(section.heading + section.body).not.toContain("—");
     }
+  });
+});
+
+describe("sign-in page when already signed in", () => {
+  it("sends the person straight on instead of asking again", async () => {
+    const session = await import("@/lib/auth/session");
+    vi.mocked(session.getCurrentSession).mockResolvedValueOnce({
+      user: { id: "u1" },
+    } as Awaited<ReturnType<typeof session.getCurrentSession>>);
+    vi.mocked(session.stagePathForUser).mockResolvedValueOnce("/pipeline");
+    await expect(SignInPage()).rejects.toThrow(/NEXT_REDIRECT/);
+    expect(session.stagePathForUser).toHaveBeenCalledWith("u1");
   });
 });

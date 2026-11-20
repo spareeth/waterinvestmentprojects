@@ -3,12 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The landing page (M6) reads name, support email, Summit details and partners from config, which reads the
 // environment when it is first imported. Each test sets the environment, then imports a fresh copy.
-async function renderLanding(env: Record<string, string> = {}) {
+async function renderLanding(
+  env: Record<string, string> = {},
+  portalHref: string | null = null,
+) {
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
   vi.resetModules();
   const { LandingPage } = await import("@/components/landing/landing-page");
   const { appConfig } = await import("@/lib/config");
-  return { ...render(<LandingPage />), appConfig };
+  return { ...render(<LandingPage portalHref={portalHref} />), appConfig };
 }
 
 afterEach(() => {
@@ -60,6 +63,24 @@ describe("Landing page", () => {
     ).toHaveAttribute("href", "#how-access-works");
     // PLAN 0a.3: no second step at sign-in for now, so the page must not promise one.
     expect(screen.queryByText(/two-step/i)).not.toBeInTheDocument();
+  });
+
+  it("offers the way back into the portal instead of sign-in when signed in", async () => {
+    await renderLanding({}, "/home");
+    const portalLinks = screen.getAllByRole("link", {
+      name: /go to the portal/i,
+    });
+    expect(portalLinks.length).toBeGreaterThan(0);
+    for (const link of portalLinks) {
+      expect(link).toHaveAttribute("href", "/home");
+    }
+    expect(
+      screen.queryByRole("link", { name: /sign in/i }),
+    ).not.toBeInTheDocument();
+    // The name and mark in the top bar lead into the portal as well.
+    expect(
+      screen.getByRole("link", { name: /water investment projects/i }),
+    ).toHaveAttribute("href", "/home");
   });
 
   it("shows the shared support mailbox from config", async () => {
