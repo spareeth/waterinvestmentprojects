@@ -66,6 +66,9 @@ export function PortalHeader({
           </Link>
         </>
       ) : null}
+      <Link href="/guide" className={linkClass}>
+        User guide
+      </Link>
       <AccountHeader name={name} />
     </SiteHeader>
   );

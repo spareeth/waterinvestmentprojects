@@ -24,7 +24,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "admin:create": "tsx prisma/create-admin.ts"
+    "admin:create": "tsx prisma/create-admin.ts",
+    "guide:screenshots": "bash scripts/guide-screenshots.sh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

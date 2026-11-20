@@ -21,6 +21,10 @@ export function AuthPage({
   return (
     <>
       <SiteHeader>
+        {/* Every sign-in and account screen links to the user guide. */}
+        <Link href="/guide" className="text-white/90 hover:text-white">
+          User guide
+        </Link>
         {header ?? (
           <Link href="/sign-in" className="text-white/90 hover:text-white">
             Sign in

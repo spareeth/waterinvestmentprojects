@@ -45,6 +45,9 @@ export function LandingPage() {
             Contact
           </a>
         ) : null}
+        <Link href="/guide" className="text-white/90 hover:text-white">
+          User guide
+        </Link>
         <Button
           asChild
           size="lg"

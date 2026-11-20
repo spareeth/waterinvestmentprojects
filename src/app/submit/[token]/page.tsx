@@ -46,7 +46,17 @@ const PROBLEMS: Record<
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader>
+        {/* New tab, so a half-filled form is not lost; no-referrer keeps the upload token out of logs. */}
+        <a
+          href="/guide#governments"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-white/90 hover:text-white"
+        >
+          User guide
+        </a>
+      </SiteHeader>
       <main className="flex flex-1 flex-col items-center px-4 py-10 sm:py-14">
         <section
           aria-labelledby="page-title"

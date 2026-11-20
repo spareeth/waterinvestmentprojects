@@ -124,6 +124,7 @@ There is no HTTP endpoint for Better Auth: every sign-in step is a server action
 | `npm run db:seed`                 | Load fictional demo data            |
 | `npm run db:studio`               | Prisma Studio                       |
 | `npm run admin:create -- ...`     | First admin account on a new server |
+| `npm run guide:screenshots`       | Retake the user guide screenshots   |
 
 `npm test` runs two Vitest projects: `unit` (jsdom, no database) and `integration` (real PostgreSQL from `DATABASE_URL`, migrations applied). Integration tests create users on `@it.example` and remove them afterwards.
 
@@ -147,6 +148,10 @@ tests/unit/          unit test helpers
 tests/integration/   Vitest tests against PostgreSQL
 tests/e2e/           Playwright specs and their fixtures
 ```
+
+## User guide
+
+A short guide for every role is at `/guide` (public, no sign-in), linked as "User guide" from every header and from the upload link page. Text: `src/components/guide/user-guide.tsx` (name, support mailbox and upload limits come from config and code). Screenshots: `public/user-guide/`, taken from the real screens with the fictional demo data. After changing a screen, retake them with `npm run db:seed && npm run build && npm run guide:screenshots` (local only; it creates and removes a temporary upload link for fictional Country A).
 
 ## Deployment (M8)
 
