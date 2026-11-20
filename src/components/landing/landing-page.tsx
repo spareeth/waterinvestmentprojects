@@ -1,5 +1,6 @@
 import { ArrowRight, Mail } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -30,33 +31,38 @@ const accessSteps = [
 const navLinkClass = "hidden text-white/90 hover:text-white sm:inline";
 
 /**
- * portalHref: set when the visitor is signed in (where their portal starts); the page then offers "Go to the
- * portal" instead of "Sign in", so returning to the landing page never looks like being signed out.
+ * The landing page is part of the portal: for someone signed in, `portalHeader` is the same top bar as on every
+ * other signed-in page (menu, their name, sign-out), and the main button leads to the projects.
  */
 export function LandingPage({
-  portalHref = null,
-}: { portalHref?: string | null } = {}) {
+  portalHeader = null,
+}: { portalHeader?: ReactNode } = {}) {
   const { summit, supportEmail } = appConfig;
-  const entry = portalHref
-    ? { href: portalHref, label: "Go to the portal" }
+  const signedIn = portalHeader !== null;
+  const entry = signedIn
+    ? { href: "/pipeline", label: "View projects" }
     : { href: "/sign-in", label: "Sign in" };
   return (
     <>
-      <SiteHeader homeHref={portalHref ?? "/"}>
-        <a href="#about" className={navLinkClass}>
-          About
-        </a>
-        <Link href="/guide" className="text-white/90 hover:text-white">
-          User guide
-        </Link>
-        <Button
-          asChild
-          size="lg"
-          className="bg-white text-brand-navy hover:bg-white/90"
-        >
-          <Link href={entry.href}>{entry.label}</Link>
-        </Button>
-      </SiteHeader>
+      {signedIn ? (
+        portalHeader
+      ) : (
+        <SiteHeader>
+          <a href="#about" className={navLinkClass}>
+            About
+          </a>
+          <Link href="/guide" className="text-white/90 hover:text-white">
+            User guide
+          </Link>
+          <Button
+            asChild
+            size="lg"
+            className="bg-white text-brand-navy hover:bg-white/90"
+          >
+            <Link href="/sign-in">Sign in</Link>
+          </Button>
+        </SiteHeader>
+      )}
 
       <main className="flex flex-1 flex-col">
         <section

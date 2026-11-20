@@ -1,16 +1,28 @@
 import { LandingPage } from "@/components/landing/landing-page";
-import { getCurrentSession, stagePathForUser } from "@/lib/auth/session";
+import { PortalHeader } from "@/components/portal/portal-header";
+import { getCurrentSession } from "@/lib/auth/session";
+import { canListSubmissions, canUseWorkspace } from "@/lib/authz";
+import { viewerFrom } from "@/lib/authz/viewer";
 
 // Reads the session on the server and may redirect, so it renders per request.
 export const instant = false;
 
 /**
  * Public landing page (PLAN v0.3 F1, M6). Config read from the environment (APP_NAME, SUPPORT_EMAIL) is taken
- * from the .env present at build, so rebuild after changing it. Rendered per request so that someone who is
- * signed in is offered the way back into the portal instead of "Sign in" (the session is only read, never ended).
+ * from the .env present at build, so rebuild after changing it. Rendered per request: the landing page is part of
+ * the portal, so someone signed in sees the same top bar as on every signed-in page (the session is only read).
  */
 export default async function Home() {
   const session = await getCurrentSession();
-  const portalHref = session ? await stagePathForUser(session.user.id) : null;
-  return <LandingPage portalHref={portalHref} />;
+  const viewer = viewerFrom(session);
+  const portalHeader =
+    session && viewer ? (
+      <PortalHeader
+        name={session.user.name}
+        viewer={viewer}
+        showWorkspace={canUseWorkspace(viewer)}
+        showAdmin={canListSubmissions(viewer)}
+      />
+    ) : null;
+  return <LandingPage portalHeader={portalHeader} />;
 }

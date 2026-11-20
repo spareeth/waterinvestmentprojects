@@ -1,3 +1,4 @@
+import type React from "react";
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -5,13 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // environment when it is first imported. Each test sets the environment, then imports a fresh copy.
 async function renderLanding(
   env: Record<string, string> = {},
-  portalHref: string | null = null,
+  portalHeader: React.ReactNode = null,
 ) {
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
   vi.resetModules();
   const { LandingPage } = await import("@/components/landing/landing-page");
   const { appConfig } = await import("@/lib/config");
-  return { ...render(<LandingPage portalHref={portalHref} />), appConfig };
+  return { ...render(<LandingPage portalHeader={portalHeader} />), appConfig };
 }
 
 afterEach(() => {
@@ -65,22 +66,16 @@ describe("Landing page", () => {
     expect(screen.queryByText(/two-step/i)).not.toBeInTheDocument();
   });
 
-  it("offers the way back into the portal instead of sign-in when signed in", async () => {
-    await renderLanding({}, "/home");
-    const portalLinks = screen.getAllByRole("link", {
-      name: /go to the portal/i,
-    });
-    expect(portalLinks.length).toBeGreaterThan(0);
-    for (const link of portalLinks) {
-      expect(link).toHaveAttribute("href", "/home");
-    }
+  it("shows the signed-in top bar and leads to the projects when signed in", async () => {
+    await renderLanding({}, <header>Portal menu</header>);
+    // The landing page is part of the portal: the same top bar as every signed-in page, no public one.
+    expect(screen.getByText("Portal menu")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /sign in/i }),
     ).not.toBeInTheDocument();
-    // The name and mark in the top bar lead into the portal as well.
     expect(
-      screen.getByRole("link", { name: /water investment projects/i }),
-    ).toHaveAttribute("href", "/home");
+      screen.getByRole("link", { name: /view projects/i }),
+    ).toHaveAttribute("href", "/pipeline");
   });
 
   it("shows the shared support mailbox from config", async () => {
