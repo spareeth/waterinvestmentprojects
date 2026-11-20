@@ -12,7 +12,7 @@ export const CONTACTS_MAX_ROWS = 1_000;
 
 export const CONTACT_ROLE_LABEL: Record<CountryContactRole, string> = {
   FOCAL_POINT: "Focal point",
-  WBG_COORDINATOR: "WBG coordinator",
+  WBG_COORDINATOR: "Coordinator",
 };
 
 export const CONTACT_HEADER = ["iso3", "name", "email", "role"] as const;
@@ -117,7 +117,7 @@ export function planContactsImport(
         for (const issue of parsed.error.issues) {
           errors.push(
             issue.path[0] === "role"
-              ? `Unknown role "${roleRaw.slice(0, 40)}". Use focal point or WBG coordinator.`
+              ? `Unknown role "${roleRaw.slice(0, 40)}". Use focal point or coordinator.`
               : issue.message,
           );
         }

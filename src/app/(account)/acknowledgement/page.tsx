@@ -26,8 +26,8 @@ export default async function InvestorAcknowledgementPage() {
     >
       {ack.isPlaceholder ? (
         <p className="mb-4 rounded-lg bg-pending px-3 py-2 text-xs text-pending-foreground">
-          Placeholder wording for the demonstration. The final text will come
-          from the World Bank Group.
+          Placeholder wording for the demonstration. The final text will be
+          confirmed by the Summit team.
         </p>
       ) : null}
       <InvestorAckForm text={ack.text} />

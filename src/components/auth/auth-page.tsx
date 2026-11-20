@@ -50,7 +50,7 @@ export function AuthPage({
           <div className="mt-6">{children}</div>
         </section>
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          {appConfig.tagline}. {appConfig.developedBy}.
+          {appConfig.tagline} · {appConfig.copyright}
         </p>
       </main>
     </>

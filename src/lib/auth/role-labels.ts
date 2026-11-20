@@ -6,7 +6,7 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   PLATFORM_ADMIN: "Platform administrator",
   SUMMIT_ADMIN: "Summit team",
   COUNTRY: "Country focal point",
-  WBG_COORDINATOR: "WBG coordinator",
+  WBG_COORDINATOR: "Coordinator",
   INVESTOR: "Investor or operator",
 };
 

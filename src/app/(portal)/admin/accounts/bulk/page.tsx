@@ -37,7 +37,7 @@ export default async function BulkAccountsPage() {
               .map((r) => ROLE_LABEL[r])
               .join(", ")}
             . Countries (ISO codes separated by semicolons) only for country
-            focal points and WBG coordinators. Up to 300 rows per file.
+            focal points and coordinators. Up to 300 rows per file.
           </>
         }
       >

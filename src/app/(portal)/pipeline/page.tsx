@@ -41,7 +41,7 @@ export default async function PipelinePage({
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin={canListSubmissions(viewer)}
       />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8 sm:py-10">
+      <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-8 sm:px-8 sm:py-10">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
             Project pipeline

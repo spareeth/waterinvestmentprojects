@@ -474,7 +474,7 @@ export async function exportCountryZip(
     "",
     "projects.csv          the country's projects and their filters",
     "submissions.csv       every teaser submission with the consent given (wording version and time)",
-    "contacts.csv          focal points and WBG coordinators",
+    "contacts.csv          focal points and coordinators",
     "meeting-requests.csv  bilateral meeting requests and decisions",
     "teasers/              every teaser version, by project",
     "",

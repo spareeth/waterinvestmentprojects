@@ -68,7 +68,7 @@ export default async function UploadLinksPage() {
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin
       />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
             Upload links

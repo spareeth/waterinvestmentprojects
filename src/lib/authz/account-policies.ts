@@ -93,7 +93,7 @@ export function accountShapeError(request: AccountRequest): string | null {
     return "Choose at least one country for this role.";
   }
   if (!linked && request.countryIds.length > 0) {
-    return "Only country representatives and WBG coordinators are linked to countries.";
+    return "Only country representatives and coordinators are linked to countries.";
   }
   return null;
 }

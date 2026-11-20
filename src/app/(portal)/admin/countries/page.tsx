@@ -30,7 +30,7 @@ export default async function AdminCountriesPage() {
       showWorkspace={canUseWorkspace(viewer)}
       current="/admin/countries"
       title="Countries and contacts"
-      intro="Focal points receive their country's meeting requests; WBG coordinators are copied. A contact gives no access by itself: give the person an account as well (it is linked by the same email address)."
+      intro="Focal points receive their country's meeting requests; coordinators are copied. A contact gives no access by itself: give the person an account as well (it is linked by the same email address)."
     >
       <section
         className="flex flex-col gap-3"
@@ -81,7 +81,7 @@ export default async function AdminCountriesPage() {
                     )}
                   </span>
                   <span className="text-sm break-words">
-                    WBG coordinators:{" "}
+                    Coordinators:{" "}
                     {coordinators.length > 0
                       ? coordinators.map((x) => x.name).join(", ")
                       : "none yet"}
@@ -110,9 +110,9 @@ export default async function AdminCountriesPage() {
         title="Add contacts from a CSV"
         description={
           <>
-            For the focal point list and coordinator mapping from WBG. Columns:
-            iso3, name, email, role (focal point or WBG coordinator). Contacts
-            already stored are left as they are. The{" "}
+            For the focal point list and coordinator mapping. Columns: iso3,
+            name, email, role (focal point or coordinator). Contacts already
+            stored are left as they are. The{" "}
             <a
               className="font-semibold text-primary underline-offset-4 hover:underline"
               href="/admin/exports/contacts.csv"

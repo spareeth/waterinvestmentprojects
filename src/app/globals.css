@@ -5,6 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Width of every page's content area (max-w-page): 1440 px. Reading text keeps its own narrower width. */
+  --container-page: 90rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

@@ -257,7 +257,7 @@ describe("planBulkAccounts", () => {
     expect(plan.rows[6].errors).toEqual(
       expect.arrayContaining([
         'Unknown country code "ZZZ".',
-        "Only country focal points and WBG coordinators are linked to countries.",
+        "Only country focal points and coordinators are linked to countries.",
       ]),
     );
     expect(plan.summary).toEqual({ rows: 7, ready: 2, errors: 5 });

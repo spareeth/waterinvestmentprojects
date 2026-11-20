@@ -152,7 +152,7 @@ export function planBulkAccounts(
       }
       if (role && !COUNTRY_LINKED.includes(role) && countryCodes.length > 0) {
         errors.push(
-          "Only country focal points and WBG coordinators are linked to countries.",
+          "Only country focal points and coordinators are linked to countries.",
         );
       }
 

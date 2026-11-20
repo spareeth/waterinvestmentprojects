@@ -71,8 +71,8 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           <div className="mt-3">{children}</div>
         </section>
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          {appConfig.tagline}. {appConfig.developedBy}.
-          {appConfig.supportEmail ? ` Help: ${appConfig.supportEmail}.` : ""}
+          {appConfig.tagline} · {appConfig.copyright}
+          {appConfig.supportEmail ? ` · Help: ${appConfig.supportEmail}` : ""}
         </p>
       </main>
     </>

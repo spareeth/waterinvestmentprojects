@@ -22,7 +22,7 @@ export type AdminSection = (typeof ADMIN_SECTIONS)[number]["href"];
 export function AdminNav({ current }: { current: AdminSection }) {
   return (
     <nav aria-label="Admin sections" className="border-b bg-card print:hidden">
-      <ul className="mx-auto flex w-full max-w-6xl flex-wrap gap-x-1 gap-y-1 px-4 py-2 sm:px-8">
+      <ul className="mx-auto flex w-full max-w-page flex-wrap gap-x-1 gap-y-1 px-4 py-2 sm:px-8">
         {ADMIN_SECTIONS.map((s) => (
           <li key={s.href}>
             <Link
@@ -61,7 +61,7 @@ export function AdminShell({
     <>
       <PortalHeader name={name} showWorkspace={showWorkspace} showAdmin />
       <AdminNav current={current} />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
             {title}

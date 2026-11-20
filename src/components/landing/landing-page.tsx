@@ -40,11 +40,6 @@ export function LandingPage() {
         <a href="#how-access-works" className={navLinkClass}>
           How access works
         </a>
-        {supportEmail ? (
-          <a href="#contact" className={navLinkClass}>
-            Contact
-          </a>
-        ) : null}
         <Link href="/guide" className="text-white/90 hover:text-white">
           User guide
         </Link>
@@ -64,7 +59,7 @@ export function LandingPage() {
           className="relative overflow-hidden bg-linear-120 from-brand-navy via-brand-deep to-brand-deep text-white lg:to-brand-teal"
         >
           <WaveLines className="pointer-events-none absolute top-1/2 right-[4%] hidden h-64 w-auto -translate-y-1/2 text-white/25 lg:block" />
-          <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-8 sm:py-20">
+          <div className="relative mx-auto flex max-w-page flex-col items-start gap-6 px-4 py-16 sm:px-8 sm:py-20">
             <p className="rounded-full border border-white/30 bg-white/10 px-3.5 py-1.5 text-xs sm:text-sm">
               {summit.name} · {summit.date} · {summit.conference}, {summit.city}
             </p>
@@ -106,7 +101,7 @@ export function LandingPage() {
         <section
           id="how-access-works"
           aria-labelledby="how-access-works-heading"
-          className="mx-auto w-full max-w-6xl scroll-mt-4 px-4 py-12 sm:px-8"
+          className="mx-auto w-full max-w-page scroll-mt-4 px-4 py-12 sm:px-8"
         >
           <h2
             id="how-access-works-heading"
@@ -134,7 +129,7 @@ export function LandingPage() {
           <section
             id="contact"
             aria-labelledby="contact-heading"
-            className="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-12 sm:px-8"
+            className="mx-auto w-full max-w-page scroll-mt-4 px-4 pb-12 sm:px-8"
           >
             <div className="flex flex-col gap-4 rounded-xl border bg-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
               <div>
@@ -160,14 +155,14 @@ export function LandingPage() {
           </section>
         ) : null}
 
-        <footer className="mx-auto mt-auto flex w-full max-w-6xl flex-col gap-6 border-t px-4 py-8 text-sm text-foreground/75 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+        <footer className="mx-auto mt-auto flex w-full max-w-page flex-col gap-6 border-t px-4 py-8 text-sm text-foreground/75 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           {appConfig.partners.length > 0 ? (
             <div className="flex flex-wrap items-center gap-4">
               <span>In partnership with</span>
               <PartnerLogos partners={appConfig.partners} />
             </div>
           ) : null}
-          <span>{appConfig.developedBy}</span>
+          <span>{appConfig.copyright}</span>
         </footer>
       </main>
     </>

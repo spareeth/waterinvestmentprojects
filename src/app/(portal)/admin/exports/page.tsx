@@ -34,7 +34,7 @@ export default async function AdminExportsPage() {
     {
       href: "/admin/exports/contacts.csv",
       label: "Contacts",
-      text: "Focal points and WBG coordinators of every country, with their linked accounts.",
+      text: "Focal points and coordinators of every country, with their linked accounts.",
     },
     {
       href: "/admin/exports/accounts.csv",

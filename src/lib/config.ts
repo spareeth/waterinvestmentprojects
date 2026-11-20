@@ -6,7 +6,8 @@ export const appConfig = {
   tagline: "Water Investment Summit Project Portal",
   url: process.env.APP_URL || "http://localhost:3000",
   supportEmail: process.env.SUPPORT_EMAIL || undefined,
-  developedBy: "Developed by Expo City Dubai, through Terra",
+  /** Footer line on the landing page, sign-in pages, upload link and guide. */
+  copyright: "© 2026 Terra, Expo City Dubai",
   /** M6: the event the portal serves, shown on the landing page. The conference is named in text only: no UN
    * Water Conference logo or branding without MoFA approval (PLAN v0.3 0.16). */
   summit: {
@@ -25,7 +26,6 @@ export const appConfig = {
     { id: "mofa", name: "MoFA" },
     { id: "wbg", name: "World Bank Group" },
     { id: "gcfc", name: "GCFC" },
-    { id: "expo-city-dubai", name: "Expo City Dubai" },
   ] as readonly PartnerConfig[],
   /**
    * The government uploader's acknowledgement, given once per submission through the upload link (PLAN v0.3

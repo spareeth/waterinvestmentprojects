@@ -33,7 +33,7 @@ export const GUIDE_SECTIONS = [
   { id: "governments", title: "Governments: uploading teasers" },
   { id: "focal-points", title: "Country focal points: meeting requests" },
   { id: "investors", title: "Investors and operators" },
-  { id: "coordinators", title: "WBG coordinators" },
+  { id: "coordinators", title: "Coordinators" },
   { id: "summit-team", title: "Summit team" },
   { id: "help", title: "Help" },
 ] as const;
@@ -229,7 +229,7 @@ export function UserGuide() {
         </p>
         <p>
           The person who uploads becomes your country&apos;s contact for meeting
-          requests, unless the World Bank Group names another focal point.
+          requests, unless the Summit team names another focal point.
         </p>
       </Section>
 
@@ -317,12 +317,12 @@ export function UserGuide() {
         </p>
       </Section>
 
-      <Section id="coordinators" title="WBG coordinators">
+      <Section id="coordinators" title="Coordinators">
         <p>
-          World Bank Group coordinators see the meeting requests for the
-          countries they follow under <strong>Meeting requests</strong>, and can
-          select <strong>Download CSV</strong> for a spreadsheet of them.
-          Decisions on requests are made by the country focal points.
+          Coordinators see the meeting requests for the countries they follow
+          under <strong>Meeting requests</strong>, and can select{" "}
+          <strong>Download CSV</strong> for a spreadsheet of them. Decisions on
+          requests are made by the country focal points.
         </p>
       </Section>
 
@@ -365,7 +365,7 @@ export function UserGuide() {
           For access, passwords or anything that does not work as described
           here, contact <SupportContact />.
         </p>
-        <p className="text-sm text-muted-foreground">{appConfig.developedBy}</p>
+        <p className="text-sm text-muted-foreground">{appConfig.copyright}</p>
       </Section>
     </div>
   );

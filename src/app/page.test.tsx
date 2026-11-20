@@ -58,10 +58,10 @@ describe("Landing page", () => {
     expect(
       within(contact).getByRole("link", { name: /support@example\.test/ }),
     ).toHaveAttribute("href", "mailto:support@example.test");
-    expect(screen.getByRole("link", { name: "Contact" })).toHaveAttribute(
-      "href",
-      "#contact",
-    );
+    // The contact section is enough: no separate Contact link in the top menu.
+    expect(
+      screen.queryByRole("link", { name: "Contact" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the contact section and link when no support mailbox is set", async () => {
@@ -73,6 +73,16 @@ describe("Landing page", () => {
       screen.queryByRole("link", { name: "Contact" }),
     ).not.toBeInTheDocument();
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
+  });
+
+  it("shows the copyright in the footer and no Terra or Expo City Dubai partner logo", async () => {
+    const { container } = await renderLanding();
+    const list = screen.getByRole("list", { name: "Partners" });
+    expect(within(list).queryByText(/Terra|Expo City Dubai/)).toBeNull();
+    expect(within(list).queryByRole("img")).toBeNull();
+    const footer = container.querySelector("footer");
+    expect(footer).toHaveTextContent("© 2026 Terra, Expo City Dubai");
+    expect(container).not.toHaveTextContent(/developed by/i);
   });
 
   it("lists the partners from config, as placeholders until logos arrive", async () => {
