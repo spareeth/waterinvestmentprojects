@@ -26,6 +26,7 @@ export const appConfig = {
     { id: "mofa", name: "MoFA" },
     { id: "wbg", name: "World Bank Group" },
     { id: "gcfc", name: "GCFC" },
+    { id: "expo-city-dubai", name: "Expo City Dubai" },
   ] as readonly PartnerConfig[],
   /**
    * The government uploader's acknowledgement, given once per submission through the upload link (PLAN v0.3

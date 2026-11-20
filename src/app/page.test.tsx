@@ -75,10 +75,14 @@ describe("Landing page", () => {
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
   });
 
-  it("shows the copyright in the footer and no Terra or Expo City Dubai partner logo", async () => {
+  it("shows the copyright in the footer and Expo City Dubai as a partner placeholder, not a logo", async () => {
     const { container } = await renderLanding();
     const list = screen.getByRole("list", { name: "Partners" });
-    expect(within(list).queryByText(/Terra|Expo City Dubai/)).toBeNull();
+    expect(within(list).getByText("Expo City Dubai")).toHaveAttribute(
+      "data-placeholder",
+      "partner-logo",
+    );
+    expect(within(list).queryByText(/Terra/)).toBeNull();
     expect(within(list).queryByRole("img")).toBeNull();
     const footer = container.querySelector("footer");
     expect(footer).toHaveTextContent("© 2026 Terra, Expo City Dubai");
