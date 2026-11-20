@@ -1,6 +1,6 @@
 // Upload link form rules (M0, PLAN v0.3 F0). Pure and browser-safe, so the form and the server share them.
-// Governments give only: country (fixed by the link, or chosen on the generic link), their name and email, and
-// per teaser a sector and a file. British spelling, no em dashes.
+// Governments give only: country (fixed by the link, or chosen on the generic link), their name and email, the
+// government organisation they represent, and per teaser a sector and a file. British spelling, no em dashes.
 
 import { z } from "zod";
 import { SECTOR_SUGGESTIONS } from "@/lib/workspace/project-input";
@@ -17,6 +17,7 @@ export const SUBMISSION_FIELDS = {
   countryId: "countryId",
   uploaderName: "uploaderName",
   uploaderEmail: "uploaderEmail",
+  governmentOrganisation: "governmentOrganisation",
   acknowledge: "acknowledge",
   sector: (i: number) => `sector-${i}`,
   teaser: (i: number) => `teaser-${i}`,
@@ -62,7 +63,32 @@ const uploaderSchema = z.object({
     ),
 });
 
+export const GOVERNMENT_ORGANISATION_MAX = 200;
+
+const organisationSchema = z
+  .string()
+  .trim()
+  .min(2, "Enter the government organisation you represent.")
+  .max(
+    GOVERNMENT_ORGANISATION_MAX,
+    `Keep the organisation to ${GOVERNMENT_ORGANISATION_MAX} characters or fewer.`,
+  )
+  .regex(
+    /^[^\u0000-\u001f\u007f]+$/,
+    "Enter the organisation without line breaks.",
+  );
+
 export type UploaderFields = z.infer<typeof uploaderSchema>;
+
+/** The "Represented government organisation" answer, spaces collapsed. */
+export function parseGovernmentOrganisation(
+  value: string,
+): { ok: true; value: string } | { ok: false; error: string } {
+  const result = organisationSchema.safeParse(value);
+  return result.success
+    ? { ok: true, value: result.data.replace(/\s+/g, " ") }
+    : { ok: false, error: result.error.issues[0]?.message ?? "Invalid." };
+}
 
 export type UploaderParseResult =
   | { ok: true; data: UploaderFields }

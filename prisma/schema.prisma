@@ -99,12 +99,12 @@ model Country {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  memberships     CountryMembership[]
-  projects        Project[]
-  invitations     Invitation[]
-  uploadLinks     UploadLink[]
-  submissions     Submission[]
-  contacts        CountryContact[]
+  memberships CountryMembership[]
+  projects    Project[]
+  invitations Invitation[]
+  uploadLinks UploadLink[]
+  submissions Submission[]
+  contacts    CountryContact[]
 }
 
 /// PLAN v0.3: a country's request-inbox contacts (focal points) and WBG coordinators. The uploader of a link
@@ -146,39 +146,39 @@ model CountryMembership {
 /// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
 /// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
-  id                     String        @id @default(cuid())
-  email                  String        @unique
+  id                     String     @id @default(cuid())
+  email                  String     @unique
   name                   String
   organisation           String?
   jobTitle               String?
   role                   UserRole
-  status                 UserStatus    @default(PENDING_APPROVAL)
-  mfaEnabled             Boolean       @default(false)
+  status                 UserStatus @default(PENDING_APPROVAL)
+  mfaEnabled             Boolean    @default(false)
   termsAcceptedAt        DateTime?
   /// M2 (PLAN 0a.4): set when an admin hands out a temporary password; cleared when the person sets their own.
-  mustChangePassword     Boolean       @default(false)
+  mustChangePassword     Boolean    @default(false)
   /// M2: investor acknowledgement (PLAN v0.3 0.6), accepted once per user at first sign-in, again if the
   /// wording version in config changes. Investors see no pipeline before it.
   investorAckTextVersion String?
   investorAckAcceptedAt  DateTime?
   /// Required by Better Auth. True for invited users (the invitation link proves the address).
-  emailVerified          Boolean       @default(false)
+  emailVerified          Boolean    @default(false)
   /// Required by Better Auth; not used by the portal.
   image                  String?
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 
-  sessions            Session[]
-  accounts            Account[]
-  twoFactors          TwoFactor[]
-  memberships         CountryMembership[]
-  documentsUploaded   Document[]          @relation("DocumentUploadedBy")
-  countryContacts     CountryContact[]
-  invitationsSent     Invitation[]        @relation("InvitationInvitedBy")
-  meetingRequests     MeetingRequest[]    @relation("MeetingRequestRequester")
-  meetingDecisions    MeetingRequest[]    @relation("MeetingRequestDecidedBy")
-  auditEvents         AuditEvent[]
-  uploadLinksCreated  UploadLink[]        @relation("UploadLinkCreatedBy")
+  sessions           Session[]
+  accounts           Account[]
+  twoFactors         TwoFactor[]
+  memberships        CountryMembership[]
+  documentsUploaded  Document[]          @relation("DocumentUploadedBy")
+  countryContacts    CountryContact[]
+  invitationsSent    Invitation[]        @relation("InvitationInvitedBy")
+  meetingRequests    MeetingRequest[]    @relation("MeetingRequestRequester")
+  meetingDecisions   MeetingRequest[]    @relation("MeetingRequestDecidedBy")
+  auditEvents        AuditEvent[]
+  uploadLinksCreated UploadLink[]        @relation("UploadLinkCreatedBy")
 
   @@index([role, status])
 }
@@ -309,16 +309,19 @@ model UploadLink {
 /// Through an upload link (uploadLinkId set, uploader from the form) or, since M1, in the portal workspace
 /// (uploadLinkId null, uploader = the signed-in user; the audit event names the account).
 model Submission {
-  id             String   @id @default(cuid())
-  countryId      String
+  id                     String   @id @default(cuid())
+  countryId              String
   /// The link used; null for a portal workspace upload (M1).
-  uploadLinkId   String?
-  uploaderName   String
-  uploaderEmail  String
-  ackTextVersion String
-  ackAcceptedAt  DateTime
-  ip             String?
-  createdAt      DateTime @default(now())
+  uploadLinkId           String?
+  uploaderName           String
+  uploaderEmail          String
+  /// "Represented government organisation" from the upload link form (ministry, utility or agency). Empty for
+  /// portal workspace uploads and for submissions made before the question was added.
+  governmentOrganisation String   @default("")
+  ackTextVersion         String
+  ackAcceptedAt          DateTime
+  ip                     String?
+  createdAt              DateTime @default(now())
 
   country    Country     @relation(fields: [countryId], references: [id])
   /// Restrict: deleting a link must never make its submissions look like portal uploads.
@@ -418,6 +421,10 @@ model MeetingRequest {
   role         String
   /// Short note, may be empty.
   note         String               @default("")
+  /// Who will attend and how to reach them, as typed on the request (prefilled from the account). Empty on
+  /// requests made before these fields were added: show the requester's account name and email instead.
+  contactName  String               @default("")
+  contactEmail String               @default("")
   status       MeetingRequestStatus @default(PENDING)
   decidedById  String?
   decidedAt    DateTime?

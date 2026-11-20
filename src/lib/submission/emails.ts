@@ -9,6 +9,8 @@ export interface SubmissionMailFacts {
   countryName: string;
   uploaderName: string;
   uploaderEmail: string;
+  /** "Represented government organisation"; may be empty for older submissions. */
+  governmentOrganisation?: string;
   acceptedAt: Date;
   ackText: string;
   files: { filename: string; sector: string }[];
@@ -36,6 +38,12 @@ export function uploaderConfirmationEmail(facts: SubmissionMailFacts): {
       "",
       ...fileLines(facts.files),
       "",
+      ...(facts.governmentOrganisation
+        ? [
+            `Represented government organisation: ${facts.governmentOrganisation}`,
+            "",
+          ]
+        : []),
       `On ${formatUaeTime(facts.acceptedAt)} you confirmed:`,
       `"${facts.ackText}"`,
       "",
@@ -59,6 +67,11 @@ export function summitSubmissionNotice(facts: SubmissionMailFacts): {
     subject: `New teaser submission: ${facts.countryName} (${plural(facts.files.length, "file")})`,
     text: [
       `${facts.uploaderName} <${facts.uploaderEmail}> sent ${plural(facts.files.length, "teaser")} for ${facts.countryName} on ${formatUaeTime(facts.acceptedAt)}.`,
+      ...(facts.governmentOrganisation
+        ? [
+            `Represented government organisation: ${facts.governmentOrganisation}`,
+          ]
+        : []),
       "",
       ...fileLines(facts.files),
       "",

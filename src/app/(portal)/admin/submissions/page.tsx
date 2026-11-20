@@ -112,6 +112,12 @@ export default async function SubmissionsPage() {
                   >
                     {s.uploaderEmail}
                   </a>
+                  {s.governmentOrganisation ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {s.governmentOrganisation}
+                    </span>
+                  ) : null}
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Tag>

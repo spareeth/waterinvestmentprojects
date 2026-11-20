@@ -14,6 +14,8 @@ export interface RequestMailFacts {
   role: string;
   note: string;
   createdAt: Date;
+  /** "Tuesday 8 December, 09:30 to 10:00 (UAE time), Room A", or null when no time was chosen. */
+  meetingTime?: string | null;
 }
 
 export interface MailContent {
@@ -29,6 +31,7 @@ function requestLines(facts: RequestMailFacts): string[] {
   return [
     `Project: ${facts.projectTitle} (${facts.countryName})`,
     `From: ${facts.investorName}, ${facts.role}, ${facts.organisation}`,
+    ...(facts.meetingTime ? [`Proposed meeting: ${facts.meetingTime}`] : []),
     `Sent: ${formatUaeTime(facts.createdAt)}`,
     ...(facts.note ? ["", "Note:", facts.note] : []),
   ];
@@ -91,7 +94,9 @@ export function investorDecisionEmail(
       `Dear ${facts.investorName},`,
       "",
       accepted
-        ? `${facts.countryName} has accepted your request for a bilateral meeting about ${facts.projectTitle}. The Summit team will be in touch about the time and place.`
+        ? facts.meetingTime
+          ? `${facts.countryName} has accepted your request for a bilateral meeting about ${facts.projectTitle}. Your meeting: ${facts.meetingTime}.`
+          : `${facts.countryName} has accepted your request for a bilateral meeting about ${facts.projectTitle}. The Summit team will be in touch about the time and place.`
         : `${facts.countryName} has declined your request for a bilateral meeting about ${facts.projectTitle}. Thank you for your interest in the project.`,
       "",
       "You can see all your requests in the portal:",

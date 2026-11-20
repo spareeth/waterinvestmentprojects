@@ -204,9 +204,15 @@ export async function cleanUp(): Promise<void> {
   const itProject = { countryId: { startsWith: "it-" } };
   await db.slot.deleteMany({ where: { roomId: { startsWith: "it-" } } });
   await db.room.deleteMany({ where: { id: { startsWith: "it-" } } });
-  await db.meetingRequest.deleteMany({
-    where: { OR: [{ project: itProject }, { requesterId: { in: ids } }] },
+  const itRequest = {
+    OR: [{ project: itProject }, { requesterId: { in: ids } }],
+  };
+  // Meeting slots (F9) held by test requests are freed, not deleted: the rooms are the real schedule's.
+  await db.slot.updateMany({
+    where: { meetingRequest: itRequest },
+    data: { status: "OPEN", meetingRequestId: null },
   });
+  await db.meetingRequest.deleteMany({ where: itRequest });
   // Upload links (M0) and submissions: for "it-" countries, created by integration test users, or (portal
   // uploads, M1) sent by an integration test user.
   const itLink = {

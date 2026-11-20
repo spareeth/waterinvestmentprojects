@@ -65,6 +65,10 @@ function opts(extra: Partial<RequestOptions> = {}): RequestOptions {
 }
 
 const input = (organisation = "Fictional Water Fund") => ({
+  // Empty, as on requests made before the attendee fields: the account's name and email are used
+  // (tests/integration/meetings.test.ts covers a typed attendee).
+  contactName: "",
+  contactEmail: "",
   organisation,
   role: "Investment director",
   note: "We would like to discuss the PPP structure.",

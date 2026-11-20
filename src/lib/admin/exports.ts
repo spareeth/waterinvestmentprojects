@@ -110,6 +110,7 @@ export const SUBMISSION_EXPORT_HEADER = [
   "source",
   "uploader_name",
   "uploader_email",
+  "government_organisation",
   "acknowledgement_version",
   "acknowledged_at_utc",
   "project_id",
@@ -133,6 +134,7 @@ async function submissionRows(
       uploadLinkId: true,
       uploaderName: true,
       uploaderEmail: true,
+      governmentOrganisation: true,
       ackTextVersion: true,
       ackAcceptedAt: true,
       country: { select: { name: true, iso3: true } },
@@ -158,6 +160,7 @@ async function submissionRows(
       s.uploadLinkId ? "Upload link" : "Portal upload",
       s.uploaderName,
       s.uploaderEmail,
+      s.governmentOrganisation,
       s.ackTextVersion,
       s.ackAcceptedAt,
     ];

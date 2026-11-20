@@ -80,6 +80,7 @@ function input(overrides: Partial<SubmissionInput> = {}): SubmissionInput {
   return {
     uploaderName: "Ada Uploader",
     uploaderEmail: "ada.uploader@it.example",
+    governmentOrganisation: "Ministry of Fictional Water",
     acknowledged: true,
     teasers: [{ sector: "Desalination", file: pdf("Coastal desal") }],
     ...overrides,

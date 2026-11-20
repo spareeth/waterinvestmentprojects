@@ -7,7 +7,8 @@ export type RequestErrorCode =
   | "invalid"
   | "already_requested"
   | "not_pending"
-  | "not_open";
+  | "not_open"
+  | "slot_taken";
 
 export class RequestError extends Error {
   constructor(public readonly code: RequestErrorCode) {
@@ -25,4 +26,6 @@ export const REQUEST_MESSAGES: Record<RequestErrorCode, string> = {
   not_pending:
     "This request has already been answered or withdrawn. Reload the page to see its status.",
   not_open: "This request can no longer be withdrawn.",
+  slot_taken:
+    "That meeting time has just been taken, or you or the country already have a meeting then. Choose another time.",
 };

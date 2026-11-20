@@ -19,12 +19,14 @@ import {
   isAdminViewer,
   requirePortalUser,
 } from "@/lib/authz";
+import { formatMeetingSlot } from "@/lib/meetings/schedule";
 import {
   getRequestCounts,
   type InboxFilter,
   isNewRequest,
   listInboxCountries,
   listInboxRequests,
+  requestContact,
 } from "@/lib/requests/service";
 import { formatUaeTime } from "@/lib/submission/format";
 
@@ -202,58 +204,90 @@ export default async function InboxPage({
           </p>
         ) : (
           <ul className="flex flex-col gap-4">
-            {requests.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-col gap-3 rounded-xl border bg-card p-5"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-brand-navy">
-                    {r.project.title}
-                    {r.status === MeetingRequestStatus.PENDING &&
-                    isNewRequest(r.createdAt, now) ? (
-                      <NewMarker />
-                    ) : null}
-                  </h2>
-                  <RequestStatusBadge status={r.status} />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {r.project.country.name} · {r.project.sector} · requested{" "}
-                  {formatUaeTime(r.createdAt)}
-                </p>
-                <div className="text-sm">
-                  <p className="font-medium">
-                    {r.requester.name}, {r.role}, {r.organisation}
+            {requests.map((r) => {
+              const contact = requestContact(r);
+              return (
+                <li
+                  key={r.id}
+                  className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-brand-navy">
+                      {r.project.title}
+                      {r.status === MeetingRequestStatus.PENDING &&
+                      isNewRequest(r.createdAt, now) ? (
+                        <NewMarker />
+                      ) : null}
+                    </h2>
+                    <RequestStatusBadge status={r.status} />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {r.project.country.name} · {r.project.sector} · requested{" "}
+                    {formatUaeTime(r.createdAt)}
                   </p>
-                  <a
-                    href={`mailto:${r.requester.email}`}
-                    className="text-brand-teal hover:underline"
-                  >
-                    {r.requester.email}
-                  </a>
-                </div>
-                {r.note ? (
-                  <p className="rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-line">
-                    {r.note}
-                  </p>
-                ) : null}
-                {r.decidedAt ? (
-                  <p className="text-xs text-muted-foreground">
-                    {r.status === MeetingRequestStatus.ACCEPTED
-                      ? "Accepted"
-                      : r.status === MeetingRequestStatus.DECLINED
-                        ? "Declined"
-                        : "Answered"}{" "}
-                    {r.decidedBy ? `by ${r.decidedBy.name} ` : ""}on{" "}
-                    {formatUaeTime(r.decidedAt)}
-                  </p>
-                ) : null}
-                {r.canDecide ? <DecisionForm requestId={r.id} /> : null}
-              </li>
-            ))}
+                  <div className="text-sm">
+                    <p className="font-medium">
+                      {contact.name}, {r.role}, {r.organisation}
+                    </p>
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="text-brand-teal hover:underline"
+                    >
+                      {contact.email}
+                    </a>
+                  </div>
+                  <MeetingTimeLine slot={r.slot} status={r.status} />
+                  {r.note ? (
+                    <p className="rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-line">
+                      {r.note}
+                    </p>
+                  ) : null}
+                  {r.decidedAt ? (
+                    <p className="text-xs text-muted-foreground">
+                      {r.status === MeetingRequestStatus.ACCEPTED
+                        ? "Accepted"
+                        : r.status === MeetingRequestStatus.DECLINED
+                          ? "Declined"
+                          : "Answered"}{" "}
+                      {r.decidedBy ? `by ${r.decidedBy.name} ` : ""}on{" "}
+                      {formatUaeTime(r.decidedAt)}
+                    </p>
+                  ) : null}
+                  {r.canDecide ? <DecisionForm requestId={r.id} /> : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </main>
     </>
+  );
+}
+
+/** The chosen time and room, or a line saying none was chosen. */
+function MeetingTimeLine({
+  slot,
+  status,
+}: {
+  slot: { startsAt: Date; endsAt: Date; room: { name: string } } | null;
+  status: MeetingRequestStatus;
+}) {
+  if (!slot) {
+    return status === MeetingRequestStatus.PENDING ||
+      status === MeetingRequestStatus.ACCEPTED ? (
+      <p className="text-sm text-muted-foreground">
+        No meeting time chosen. The Summit team will arrange one.
+      </p>
+    ) : null;
+  }
+  return (
+    <p className="rounded-lg bg-water-50 px-3 py-2 text-sm">
+      <span className="font-semibold text-brand-navy">
+        {status === MeetingRequestStatus.ACCEPTED
+          ? "Meeting booked:"
+          : "Proposed time:"}
+      </span>{" "}
+      {formatMeetingSlot(slot)}
+    </p>
   );
 }

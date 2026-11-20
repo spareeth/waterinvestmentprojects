@@ -12,7 +12,8 @@ import {
   canWithdrawMeetingRequest,
   requirePortalUser,
 } from "@/lib/authz";
-import { listMyRequests } from "@/lib/requests/service";
+import { formatMeetingSlot } from "@/lib/meetings/schedule";
+import { listMyRequests, requestContact } from "@/lib/requests/service";
 import { formatUaeTime } from "@/lib/submission/format";
 
 // Reads the session and the database on the server before rendering, so it may block.
@@ -73,8 +74,21 @@ export default async function MyRequestsPage() {
                     : ""}
                 </p>
                 <p className="text-sm">
-                  {r.role}, {r.organisation}
+                  {requestContact(r).name} ({requestContact(r).email}), {r.role}
+                  , {r.organisation}
                 </p>
+                {r.slot ? (
+                  <p className="rounded-lg bg-water-50 px-3 py-2 text-sm">
+                    <span className="font-semibold text-brand-navy">
+                      {r.status === "ACCEPTED"
+                        ? "Meeting booked:"
+                        : r.status === "PENDING"
+                          ? "Time held for you:"
+                          : "Time chosen:"}
+                    </span>{" "}
+                    {formatMeetingSlot(r.slot)}
+                  </p>
+                ) : null}
                 {r.note ? (
                   <p className="text-sm whitespace-pre-line">{r.note}</p>
                 ) : null}

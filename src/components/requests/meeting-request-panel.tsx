@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Viewer } from "@/lib/authz";
 import { getRequestPanel } from "@/lib/requests/service";
+import { formatMeetingSlot } from "@/lib/meetings/schedule";
 import { formatUaeTime } from "@/lib/submission/format";
 import { MeetingRequestForm, WithdrawRequestForm } from "./request-forms";
 import { RequestStatusBadge } from "./request-status-badge";
@@ -29,8 +30,9 @@ export async function MeetingRequestPanel({
           Interested in this project?
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Request a bilateral meeting at the Water Investment Summit. Your
-          request goes to the country, which reviews it and replies.
+          Request a bilateral meeting at the Water Investment Summit and choose
+          a time. Your request goes to the country, which reviews it and
+          replies.
         </p>
       </div>
       {panel.open ? (
@@ -39,6 +41,15 @@ export async function MeetingRequestPanel({
             <RequestStatusBadge status={panel.open.status} />
             You requested a meeting on {formatUaeTime(panel.open.createdAt)}.
           </p>
+          {panel.open.slot ? (
+            <p className="text-sm">
+              <span className="font-semibold">Meeting time:</span>{" "}
+              {formatMeetingSlot(panel.open.slot)}
+              {panel.open.status === "PENDING"
+                ? ", held until the country answers"
+                : ""}
+            </p>
+          ) : null}
           <WithdrawRequestForm requestId={panel.open.id} />
           <p className="text-sm">
             <Link
@@ -50,7 +61,11 @@ export async function MeetingRequestPanel({
           </p>
         </div>
       ) : (
-        <MeetingRequestForm projectId={projectId} defaults={panel.defaults} />
+        <MeetingRequestForm
+          projectId={projectId}
+          defaults={panel.defaults}
+          times={panel.times}
+        />
       )}
     </section>
   );

@@ -45,6 +45,7 @@ import {
   isSubmissionSector,
   MAX_SUBMISSION_BYTES,
   MAX_TEASERS_PER_SUBMISSION,
+  parseGovernmentOrganisation,
   parseUploader,
   projectNameFromFilename,
   SUBMISSION_FIELDS,
@@ -165,6 +166,8 @@ export interface SubmissionInput {
   countryId?: string | null;
   uploaderName: string;
   uploaderEmail: string;
+  /** "Represented government organisation". */
+  governmentOrganisation: string;
   acknowledged: boolean;
   teasers: { sector: string; file: SubmissionFile | null }[];
 }
@@ -176,6 +179,7 @@ export interface SubmissionReceipt {
   /** As stored (trimmed; email in lower case). */
   uploaderName: string;
   uploaderEmail: string;
+  governmentOrganisation: string;
   acceptedAt: Date;
   projectIds: string[];
   documentIds: string[];
@@ -301,6 +305,12 @@ export async function submitTeasers(
 
   const uploader = parseUploader(input);
   if (!uploader.ok) Object.assign(fieldErrors, uploader.fieldErrors);
+  const organisation = parseGovernmentOrganisation(
+    input.governmentOrganisation ?? "",
+  );
+  if (!organisation.ok) {
+    fieldErrors[SUBMISSION_FIELDS.governmentOrganisation] = organisation.error;
+  }
   if (!input.acknowledged) {
     fieldErrors[SUBMISSION_FIELDS.acknowledge] = FIELD_MESSAGES.acknowledge;
   }
@@ -331,11 +341,17 @@ export async function submitTeasers(
   if (totalBytes > MAX_SUBMISSION_BYTES) {
     fieldErrors.teasers = FIELD_MESSAGES.totalTooLarge;
   }
-  if (Object.keys(fieldErrors).length > 0 || !uploader.ok || !country) {
+  if (
+    Object.keys(fieldErrors).length > 0 ||
+    !uploader.ok ||
+    !organisation.ok ||
+    !country
+  ) {
     throw new SubmissionError("invalid", fieldErrors);
   }
   const target = country;
   const { uploaderName, uploaderEmail } = uploader.data;
+  const governmentOrganisation = organisation.value;
 
   const blobs = options.store ?? getBlobStore();
   const scanMode = options.scanMode ?? getEnv().UPLOAD_SCAN;
@@ -385,6 +401,7 @@ export async function submitTeasers(
           uploadLinkId: link.id,
           uploaderName,
           uploaderEmail,
+          governmentOrganisation,
           ackTextVersion,
           ackAcceptedAt: now,
           ip: meta?.ip ?? null,
@@ -489,6 +506,7 @@ export async function submitTeasers(
             genericLink: link.countryId === null,
             uploaderName,
             uploaderEmail,
+            governmentOrganisation,
             ackTextVersion,
             ackAcceptedAt: now.toISOString(),
             projectIds,
@@ -515,6 +533,7 @@ export async function submitTeasers(
         countryName: target.name,
         uploaderName,
         uploaderEmail,
+        governmentOrganisation,
         acceptedAt: now,
         projectIds,
         documentIds,
@@ -536,6 +555,7 @@ export async function submitTeasers(
     countryName: receipt.countryName,
     uploaderName,
     uploaderEmail,
+    governmentOrganisation,
     acceptedAt: receipt.acceptedAt,
     ackText: appConfig.uploadAcknowledgement.text,
     files: receipt.files,
@@ -799,6 +819,7 @@ export async function listSubmissions(
       id: true,
       uploaderName: true,
       uploaderEmail: true,
+      governmentOrganisation: true,
       ackTextVersion: true,
       ackAcceptedAt: true,
       createdAt: true,

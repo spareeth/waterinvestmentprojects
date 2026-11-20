@@ -17,6 +17,7 @@ import {
 import {
   createMeetingRequest,
   decideMeetingRequest,
+  meetingTimeRequired,
   withdrawMeetingRequest,
 } from "@/lib/requests/service";
 
@@ -48,7 +49,9 @@ export async function createMeetingRequestAction(
 ): Promise<RequestFormState> {
   const viewer = await requireViewer();
   const values = requestValuesFrom(formData);
-  const parsed = parseRequestInput(values);
+  const parsed = parseRequestInput(values, {
+    slotRequired: await meetingTimeRequired(viewer, projectId),
+  });
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors, values };
   try {
     await createMeetingRequest(viewer, projectId, parsed.input, {
@@ -60,7 +63,7 @@ export async function createMeetingRequestAction(
   refresh();
   return {
     success:
-      "Your request has been sent. The country's focal point will accept or decline it.",
+      "Your request has been sent. The meeting time is held for you until the country's focal point accepts or declines it.",
   };
 }
 

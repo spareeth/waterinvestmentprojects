@@ -15,6 +15,7 @@ import {
 } from "@/components/workspace/form-controls";
 import { FIELD_MESSAGES } from "@/lib/submission/errors";
 import {
+  GOVERNMENT_ORGANISATION_MAX,
   MAX_SUBMISSION_BYTES,
   MAX_TEASERS_PER_SUBMISSION,
   SUBMISSION_FIELDS as F,
@@ -69,6 +70,8 @@ export function SubmissionForm({
           <dd>
             {r.uploaderName}, {r.uploaderEmail}
           </dd>
+          <dt className="font-semibold">Organisation</dt>
+          <dd>{r.governmentOrganisation}</dd>
           <dt className="font-semibold">Received</dt>
           <dd>{r.acceptedAt}</dd>
         </dl>
@@ -214,6 +217,26 @@ export function SubmissionForm({
             autoComplete="email"
             defaultValue={v.uploaderEmail ?? ""}
             maxLength={254}
+            required
+          />
+        </FieldShell>
+        <FieldShell
+          id="submit-organisation"
+          label="Represented government organisation"
+          hint="The ministry, utility or agency you send these teasers for, for example Ministry of Water Resources."
+          error={e[F.governmentOrganisation]}
+          className="sm:col-span-2"
+        >
+          <TextInput
+            {...describe(
+              "submit-organisation",
+              true,
+              e[F.governmentOrganisation],
+            )}
+            name={F.governmentOrganisation}
+            autoComplete="organization"
+            defaultValue={v.governmentOrganisation ?? ""}
+            maxLength={GOVERNMENT_ORGANISATION_MAX}
             required
           />
         </FieldShell>

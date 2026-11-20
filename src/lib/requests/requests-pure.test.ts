@@ -8,7 +8,7 @@ import {
   summitRequestNotice,
 } from "./emails";
 import { REQUEST_MESSAGES } from "./errors";
-import { parseRequestInput, REQUEST_LIMITS } from "./input";
+import { parseRequestInput, REQUEST_LIMITS, SLOT_MESSAGE } from "./input";
 
 describe("csvCell", () => {
   it("leaves plain text alone and writes empty cells for missing values", () => {
@@ -54,34 +54,50 @@ describe("toCsv", () => {
   });
 });
 
+const base = {
+  contactName: "Ivy Investor",
+  contactEmail: "ivy@fund.example",
+  organisation: "Org",
+  role: "Role",
+  note: "",
+  slot: "",
+};
+
 describe("parseRequestInput", () => {
-  it("accepts organisation, role and an optional note, tidied", () => {
+  it("accepts the attendee, organisation, role and an optional note, tidied", () => {
     const parsed = parseRequestInput({
+      ...base,
+      contactName: "  Ivy   Investor ",
+      contactEmail: " Ivy@Fund.EXAMPLE ",
       organisation: "  Fictional   Water Fund ",
       role: "Investment\tdirector",
-      note: "",
     });
     expect(parsed).toEqual({
       ok: true,
       input: {
+        contactName: "Ivy Investor",
+        contactEmail: "ivy@fund.example",
         organisation: "Fictional Water Fund",
         role: "Investment director",
         note: "",
+        slotStartsAt: null,
       },
     });
   });
 
   it("keeps line breaks in the note but removes control characters", () => {
     const parsed = parseRequestInput({
-      organisation: "Org",
-      role: "Role",
+      ...base,
       note: "First line\r\nSecond\u0007 line",
     });
     expect(parsed.ok && parsed.input.note).toBe("First line\nSecond line");
   });
 
-  it("requires organisation and role", () => {
+  it("requires name, a valid email, organisation and role", () => {
     const parsed = parseRequestInput({
+      ...base,
+      contactName: " ",
+      contactEmail: "not-an-address",
       organisation: "   ",
       role: "",
       note: "x",
@@ -89,6 +105,8 @@ describe("parseRequestInput", () => {
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) {
       expect(Object.keys(parsed.fieldErrors).sort()).toEqual([
+        "contactEmail",
+        "contactName",
         "organisation",
         "role",
       ]);
@@ -97,12 +115,31 @@ describe("parseRequestInput", () => {
 
   it("limits the lengths", () => {
     const parsed = parseRequestInput({
+      ...base,
       organisation: "o".repeat(REQUEST_LIMITS.organisation + 1),
       role: "r".repeat(REQUEST_LIMITS.role + 1),
       note: "n".repeat(REQUEST_LIMITS.note + 1),
     });
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(Object.keys(parsed.fieldErrors)).toHaveLength(3);
+  });
+
+  it("reads the chosen meeting time", () => {
+    const parsed = parseRequestInput({
+      ...base,
+      slot: "2026-12-08T05:30:00.000Z",
+    });
+    expect(parsed.ok && parsed.input.slotStartsAt).toEqual(
+      new Date("2026-12-08T05:30:00.000Z"),
+    );
+    const bad = parseRequestInput({ ...base, slot: "tomorrow-ish" });
+    expect(!bad.ok && bad.fieldErrors.slot).toBe(SLOT_MESSAGE);
+  });
+
+  it("asks for a time while times are free", () => {
+    const parsed = parseRequestInput(base, { slotRequired: true });
+    expect(!parsed.ok && parsed.fieldErrors).toEqual({ slot: SLOT_MESSAGE });
+    expect(parseRequestInput(base).ok).toBe(true);
   });
 });
 
@@ -138,6 +175,19 @@ describe("request emails", () => {
     expect(notice.text).toContain("ivy@fund.example");
     expect(notice.text).toContain(`${appConfig.url.replace(/\/+$/, "")}/inbox`);
     expect(notice.text).toContain(facts.note);
+  });
+
+  it("name the chosen meeting time", () => {
+    const withTime = {
+      ...facts,
+      meetingTime: "Tuesday 8 December, 09:30 to 10:00 (UAE time), Room A",
+    };
+    expect(focalPointRequestEmail(withTime).text).toContain(
+      "Proposed meeting: Tuesday 8 December, 09:30 to 10:00 (UAE time), Room A",
+    );
+    expect(investorDecisionEmail(withTime, "ACCEPTED").text).toContain(
+      "Your meeting: Tuesday 8 December, 09:30 to 10:00 (UAE time), Room A.",
+    );
   });
 
   it("tell the investor the outcome", () => {

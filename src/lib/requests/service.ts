@@ -17,6 +17,14 @@ import {
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
+import { formatMeetingSlot } from "@/lib/meetings/schedule";
+import {
+  bookHeldSlot,
+  holdSlot,
+  listMeetingTimes,
+  releaseSlot,
+  SLOT_DISPLAY_SELECT,
+} from "@/lib/meetings/slots";
 import { toCsv } from "./csv";
 import {
   type DecisionOutcome,
@@ -93,13 +101,28 @@ const POLICY_SELECT = {
   project: { select: { countryId: true } },
 } satisfies Prisma.MeetingRequestSelect;
 
+/** The attendee as typed on the request; the account's name and email for requests made before those fields. */
+export function requestContact(row: {
+  contactName: string;
+  contactEmail: string;
+  requester: { name: string; email: string };
+}): { name: string; email: string } {
+  return {
+    name: row.contactName || row.requester.name,
+    email: row.contactEmail || row.requester.email,
+  };
+}
+
 const MAIL_SELECT = {
   id: true,
   organisation: true,
   role: true,
   note: true,
   createdAt: true,
+  contactName: true,
+  contactEmail: true,
   requester: { select: { name: true, email: true } },
+  slot: { select: SLOT_DISPLAY_SELECT },
   project: {
     select: {
       title: true,
@@ -112,12 +135,14 @@ const MAIL_SELECT = {
 type MailRow = Prisma.MeetingRequestGetPayload<{ select: typeof MAIL_SELECT }>;
 
 function mailFacts(row: MailRow): RequestMailFacts {
+  const contact = requestContact(row);
   return {
     requestId: row.id,
     projectTitle: row.project.title,
     countryName: row.project.country.name,
-    investorName: row.requester.name,
-    investorEmail: row.requester.email,
+    investorName: contact.name,
+    investorEmail: contact.email,
+    meetingTime: row.slot ? formatMeetingSlot(row.slot) : null,
     organisation: row.organisation,
     role: row.role,
     note: row.note,
@@ -131,9 +156,14 @@ function mailFacts(row: MailRow): RequestMailFacts {
 
 /**
  * What the request panel on a project page needs: whether the viewer may request a meeting, their open request on
- * this project (if any) and the form's pre-filled organisation and role. Null when the panel should not show.
+ * this project (if any), the form's pre-filled attendee, organisation and role, and the meeting times to choose
+ * from. Null when the panel should not show.
  */
-export async function getRequestPanel(viewer: Viewer, projectId: string) {
+export async function getRequestPanel(
+  viewer: Viewer,
+  projectId: string,
+  { now = new Date() }: { now?: Date } = {},
+) {
   const project = await db.project.findUnique({
     where: { id: projectId },
     select: { id: true, ...PROJECT_POLICY_SELECT },
@@ -152,22 +182,50 @@ export async function getRequestPanel(viewer: Viewer, projectId: string) {
         ],
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true, status: true, createdAt: true, decidedAt: true },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        decidedAt: true,
+        slot: { select: SLOT_DISPLAY_SELECT },
+      },
     }),
     db.user.findUnique({
       where: { id: viewer.id },
-      select: { organisation: true, jobTitle: true },
+      select: { name: true, email: true, organisation: true, jobTitle: true },
     }),
   ]);
+  const times = open
+    ? []
+    : await listMeetingTimes(viewer.id, project.countryId, now);
   return {
     projectId,
     open,
+    times,
     defaults: {
+      contactName: user?.name ?? "",
+      contactEmail: user?.email ?? "",
       organisation: user?.organisation ?? "",
       role: user?.jobTitle ?? "",
       note: "",
+      slot: "",
     },
   };
+}
+
+/** True while at least one meeting time is free for this investor and project, so the form must ask for one. */
+export async function meetingTimeRequired(
+  viewer: Viewer,
+  projectId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { countryId: true },
+  });
+  if (!project) return false;
+  const days = await listMeetingTimes(viewer.id, project.countryId, now);
+  return days.some((d) => d.times.some((t) => t.available));
 }
 
 /**
@@ -200,15 +258,33 @@ export async function createMeetingRequest(
       },
     });
     if (open > 0) throw new RequestError("already_requested");
-    const row = await tx.meetingRequest.create({
+    const created = await tx.meetingRequest.create({
       data: {
         projectId,
         requesterId: viewer.id,
+        contactName: input.contactName,
+        contactEmail: input.contactEmail,
         organisation: input.organisation,
         role: input.role,
         note: input.note,
         createdAt: now,
       },
+      select: { id: true },
+    });
+    if (input.slotStartsAt) {
+      await holdSlot(
+        tx,
+        {
+          id: created.id,
+          requesterId: viewer.id,
+          countryId: project.countryId,
+        },
+        input.slotStartsAt,
+        now,
+      );
+    }
+    const row = await tx.meetingRequest.findUniqueOrThrow({
+      where: { id: created.id },
       select: MAIL_SELECT,
     });
     await writeAudit(
@@ -218,7 +294,16 @@ export async function createMeetingRequest(
         entityType: "MeetingRequest",
         entityId: row.id,
         meta,
-        metadata: { projectId, countryId: project.countryId },
+        metadata: {
+          projectId,
+          countryId: project.countryId,
+          ...(row.slot
+            ? {
+                slotStartsAt: row.slot.startsAt.toISOString(),
+                room: row.slot.room.name,
+              }
+            : {}),
+        },
       },
       tx,
     );
@@ -286,6 +371,7 @@ export async function withdrawMeetingRequest(
       data: { status: MeetingRequestStatus.WITHDRAWN, updatedAt: now },
     });
     if (count !== 1) throw new RequestError("not_open");
+    await releaseSlot(tx, request.id);
     await writeAudit(
       {
         actorId: viewer.id,
@@ -308,6 +394,10 @@ const MINE_SELECT = {
   organisation: true,
   role: true,
   note: true,
+  contactName: true,
+  contactEmail: true,
+  slot: { select: SLOT_DISPLAY_SELECT },
+  requester: { select: { name: true, email: true } },
   status: true,
   createdAt: true,
   decidedAt: true,
@@ -374,6 +464,9 @@ const INBOX_SELECT = {
   organisation: true,
   role: true,
   note: true,
+  contactName: true,
+  contactEmail: true,
+  slot: { select: SLOT_DISPLAY_SELECT },
   status: true,
   createdAt: true,
   decidedAt: true,
@@ -509,6 +602,11 @@ export async function decideMeetingRequest(
       },
     });
     if (count !== 1) throw new RequestError("not_pending");
+    if (outcome === MeetingRequestStatus.ACCEPTED) {
+      await bookHeldSlot(tx, request.id);
+    } else {
+      await releaseSlot(tx, request.id);
+    }
     await writeAudit(
       {
         actorId: viewer.id,
@@ -566,11 +664,14 @@ export const EXPORT_HEADER = [
   "Project",
   "Sector",
   "Status",
+  "Meeting time (UAE time)",
+  "Room",
   "Investor name",
   "Investor email",
   "Organisation",
   "Role",
   "Note",
+  "Account email",
   "Decided by",
   "Decided (UAE time)",
 ] as const;
@@ -614,11 +715,14 @@ export async function exportRequestsCsv(
       r.project.title,
       r.project.sector,
       STATUS_LABEL[r.status],
-      r.requester.name,
-      r.requester.email,
+      r.slot ? csvTime(r.slot.startsAt) : "",
+      r.slot?.room.name ?? "",
+      requestContact(r).name,
+      requestContact(r).email,
       r.organisation,
       r.role,
       r.note,
+      r.requester.email,
       r.decidedBy?.name ?? "",
       csvTime(r.decidedAt),
     ]),
