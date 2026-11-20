@@ -47,8 +47,8 @@ and Jacob differ, Jacob's WBG answers are treated as the working decision unless
 16. **Branding:** restrained partner set: MoFA, single World Bank Group mark, GCFC, Expo City Dubai/Terra. UN Water
     Conference branding only with approval (MoFA to lead). Logos as config/assets, easy to swap.
 17. **Support:** a shared support mailbox managed by Terra/Expo City Dubai and GCFC, not a personal inbox.
-18. **Slot booking:** built 20 Nov (user decision): Room A and Room B, 30-minute slots, 8 Dec 09:00 to 17:00 and 9 Dec
-    09:00 to 13:00 UAE time (src/lib/meetings/schedule.ts). The investor picks a time on the request; the first free
+18. **Slot booking:** built 20 Nov (user decision): Room A and Room B, 30-minute slots, 8 Dec 09:00 to 17:00, 9 Dec
+    09:00 to 13:00 and 10 Dec 09:00 to 17:00 UAE time (10 Dec added 20 Nov at the user's request) (src/lib/meetings/schedule.ts). The investor picks a time on the request; the first free
     room is held until the country answers (accept books it, decline or withdraw frees it). No investor or country
     has two meetings at once. Admins see the grid under Admin, Meeting schedule. Rooms, hours and any competing
     booking system still to be confirmed with MoFA/BCG; changing them is a one-line edit.

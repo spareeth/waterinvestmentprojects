@@ -152,6 +152,7 @@ describe("choosing a meeting time", () => {
     expect(panel?.times.map((d) => d.label)).toEqual([
       "Tuesday 8 December",
       "Wednesday 9 December",
+      "Thursday 10 December",
     ]);
     expect(panel?.times[0].times[0]).toMatchObject({
       value: T1.toISOString(),

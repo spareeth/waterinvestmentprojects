@@ -1063,7 +1063,7 @@ export const meetingRequests = [
 
 // ---------------------------------------------------------------------------
 // Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Room A and Room B,
-// 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00 (GST)
+// 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00, 10 Dec 09:00 to 17:00 (GST)
 // ---------------------------------------------------------------------------
 
 export const rooms = [

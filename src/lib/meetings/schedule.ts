@@ -1,6 +1,6 @@
-// Bilateral meeting rooms and times (F9, PLAN v0.3): two rooms, 30-minute slots, 8 Dec full day and 9 Dec morning
-// (the Summit itself is on 9 Dec from 15:30). Hours 09:00 to 17:00 UAE time (user decision, 20 Nov). Pure, so the
-// form, the server and tests share it. To add a day (for example 10 Dec) or change the hours, edit DAYS: the
+// Bilateral meeting rooms and times (F9, PLAN v0.3): two rooms, 30-minute slots, 8 Dec full day, 9 Dec morning
+// (the Summit itself is on 9 Dec from 15:30) and 10 Dec full day. Hours 09:00 to 17:00 UAE time (user decisions,
+// 20 Nov). Pure, so the form, the server and tests share it. To add a day or change the hours, edit DAYS: the
 // missing slots are created the next time the schedule is read; slots already in the database are never removed.
 
 export interface MeetingDay {
@@ -33,6 +33,7 @@ export const MEETING_SCHEDULE = {
   days: [
     { date: "2026-12-08", from: "09:00", to: "17:00" },
     { date: "2026-12-09", from: "09:00", to: "13:00" },
+    { date: "2026-12-10", from: "09:00", to: "17:00" },
   ] as readonly MeetingDay[],
 } as const;
 
