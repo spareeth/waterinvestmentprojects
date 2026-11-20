@@ -28,6 +28,7 @@ import { getEnv } from "@/lib/env";
 import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
 import { type BlobStore, getBlobStore, submissionBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
+import { requestScanSweep } from "@/lib/storage/scanner";
 import {
   cleanFilename,
   detectTeaserType,
@@ -337,7 +338,8 @@ export async function submitTeasers(
   const { uploaderName, uploaderEmail } = uploader.data;
 
   const blobs = options.store ?? getBlobStore();
-  const scan = initialScan(options.scanMode ?? getEnv().UPLOAD_SCAN);
+  const scanMode = options.scanMode ?? getEnv().UPLOAD_SCAN;
+  const scan = initialScan(scanMode);
   const ackTextVersion = appConfig.uploadAcknowledgement.version;
   const uploadId = randomUUID();
   const stored: (CheckedTeaser & {
@@ -526,6 +528,8 @@ export async function submitTeasers(
     );
     throw error;
   }
+  // The files are committed: hand them to the virus scanner now (UPLOAD_SCAN=clamav) without waiting for it.
+  if (scanMode === "clamav") requestScanSweep();
 
   const facts: SubmissionMailFacts = {
     submissionId: receipt.submissionId,

@@ -1,0 +1,95 @@
+# Production (and staging) stack for Water Investment Projects on Terra's Hetzner server (M8, PLAN section 5).
+# Runbook: docs/DEPLOYMENT.md. Settings and secrets: the root-only .env next to this file
+# (template: .env.production.example). Nothing here is published to the internet: the app listens on
+# 127.0.0.1:${APP_PORT} only and the server's existing reverse proxy terminates TLS in front of it.
+#
+#   docker compose -f compose.production.yml up -d --build      start or update
+#   docker compose -f compose.production.yml run --rm tools npm run admin:create -- --email ... --name "..."
+#   docker compose -f compose.production.yml logs -f app
+
+name: ${COMPOSE_PROJECT_NAME:-waterinvest}
+
+x-build: &build
+  context: .
+  args:
+    APP_NAME: ${APP_NAME}
+    APP_URL: ${APP_URL}
+    SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+    INVESTOR_ACK_VERSION: ${INVESTOR_ACK_VERSION:-}
+    INVESTOR_ACK_TEXT: ${INVESTOR_ACK_TEXT:-}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-summit_portal}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamdb:/var/lib/clamav
+      - ./deploy/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+    # Signatures take a few minutes to download on the first start; uploads stay pending until then.
+
+  # Applies database migrations, then exits. The app starts only after it succeeded.
+  migrate:
+    build:
+      <<: *build
+      target: tools
+    image: ${COMPOSE_PROJECT_NAME:-waterinvest}-tools
+    env_file: ${ENV_FILE:-.env}
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      <<: *build
+      target: runner
+    image: ${COMPOSE_PROJECT_NAME:-waterinvest}-app
+    restart: unless-stopped
+    env_file: ${ENV_FILE:-.env}
+    environment:
+      NODE_ENV: production
+      STORAGE_LOCAL_DIR: /app/.data/blobs
+    ports:
+      - "127.0.0.1:${APP_PORT:-3200}:3000"
+    volumes:
+      - blobs:/app/.data/blobs
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_started
+
+  # One-off jobs only (profile "tools"): first admin account, demo seed on staging, a shell.
+  # Uses the image the migrate service builds.
+  tools:
+    profiles: ["tools"]
+    image: ${COMPOSE_PROJECT_NAME:-waterinvest}-tools
+    env_file: ${ENV_FILE:-.env}
+    volumes:
+      - blobs:/app/.data/blobs
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  blobs:
+  clamdb:

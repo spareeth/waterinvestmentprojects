@@ -27,6 +27,7 @@ import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { type BlobStore, getBlobStore, teaserBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
+import { requestScanSweep } from "@/lib/storage/scanner";
 import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WorkspaceError } from "./errors";
 import type { ProjectInput } from "./project-input";
@@ -309,14 +310,15 @@ export async function uploadTeaser(
   if (!ack?.acknowledged) throw new WorkspaceError("ack_required");
 
   const blobs = store ?? getBlobStore();
-  const scan = initialScan(scanMode ?? getEnv().UPLOAD_SCAN);
+  const mode = scanMode ?? getEnv().UPLOAD_SCAN;
+  const scan = initialScan(mode);
   const sha256 = createHash("sha256").update(file.bytes).digest("hex");
   const filename = cleanFilename(file.name);
   const blobKey = teaserBlobKey(projectId, randomUUID());
   await blobs.put(blobKey, file.bytes);
 
   try {
-    return await db.$transaction(async (tx) => {
+    const documentId = await db.$transaction(async (tx) => {
       const project = await findWorkspaceProjectFor(viewer, projectId, {
         client: tx,
       });
@@ -433,6 +435,9 @@ export async function uploadTeaser(
       );
       return doc.id;
     });
+    // Committed: hand the file to the virus scanner now (UPLOAD_SCAN=clamav) without waiting for it.
+    if (mode === "clamav") requestScanSweep();
+    return documentId;
   } catch (error) {
     // Nothing points at the file any more: remove it so storage holds no orphans.
     await blobs.delete(blobKey).catch(() => undefined);

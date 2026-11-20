@@ -123,6 +123,7 @@ There is no HTTP endpoint for Better Auth: every sign-in step is a server action
 | `npm run db:migrate`              | Create and apply a migration (dev)  |
 | `npm run db:seed`                 | Load fictional demo data            |
 | `npm run db:studio`               | Prisma Studio                       |
+| `npm run admin:create -- ...`     | First admin account on a new server |
 
 `npm test` runs two Vitest projects: `unit` (jsdom, no database) and `integration` (real PostgreSQL from `DATABASE_URL`, migrations applied). Integration tests create users on `@it.example` and remove them afterwards.
 
@@ -147,6 +148,13 @@ tests/integration/   Vitest tests against PostgreSQL
 tests/e2e/           Playwright specs and their fixtures
 ```
 
+## Deployment (M8)
+
+Production and staging run as one Docker Compose stack on Terra's Hetzner server: `Dockerfile`, `compose.production.yml` (app, PostgreSQL, ClamAV, one-off migration and tools jobs), `.env.production.example` and `deploy/` (ClamAV config, nightly backup script). Step-by-step runbook, reverse proxy, email DNS, backups and restore: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+- **Virus scan:** with `UPLOAD_SCAN=clamav` every upload is stored as pending and handed to ClamAV right after it commits (`src/lib/storage/scanner.ts`); it becomes viewable and publishable only once clean. Files ClamAV could not take yet are retried every `SCAN_SWEEP_SECONDS`. An infected file stays blocked and the Summit mailbox is told.
+- **Security headers:** `src/lib/security-headers.ts` (HSTS over https, a same-origin CSP in production builds, frame, referrer and permissions policies), applied in `next.config.ts`.
+
 ## Secrets
 
-`.env.example` lists every variable. Real values for staging and production live only on the server, in a root-only `.env` file. Never commit `.env`. `BETTER_AUTH_SECRET` must be different in every environment; changing it signs everyone out and invalidates two-step setups.
+`.env.example` lists every variable (`.env.production.example` for servers). Real values for staging and production live only on the server, in a root-only `.env` file. Never commit `.env`. `BETTER_AUTH_SECRET` must be different in every environment; changing it signs everyone out and invalidates two-step setups.

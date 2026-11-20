@@ -57,15 +57,24 @@ const envSchema = z
     /** Folder for the local driver, relative to the app folder unless absolute. Git-ignored. */
     STORAGE_LOCAL_DIR: z.string().min(1).default(".data/blobs"),
     /**
-     * Virus scan of uploads until ClamAV arrives (M10). "pending" (default) leaves uploads PENDING, so nobody
-     * can open or publish them; "assume-clean" marks them CLEAN at once, for local and staging demos only.
+     * Virus scan of uploads. "clamav" (production, M8) scans every upload with clamd at CLAMAV_HOST:CLAMAV_PORT
+     * and only then makes it visible. "pending" (default) leaves uploads PENDING, so nobody can open or publish
+     * them; "assume-clean" marks them CLEAN at once, for local and staging demos only.
      */
     UPLOAD_SCAN: z
-      .enum(["pending", "assume-clean", ""])
+      .enum(["pending", "assume-clean", "clamav", ""])
       .optional()
-      .transform((value): "pending" | "assume-clean" =>
-        value === "assume-clean" ? value : "pending",
+      .transform((value): "pending" | "assume-clean" | "clamav" =>
+        value === "assume-clean" || value === "clamav" ? value : "pending",
       ),
+    /** clamd's address (the `clamav` service in compose.production.yml). */
+    CLAMAV_HOST: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim() || "localhost"),
+    CLAMAV_PORT: intInRange(1, 65535, 3310),
+    /** How often files still waiting for a scan are tried again (for example after clamd restarted). */
+    SCAN_SWEEP_SECONDS: intInRange(10, 3600, 60),
     /**
      * How email is sent (user decision, 18 Nov: from the Summit mailbox, provider still to be chosen).
      * "log" (default) writes each message to the server log; "smtp" sends through SMTP_HOST, which works with any

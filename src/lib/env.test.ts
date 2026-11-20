@@ -141,6 +141,23 @@ describe("upload scan setting", () => {
     ).toThrow(/UPLOAD_SCAN/);
   });
 
+  it("scans with ClamAV in production, at the configured address", () => {
+    const env = parseEnv({
+      ...base,
+      NODE_ENV: "production",
+      UPLOAD_SCAN: "clamav",
+      CLAMAV_HOST: "clamav",
+    });
+    expect(env.UPLOAD_SCAN).toBe("clamav");
+    expect(env.CLAMAV_HOST).toBe("clamav");
+    expect(env.CLAMAV_PORT).toBe(3310);
+    expect(env.SCAN_SWEEP_SECONDS).toBe(60);
+    expect(parseEnv(base).CLAMAV_HOST).toBe("localhost");
+    expect(() => parseEnv({ ...base, CLAMAV_PORT: "0" })).toThrow(
+      /CLAMAV_PORT/,
+    );
+  });
+
   it("rejects an unknown scan mode", () => {
     expect(() => parseEnv({ ...base, UPLOAD_SCAN: "off" })).toThrow(
       /UPLOAD_SCAN/,
