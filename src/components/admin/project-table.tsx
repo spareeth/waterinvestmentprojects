@@ -11,6 +11,12 @@ import { Notice } from "@/components/workspace/form-controls";
 import { ScanBadge, StatusBadge } from "@/components/workspace/status-badge";
 import type { ProjectStatus, ScanStatus } from "@/generated/prisma/enums";
 import { usdToMillion } from "@/lib/workspace/project-input";
+import { cn } from "@/lib/utils";
+import {
+  tableFrameClass,
+  tableHeadClass,
+  tableRowClass,
+} from "@/components/ui/table-styles";
 
 // Every project for the admin team (M7): filters at a glance, publish one or many, take one out of the pipeline.
 // What each button may do comes from the server (workspacePermissions); the actions check again.
@@ -101,9 +107,9 @@ export function ProjectTable({ projects }: { projects: ProjectRow[] }) {
       {state.message ? <Notice tone="success">{state.message}</Notice> : null}
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
+      <div className={tableFrameClass}>
         <table className="w-full min-w-[60rem] text-left text-sm">
-          <thead className="border-b bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
+          <thead className={tableHeadClass}>
             <tr>
               <th className="px-3 py-2">
                 <span className="sr-only">Select</span>
@@ -119,8 +125,17 @@ export function ProjectTable({ projects }: { projects: ProjectRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {projects.map((p) => (
-              <tr key={p.id} className="border-b align-top last:border-0">
+            {projects.map((p, i) => (
+              <tr
+                key={p.id}
+                className={cn(
+                  tableRowClass(
+                    i,
+                    p.status === "DRAFT" ? "bg-sand-50" : undefined,
+                  ),
+                  "align-top",
+                )}
+              >
                 <td className="px-3 py-3">
                   {p.canPublish ? (
                     <input

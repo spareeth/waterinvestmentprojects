@@ -47,6 +47,24 @@
   --color-brand-deep: var(--brand-deep);
   --color-brand-teal: var(--brand-teal);
   --color-brand-aqua: var(--brand-aqua);
+  /* Shades of the brand family (design canvas, Nov 2026): light steps for bands, alternating rows and tags,
+     strong steps for headings, the top bar and table headers. */
+  --color-water-50: #effafb;
+  --color-water-100: #d6f1f4;
+  --color-water-200: #b0e3e9;
+  --color-water-300: #5fd0d6;
+  --color-water-400: #34aebe;
+  --color-water-500: #1f8fa3;
+  --color-water-600: #187486;
+  --color-water-700: #16596a;
+  --color-water-800: #124855;
+  --color-water-900: #0f3b44;
+  --color-sand-50: #fffaf0;
+  --color-sand-100: #fdf1dc;
+  --color-sand-200: #f0d9a8;
+  --color-sand-400: #e2b45c;
+  --color-sand-500: #c98a1b;
+  --color-sand-700: #8a5a10;
   --color-ack: var(--ack);
   --color-ack-surface: var(--ack-surface);
   --color-ack-border: var(--ack-border);
@@ -79,7 +97,7 @@
 
   /* Base: controls 8px (rounded-lg), cards 12px (rounded-xl) */
   --radius: 0.5rem;
-  --background: #f6f8f8;
+  --background: #f4f9fa;
   --foreground: #1d2b2a;
   --card: #ffffff;
   --card-foreground: #1d2b2a;
@@ -87,15 +105,15 @@
   --popover-foreground: #1d2b2a;
   --primary: var(--brand-teal);
   --primary-foreground: #ffffff;
-  --secondary: #e3f3f5;
-  --secondary-foreground: var(--brand-deep);
+  --secondary: #d6f1f4;
+  --secondary-foreground: #124855;
   --muted: #f0f3f3;
   --muted-foreground: #6b7b7a;
   --accent: #e3f3f5;
   --accent-foreground: var(--brand-navy);
   --destructive: #b42318;
-  --border: #e1e8e8;
-  --input: #d6dfdf;
+  --border: #d6e6e8;
+  --input: #b9d6da;
   --ring: var(--brand-teal);
 
   /* Confidentiality acknowledgement */

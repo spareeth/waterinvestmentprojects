@@ -125,45 +125,50 @@ export default async function SubmissionsPage() {
                   {s.ackTextVersion}. Reference{" "}
                   <span className="font-mono">{s.id}</span>.
                 </p>
-                <ul className="mt-4 flex flex-col divide-y rounded-lg border">
-                  {byProject(s.documents).map(({ project: p, documents }) => (
-                    <li key={p.id} className="flex flex-col gap-2 p-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{p.title}</span>
-                        <StatusBadge status={p.status} />
-                        <span className="text-sm text-muted-foreground">
-                          {p.sector}
-                        </span>
-                      </div>
-                      {documents.map((d) => (
-                        <div
-                          key={d.id}
-                          className="flex flex-wrap items-center gap-2 text-sm"
-                        >
-                          <span>
-                            {d.filename}
-                            {d.version > 1 ? ` (version ${d.version})` : ""}
+                <ul className="mt-4 flex flex-col divide-y divide-water-100 overflow-hidden rounded-lg border">
+                  {byProject(s.documents).map(
+                    ({ project: p, documents }, i) => (
+                      <li
+                        key={p.id}
+                        className={`flex flex-col gap-2 p-3 ${p.status === "DRAFT" ? "bg-sand-50" : i % 2 === 1 ? "bg-water-50" : ""}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{p.title}</span>
+                          <StatusBadge status={p.status} />
+                          <span className="text-sm text-muted-foreground">
+                            {p.sector}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatBytes(d.sizeBytes)} · SHA-256{" "}
-                            <span className="font-mono">
-                              {d.sha256.slice(0, 12)}
-                            </span>
-                          </span>
-                          <ScanBadge status={d.scanStatus} />
-                          {d.scanStatus === "CLEAN" ||
-                          d.scanStatus === "PENDING" ? (
-                            <a
-                              href={`/files/${d.id}?download=1`}
-                              className="text-sm font-medium text-brand-teal hover:underline"
-                            >
-                              Download
-                            </a>
-                          ) : null}
                         </div>
-                      ))}
-                    </li>
-                  ))}
+                        {documents.map((d) => (
+                          <div
+                            key={d.id}
+                            className="flex flex-wrap items-center gap-2 text-sm"
+                          >
+                            <span>
+                              {d.filename}
+                              {d.version > 1 ? ` (version ${d.version})` : ""}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatBytes(d.sizeBytes)} · SHA-256{" "}
+                              <span className="font-mono">
+                                {d.sha256.slice(0, 12)}
+                              </span>
+                            </span>
+                            <ScanBadge status={d.scanStatus} />
+                            {d.scanStatus === "CLEAN" ||
+                            d.scanStatus === "PENDING" ? (
+                              <a
+                                href={`/files/${d.id}?download=1`}
+                                className="text-sm font-medium text-brand-teal hover:underline"
+                              >
+                                Download
+                              </a>
+                            ) : null}
+                          </div>
+                        ))}
+                      </li>
+                    ),
+                  )}
                 </ul>
               </li>
             ))}

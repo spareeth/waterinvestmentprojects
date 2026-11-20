@@ -9,13 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/form-controls";
 import { METADATA_LABEL, type ImportPlan } from "@/lib/admin/metadata-import";
 import { CsvSource, PreviewCounts } from "./csv-source";
+import {
+  tableFrameClass,
+  tableHeadClass,
+  tableRowClass,
+} from "@/components/ui/table-styles";
 
 // CSV import of PPP model, size and development stage (M7): file, preview with row errors, apply.
 
 const ROW_TONE = {
   change: "",
   unchanged: "text-muted-foreground",
-  error: "bg-declined/40",
+  error: "",
 } as const;
 
 export function MetadataImportForm() {
@@ -91,9 +96,9 @@ export function MetadataImportForm() {
                   Ignored columns: {plan.ignoredColumns.join(", ")}.
                 </Notice>
               ) : null}
-              <div className="overflow-x-auto rounded-xl border bg-card">
+              <div className={tableFrameClass}>
                 <table className="w-full min-w-[40rem] text-left text-sm">
-                  <thead className="border-b bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
+                  <thead className={tableHeadClass}>
                     <tr>
                       <th className="px-3 py-2">Line</th>
                       <th className="px-3 py-2">Project</th>
@@ -101,10 +106,13 @@ export function MetadataImportForm() {
                     </tr>
                   </thead>
                   <tbody>
-                    {plan.rows.map((row) => (
+                    {plan.rows.map((row, i) => (
                       <tr
                         key={row.line}
-                        className={`border-b last:border-0 ${ROW_TONE[row.status]}`}
+                        className={`${tableRowClass(
+                          i,
+                          row.status === "error" ? "bg-declined/40" : undefined,
+                        )} ${ROW_TONE[row.status]}`}
                       >
                         <td className="px-3 py-2 align-top tabular-nums">
                           {row.line}

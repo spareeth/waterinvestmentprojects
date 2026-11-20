@@ -21,16 +21,17 @@ export type AdminSection = (typeof ADMIN_SECTIONS)[number]["href"];
 
 export function AdminNav({ current }: { current: AdminSection }) {
   return (
-    <nav aria-label="Admin sections" className="border-b bg-card print:hidden">
-      <ul className="mx-auto flex w-full max-w-page flex-wrap gap-x-1 gap-y-1 px-4 py-2 sm:px-8">
+    <nav aria-label="Admin sections" className="bg-water-800 print:hidden">
+      <ul className="mx-auto flex w-full max-w-page flex-wrap gap-x-1 px-4 sm:px-8">
         {ADMIN_SECTIONS.map((s) => (
           <li key={s.href}>
             <Link
               href={s.href}
               aria-current={s.href === current ? "page" : undefined}
               className={cn(
-                "inline-block rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                s.href === current && "bg-muted text-foreground",
+                "inline-block px-3 py-3 text-sm font-medium text-water-200 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-aqua/60 focus-visible:outline-none",
+                s.href === current &&
+                  "font-semibold text-white shadow-[inset_0_-3px_0_var(--color-water-300)]",
               )}
             >
               {s.label}

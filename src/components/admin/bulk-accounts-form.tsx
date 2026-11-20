@@ -11,6 +11,11 @@ import type { BulkAccountPlan } from "@/lib/admin/bulk-accounts-input";
 import { ROLE_LABEL } from "@/lib/auth/role-labels";
 import { toCsv } from "@/lib/requests/csv";
 import { CsvSource, PreviewCounts } from "./csv-source";
+import {
+  tableFrameClass,
+  tableHeadClass,
+  tableRowClass,
+} from "@/components/ui/table-styles";
 
 // Bulk account hand-out (M7, PLAN 0a.4): file, preview, create, then the temporary passwords ONCE. The hand-out
 // CSV is built here in the browser from the response; the server never keeps the passwords.
@@ -109,9 +114,9 @@ export function BulkAccountsForm({ signInUrl }: { signInUrl: string }) {
             Done
           </Button>
         </div>
-        <div className="overflow-x-auto rounded-xl border bg-card">
+        <div className={tableFrameClass}>
           <table className="w-full min-w-[36rem] text-left text-sm">
-            <thead className="border-b bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
+            <thead className={tableHeadClass}>
               <tr>
                 <th className="px-3 py-2">Name</th>
                 <th className="px-3 py-2">Email</th>
@@ -120,8 +125,8 @@ export function BulkAccountsForm({ signInUrl }: { signInUrl: string }) {
               </tr>
             </thead>
             <tbody>
-              {handOut.map((h) => (
-                <tr key={h.email} className="border-b last:border-0">
+              {handOut.map((h, i) => (
+                <tr key={h.email} className={tableRowClass(i)}>
                   <td className="px-3 py-2">{h.name}</td>
                   <td className="px-3 py-2 break-all">{h.email}</td>
                   <td className="px-3 py-2">{ROLE_LABEL[h.role]}</td>
@@ -186,9 +191,9 @@ export function BulkAccountsForm({ signInUrl }: { signInUrl: string }) {
                 },
               ]}
             />
-            <div className="overflow-x-auto rounded-xl border bg-card">
+            <div className={tableFrameClass}>
               <table className="w-full min-w-[40rem] text-left text-sm">
-                <thead className="border-b bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
+                <thead className={tableHeadClass}>
                   <tr>
                     <th className="px-3 py-2">Line</th>
                     <th className="px-3 py-2">Person</th>
@@ -197,10 +202,13 @@ export function BulkAccountsForm({ signInUrl }: { signInUrl: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.rows.map((row) => (
+                  {plan.rows.map((row, i) => (
                     <tr
                       key={row.line}
-                      className={`border-b last:border-0 ${row.errors.length > 0 ? "bg-declined/40" : ""}`}
+                      className={tableRowClass(
+                        i,
+                        row.errors.length > 0 ? "bg-declined/40" : undefined,
+                      )}
                     >
                       <td className="px-3 py-2 align-top tabular-nums">
                         {row.line}

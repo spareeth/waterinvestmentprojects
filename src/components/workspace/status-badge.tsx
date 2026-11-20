@@ -6,7 +6,7 @@ const STATUS: Record<ProjectStatus, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-muted text-foreground" },
   PUBLISHED: {
     label: "In the pipeline",
-    className: "bg-success text-success-foreground",
+    className: "bg-water-100 text-water-800",
   },
   WITHDRAWN: {
     label: "Withdrawn",

@@ -21,6 +21,17 @@ function plural(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex min-w-28 flex-col-reverse rounded-xl border border-water-200 bg-card px-4 py-3">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-2xl font-bold text-water-600 tabular-nums">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 /** All published teasers the viewer may see, with filters in the URL (PLAN v0.3 F3, mockup 02 without tiers). */
 export default async function PipelinePage({
   searchParams,
@@ -41,18 +52,33 @@ export default async function PipelinePage({
         showWorkspace={canUseWorkspace(viewer)}
         showAdmin={canListSubmissions(viewer)}
       />
-      <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-8 sm:px-8 sm:py-10">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
-            Project pipeline
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            {facets.total > 0
-              ? `${plural(facets.total, "project teaser", "project teasers")} from ${plural(facets.countryCount, "country", "countries")}. Open a teaser to read it in full or download it.`
-              : "Project teasers appear here once Governments have published them."}
-          </p>
+      <section className="border-b border-water-200 bg-linear-to-b from-water-100 to-water-50">
+        <div className="mx-auto flex w-full max-w-page flex-wrap items-end justify-between gap-6 px-4 py-8 sm:px-8">
+          <div className="max-w-3xl min-w-0">
+            <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
+              Project pipeline
+            </h1>
+            <p className="mt-2 text-foreground/80">
+              {facets.total > 0
+                ? "One-page teasers shared by participating Governments. Open a teaser to read it in full or download it."
+                : "Project teasers appear here once Governments have published them."}
+            </p>
+          </div>
+          {facets.total > 0 ? (
+            <dl className="flex flex-wrap gap-3">
+              <Stat
+                value={facets.total}
+                label={facets.total === 1 ? "project" : "projects"}
+              />
+              <Stat
+                value={facets.countryCount}
+                label={facets.countryCount === 1 ? "country" : "countries"}
+              />
+            </dl>
+          ) : null}
         </div>
-
+      </section>
+      <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-8 sm:px-8">
         {facets.total > 0 ? (
           <>
             <PipelineFilterBar filters={filters} options={facets} />
