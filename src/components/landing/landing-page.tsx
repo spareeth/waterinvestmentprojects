@@ -37,9 +37,6 @@ export function LandingPage() {
         <a href="#about" className={navLinkClass}>
           About
         </a>
-        <a href="#how-access-works" className={navLinkClass}>
-          How access works
-        </a>
         <Link href="/guide" className="text-white/90 hover:text-white">
           User guide
         </Link>

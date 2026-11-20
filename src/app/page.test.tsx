@@ -48,6 +48,16 @@ describe("Landing page", () => {
       screen.getByRole("heading", { level: 2, name: "How access works" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/own upload link/)).toBeInTheDocument();
+    // Reached from the button in the page header only, not from the top menu.
+    expect(
+      within(screen.getByRole("navigation", { name: "Main" })).queryByRole(
+        "link",
+        { name: "How access works" },
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "How access works" }),
+    ).toHaveAttribute("href", "#how-access-works");
     // PLAN 0a.3: no second step at sign-in for now, so the page must not promise one.
     expect(screen.queryByText(/two-step/i)).not.toBeInTheDocument();
   });
