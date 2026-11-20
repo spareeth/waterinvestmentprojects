@@ -414,7 +414,7 @@ describe("seed data: meeting requests and slots", () => {
   });
 
   it("has two rooms with 30-minute slots on 8 Dec (full day) and 9 Dec (morning) only", () => {
-    expect(rooms).toHaveLength(2);
+    expect(rooms.map((r) => r.name)).toEqual(["Room A", "Room B"]);
     for (const s of slots) {
       expect(s.endsAt.getTime() - s.startsAt.getTime()).toBe(
         SLOT_MINUTES * 60_000,
@@ -424,7 +424,7 @@ describe("seed data: meeting requests and slots", () => {
         s.endsAt <= gst("2026-12-08T17:00");
       const inDay9 =
         s.startsAt >= gst("2026-12-09T09:00") &&
-        s.endsAt <= gst("2026-12-09T12:30");
+        s.endsAt <= gst("2026-12-09T13:00");
       expect(inDay8 || inDay9, s.id).toBe(true);
     }
     for (const room of rooms) {
@@ -432,19 +432,35 @@ describe("seed data: meeting requests and slots", () => {
         .filter((s) => s.roomId === room.id)
         .map((s) => s.startsAt.getTime());
       expect(new Set(starts).size).toBe(starts.length);
-      expect(starts).toHaveLength(16 + 7);
+      expect(starts).toHaveLength(16 + 8);
     }
   });
 
-  it("links booked and held slots only to accepted requests, one slot per request", () => {
+  it("books slots for accepted requests and holds them for pending ones, one slot per request", () => {
     const linked = slots.filter((s) => s.meetingRequestId);
     expect(linked.some((s) => s.status === SlotStatus.BOOKED)).toBe(true);
+    expect(linked.some((s) => s.status === SlotStatus.HELD)).toBe(true);
     for (const s of slots) {
       if (s.status === SlotStatus.OPEN) expect(s.meetingRequestId).toBeNull();
       else
         expect(requestById.get(s.meetingRequestId!)?.status).toBe(
-          MeetingRequestStatus.ACCEPTED,
+          s.status === SlotStatus.BOOKED
+            ? MeetingRequestStatus.ACCEPTED
+            : MeetingRequestStatus.PENDING,
         );
+    }
+    // Nobody has two meetings at once: neither an investor nor a country.
+    const projectCountry = new Map(projects.map((p) => [p.id, p.countryId]));
+    for (const key of ["requesterId", "country"] as const) {
+      const seen = new Set<string>();
+      for (const s of linked) {
+        const r = requestById.get(s.meetingRequestId!)!;
+        const who =
+          key === "country" ? projectCountry.get(r.projectId) : r.requesterId;
+        const id = `${who}@${s.startsAt.toISOString()}`;
+        expect(seen.has(id), id).toBe(false);
+        seen.add(id);
+      }
     }
     const requestIds = linked.map((s) => s.meetingRequestId);
     expect(new Set(requestIds).size).toBe(requestIds.length);

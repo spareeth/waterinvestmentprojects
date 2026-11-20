@@ -17,6 +17,7 @@ import {
   UserStatus,
 } from "../../src/generated/prisma/enums";
 import { appConfig } from "../../src/lib/config";
+import { MEETING_SCHEDULE } from "../../src/lib/meetings/schedule";
 import { buildPlaceholderPdf } from "./pdf";
 
 /** Summit venue time zone is Gulf Standard Time (UTC+4, no daylight saving). */
@@ -1061,20 +1062,21 @@ export const meetingRequests = [
 ];
 
 // ---------------------------------------------------------------------------
-// Rooms and 30-minute slots: 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 12:30 (GST)
+// Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Room A and Room B,
+// 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00 (GST)
 // ---------------------------------------------------------------------------
 
 export const rooms = [
-  { id: "seed-room-1", name: "Bilateral room 1", capacity: 8 },
-  { id: "seed-room-2", name: "Bilateral room 2", capacity: 8 },
+  { id: "seed-room-1", name: MEETING_SCHEDULE.rooms[0], capacity: 0 },
+  { id: "seed-room-2", name: MEETING_SCHEDULE.rooms[1], capacity: 0 },
 ];
 
-export const SLOT_WINDOWS = [
-  { date: "2026-12-08", from: "09:00", to: "17:00" },
-  { date: "2026-12-09", from: "09:00", to: "12:30" },
-];
+export const SLOT_WINDOWS = MEETING_SCHEDULE.days;
 
-/** Bookings and holds keyed by "<roomId>@<local date>T<time>". Only ACCEPTED requests appear here. */
+/**
+ * Bookings and holds keyed by "<roomId>@<local date>T<time>": a pending request holds its time (HELD), an
+ * accepted one has it booked (BOOKED). Request 04 (pending) chose no time.
+ */
 const slotAssignments: Record<
   string,
   { status: SlotStatus; meetingRequestId: string }
@@ -1084,8 +1086,16 @@ const slotAssignments: Record<
     meetingRequestId: "seed-request-03",
   },
   "seed-room-1@2026-12-08T10:00": {
-    status: SlotStatus.HELD,
+    status: SlotStatus.BOOKED,
     meetingRequestId: "seed-request-02",
+  },
+  "seed-room-1@2026-12-08T11:00": {
+    status: SlotStatus.HELD,
+    meetingRequestId: "seed-request-01",
+  },
+  "seed-room-2@2026-12-08T11:00": {
+    status: SlotStatus.HELD,
+    meetingRequestId: "seed-request-05",
   },
   "seed-room-2@2026-12-09T09:30": {
     status: SlotStatus.BOOKED,

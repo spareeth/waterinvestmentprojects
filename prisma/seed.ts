@@ -188,6 +188,28 @@ async function main(): Promise<void> {
             update: data,
           });
         }
+        // The app creates the schedule's rooms on first use (src/lib/meetings/slots.ts). Replace such rooms with the
+        // seed's own of the same name (their slots go with them), unless a real request already holds one.
+        const others = await tx.room.findMany({
+          where: {
+            name: { in: d.rooms.map((r) => r.name) },
+            id: { notIn: d.rooms.map((r) => r.id) },
+          },
+          select: { id: true, name: true },
+        });
+        for (const room of others) {
+          const taken = await tx.slot.count({
+            where: { roomId: room.id, meetingRequestId: { not: null } },
+          });
+          if (taken > 0) {
+            throw new Error(
+              `${room.name} already has meetings booked; the demo seed will not replace it.`,
+            );
+          }
+        }
+        await tx.room.deleteMany({
+          where: { id: { in: others.map((r) => r.id) } },
+        });
         for (const { id, ...data } of d.rooms) {
           await tx.room.upsert({
             where: { id },
