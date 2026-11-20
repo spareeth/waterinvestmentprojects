@@ -55,16 +55,24 @@ reachable yet" and new uploads wait as "being checked"; they are scanned as soon
 
 ### Getting the code
 
-Preferred: a private GitHub repository, then `git clone` on the server. Until it exists, copy a bundle from the
-development machine:
+The code is in the private repository https://github.com/spareeth/waterinvestmentprojects. The server reads it
+with a **read-only deploy key**, so no personal GitHub login is stored on the server:
 
 ```bash
-# On the development machine (WSL)
-cd ~/UNWC_ProjectPlatform && git bundle create /tmp/waterinvest.bundle main
-scp /tmp/waterinvest.bundle <server>:/tmp/
-# On the server
-sudo git clone /tmp/waterinvest.bundle /opt/waterinvest
+# On the server: a key used only for this repository
+sudo ssh-keygen -t ed25519 -N "" -C "waterinvest-deploy@$(hostname)" -f /root/.ssh/waterinvest_deploy
+sudo cat /root/.ssh/waterinvest_deploy.pub
+# On GitHub: repository > Settings > Deploy keys > Add deploy key, paste it, leave "Allow write access" OFF
+# (or from WSL: gh repo deploy-key add <file.pub> --repo spareeth/waterinvestmentprojects --title "<server>")
+
+# Clone with that key, and keep using it for every later pull
+sudo GIT_SSH_COMMAND="ssh -i /root/.ssh/waterinvest_deploy -o IdentitiesOnly=yes" \
+  git clone git@github.com:spareeth/waterinvestmentprojects.git /opt/waterinvest
+sudo git -C /opt/waterinvest config core.sshCommand "ssh -i /root/.ssh/waterinvest_deploy -o IdentitiesOnly=yes"
 ```
+
+Without GitHub access from the server, copy a bundle instead: `git bundle create /tmp/waterinvest.bundle main`
+in WSL, `scp` it over, then `sudo git clone /tmp/waterinvest.bundle /opt/waterinvest`.
 
 ### First admin account
 
