@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requestMetaFrom } from "@/lib/audit";
 import { requireViewer } from "@/lib/authz";
+import { describeFacts } from "@/lib/teaser/facts";
 import { MAX_TEASER_BYTES } from "@/lib/workspace/teaser-file";
 import {
   WORKSPACE_MESSAGES,
@@ -19,6 +20,7 @@ import {
 import {
   createProject,
   publishProject,
+  readProjectTeaserFacts,
   setTeaserDownload,
   updateProject,
   uploadTeaser,
@@ -135,6 +137,7 @@ export async function uploadTeaserAction(
   if (file.size > MAX_TEASER_BYTES) {
     return { fieldErrors: { teaser: WORKSPACE_MESSAGES.file_too_large } };
   }
+  const report = { filled: [] as string[] };
   try {
     await uploadTeaser(
       viewer,
@@ -142,13 +145,18 @@ export async function uploadTeaserAction(
       { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) },
       { allowDownload: text(formData, "allowDownload") !== "view" },
       acknowledgementFrom(formData),
-      { meta: await meta() },
+      { meta: await meta(), report },
     );
   } catch (error) {
     return refused(error);
   }
   refresh();
-  return { success: "Teaser uploaded." };
+  return {
+    success:
+      report.filled.length > 0
+        ? `Teaser uploaded. Filled in from the teaser: ${describeFacts(report.filled)}. Please check them under Key facts.`
+        : "Teaser uploaded.",
+  };
 }
 
 export async function setTeaserDownloadAction(
@@ -209,4 +217,41 @@ export async function withdrawProjectAction(
   }
   refresh();
   return { success: "Withdrawn from the pipeline." };
+}
+
+/** "Fill from teaser" (22 Nov): values for the Key facts form, read from the current PDF teaser; not saved. */
+export async function teaserFactsAction(projectId: string): Promise<{
+  values?: ProjectFormValues;
+  filled?: string;
+  error?: string;
+}> {
+  const viewer = await requireViewer();
+  try {
+    const facts = await readProjectTeaserFacts(viewer, projectId);
+    if (!facts) {
+      return {
+        error:
+          "Nothing could be read from the current teaser (it may be a scanned image or not a PDF). Please enter the details by hand.",
+      };
+    }
+    const values: ProjectFormValues = {};
+    if (facts.title) values.title = facts.title;
+    if (facts.sector) values.sector = facts.sector;
+    if (facts.region) values.region = facts.region;
+    if (facts.pppModel) values.pppModel = facts.pppModel;
+    if (facts.sizeMinUsdMillion !== undefined) {
+      values.sizeMinUsdMillion = String(facts.sizeMinUsdMillion);
+    }
+    if (facts.sizeMaxUsdMillion !== undefined) {
+      values.sizeMaxUsdMillion = String(facts.sizeMaxUsdMillion);
+    }
+    if (facts.developmentStage)
+      values.developmentStage = facts.developmentStage;
+    return { values, filled: describeFacts(Object.keys(facts)) };
+  } catch (error) {
+    if (error instanceof WorkspaceError) {
+      return { error: WORKSPACE_MESSAGES[error.code] };
+    }
+    throw error;
+  }
 }

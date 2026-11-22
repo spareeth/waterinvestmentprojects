@@ -166,9 +166,14 @@ export default async function WorkspaceProjectPage({
                 Key facts
               </h2>
               <ProjectForm
+                // Remount after a save or a teaser upload, so the fields show what is stored now.
+                key={project.updatedAt.toISOString()}
                 mode="edit"
                 projectId={project.id}
                 readOnly={!permissions.edit}
+                canFillFromTeaser={Boolean(
+                  currentTeaser?.filename.toLowerCase().endsWith(".pdf"),
+                )}
                 defaults={{
                   title: project.title,
                   sector: project.sector,

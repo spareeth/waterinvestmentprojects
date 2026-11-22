@@ -28,9 +28,12 @@ import { getEnv } from "@/lib/env";
 import { type BlobStore, getBlobStore, teaserBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import { requestScanSweep } from "@/lib/storage/scanner";
+import { projectNameFromFilename } from "@/lib/submission/input";
+import { factFields, type TeaserFacts } from "@/lib/teaser/facts";
+import { teaserFactsFromFile } from "@/lib/teaser/pdf-text";
 import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WorkspaceError } from "./errors";
-import type { ProjectInput } from "./project-input";
+import { millionToUsd, type ProjectInput } from "./project-input";
 import { cleanFilename, isPdfFilename, teaserFileProblem } from "./teaser-file";
 
 // Country workspace (M5, PLAN F3/F4; v0.3 since M1): create and edit projects, upload teaser versions, publish
@@ -62,6 +65,8 @@ export interface WorkspaceOptions {
   store?: BlobStore;
   /** Defaults to UPLOAD_SCAN. */
   scanMode?: ScanMode;
+  /** uploadTeaser: receives the project fields filled in from the teaser (22 Nov), for the success message. */
+  report?: { filled: string[] };
 }
 
 /** The consent tick on the workspace upload form. */
@@ -298,7 +303,7 @@ export async function uploadTeaser(
   file: TeaserUpload,
   fields: TeaserFields,
   ack: AcknowledgementInput | null,
-  { meta, store, scanMode, now = new Date() }: WorkspaceOptions = {},
+  { meta, store, scanMode, report, now = new Date() }: WorkspaceOptions = {},
 ): Promise<string> {
   // Permission first, so nothing is written to storage for someone who may not upload.
   const before = await findWorkspaceProjectFor(viewer, projectId);
@@ -316,6 +321,10 @@ export async function uploadTeaser(
   const sha256 = createHash("sha256").update(file.bytes).digest("hex");
   const filename = cleanFilename(file.name);
   const blobKey = teaserBlobKey(projectId, randomUUID());
+  // 22 Nov: key facts from the teaser fill the project's empty fields (an admin reviews them before publishing).
+  const facts = await teaserFactsFromFile(file.bytes, "pdf", [
+    before.country.name,
+  ]);
   await blobs.put(blobKey, file.bytes);
 
   try {
@@ -351,7 +360,12 @@ export async function uploadTeaser(
       const previous = await tx.document.findFirst({
         where: { projectId, kind: DocumentKind.TEASER },
         orderBy: { version: "desc" },
-        select: { id: true, version: true, supersededById: true },
+        select: {
+          id: true,
+          version: true,
+          supersededById: true,
+          filename: true,
+        },
       });
       const version = (previous?.version ?? 0) + 1;
       const doc = await tx.document.create({
@@ -423,6 +437,13 @@ export async function uploadTeaser(
         },
         tx,
       );
+      const filled = await fillProjectFromTeaser(tx, projectId, facts, {
+        previousFilename: previous?.filename ?? null,
+        actorId: viewer.id,
+        documentId: doc.id,
+        meta,
+      });
+      report?.filled.push(...filled);
       await writeAudit(
         {
           actorId: null,
@@ -621,4 +642,109 @@ export async function withdrawProject(
       tx,
     );
   });
+}
+
+/**
+ * Fills a project's empty key fields from its teaser (22 Nov). Never overwrites what someone entered: only empty
+ * fields, and the title only while it is still the one made from the file name. Audited as project.update.
+ * Returns the fields it filled.
+ */
+async function fillProjectFromTeaser(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  facts: TeaserFacts,
+  ctx: {
+    previousFilename: string | null;
+    actorId: string;
+    documentId: string;
+    meta?: RequestMeta;
+  },
+): Promise<string[]> {
+  if (factFields(facts).length === 0) return [];
+  const project = await tx.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: {
+      title: true,
+      sector: true,
+      region: true,
+      pppModel: true,
+      sizeMinUsd: true,
+      sizeMaxUsd: true,
+      developmentStage: true,
+    },
+  });
+  const data: Prisma.ProjectUpdateInput = {};
+  const autoTitles = [
+    "Project teaser",
+    ...(ctx.previousFilename
+      ? [projectNameFromFilename(ctx.previousFilename)]
+      : []),
+  ];
+  if (facts.title && autoTitles.includes(project.title))
+    data.title = facts.title;
+  if (facts.region && !project.region) data.region = facts.region;
+  if (facts.pppModel && !project.pppModel) data.pppModel = facts.pppModel;
+  if (!project.sizeMinUsd && !project.sizeMaxUsd) {
+    if (facts.sizeMinUsdMillion !== undefined) {
+      data.sizeMinUsd = millionToUsd(facts.sizeMinUsdMillion);
+    }
+    if (facts.sizeMaxUsdMillion !== undefined) {
+      data.sizeMaxUsd = millionToUsd(facts.sizeMaxUsdMillion);
+    }
+  }
+  if (facts.developmentStage && !project.developmentStage) {
+    data.developmentStage = facts.developmentStage;
+  }
+  const filled = Object.keys(data).map((k) =>
+    k === "sizeMinUsd" || k === "sizeMaxUsd" ? "sizeMinUsdMillion" : k,
+  );
+  if (filled.length === 0) return [];
+  await tx.project.update({ where: { id: projectId }, data });
+  await writeAudit(
+    {
+      actorId: ctx.actorId,
+      action: WORKSPACE_AUDIT.PROJECT_UPDATE,
+      entityType: "Project",
+      entityId: projectId,
+      meta: ctx.meta,
+      metadata: {
+        source: "teaser",
+        documentId: ctx.documentId,
+        fields: [...new Set(filled)],
+      },
+    },
+    tx,
+  );
+  return [...new Set(filled)];
+}
+
+/**
+ * "Fill from teaser" on the project page (22 Nov): the key facts read from the project's current PDF teaser, for
+ * an admin to review in the form before saving. Nothing is written. Admins only (canEditProject); null when the
+ * project has no PDF teaser or nothing could be read.
+ */
+export async function readProjectTeaserFacts(
+  viewer: Viewer,
+  projectId: string,
+  { store }: Pick<WorkspaceOptions, "store"> = {},
+): Promise<TeaserFacts | null> {
+  const project = await findWorkspaceProjectFor(viewer, projectId);
+  if (!project) throw new WorkspaceError("not_found");
+  if (!canEditProject(viewer)) throw new WorkspaceError("forbidden");
+  const teaser = await db.document.findFirst({
+    where: {
+      projectId,
+      kind: DocumentKind.TEASER,
+      supersededById: null,
+      filename: { endsWith: ".pdf", mode: "insensitive" },
+    },
+    orderBy: { version: "desc" },
+    select: { blobKey: true },
+  });
+  if (!teaser) return null;
+  const file = await (store ?? getBlobStore()).get(teaser.blobKey);
+  if (!file) return null;
+  const bytes = new Uint8Array(await new Response(file.stream).arrayBuffer());
+  const facts = await teaserFactsFromFile(bytes, "pdf", [project.country.name]);
+  return factFields(facts).length > 0 ? facts : null;
 }

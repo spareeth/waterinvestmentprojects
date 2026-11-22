@@ -32,6 +32,9 @@ import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
 import { type BlobStore, getBlobStore, submissionBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import { requestScanSweep } from "@/lib/storage/scanner";
+import { factFields, type TeaserFacts } from "@/lib/teaser/facts";
+import { teaserFactsFromFile } from "@/lib/teaser/pdf-text";
+import { millionToUsd } from "@/lib/workspace/project-input";
 import {
   cleanFilename,
   detectTeaserType,
@@ -437,6 +440,8 @@ async function storeSubmission(
     blobKey: string;
     sha256: string;
     filename: string;
+    /** Key facts read from a PDF teaser (22 Nov), to fill the new draft project. */
+    facts: TeaserFacts;
   })[] = [];
 
   let receipt: Omit<SubmissionReceipt, "emailSent">;
@@ -449,6 +454,9 @@ async function storeSubmission(
         blobKey,
         sha256: createHash("sha256").update(teaser.file.bytes).digest("hex"),
         filename: cleanFilename(teaser.file.name, teaser.type),
+        facts: await teaserFactsFromFile(teaser.file.bytes, teaser.type, [
+          target.name,
+        ]),
       });
     }
 
@@ -499,13 +507,21 @@ async function storeSubmission(
       const projectIds: string[] = [];
       const documentIds: string[] = [];
       for (const teaser of stored) {
-        const title = projectNameFromFilename(teaser.filename);
+        // The sector is the one chosen in the form; the rest may come from the teaser (an admin reviews it).
+        const facts = teaser.facts;
+        const title = facts.title ?? projectNameFromFilename(teaser.filename);
+        const fromTeaser = factFields({ ...facts, sector: undefined });
         const project = await tx.project.create({
           data: {
             countryId: target.id,
             submissionId: submission.id,
             title,
             sector: teaser.sector,
+            region: facts.region ?? null,
+            pppModel: facts.pppModel ?? null,
+            sizeMinUsd: millionToUsd(facts.sizeMinUsdMillion ?? null),
+            sizeMaxUsd: millionToUsd(facts.sizeMaxUsdMillion ?? null),
+            developmentStage: facts.developmentStage ?? null,
             status: ProjectStatus.DRAFT,
           },
           select: { id: true },
@@ -542,6 +558,7 @@ async function storeSubmission(
               title,
               sector: teaser.sector,
               source: origin,
+              fromTeaser,
             },
           },
           tx,

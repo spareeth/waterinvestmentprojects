@@ -26,6 +26,8 @@ import {
   submitWorkspaceTeasers,
 } from "@/lib/submission/service";
 import { SUBMISSION_FIELDS } from "@/lib/submission/input";
+import { readProjectTeaserFacts, uploadTeaser } from "@/lib/workspace/service";
+import { buildPlaceholderPdf } from "../../prisma/seed/pdf";
 import { cleanUp, createUser, viewerFor } from "./helpers";
 
 const C = { a: "it-wsu-a", b: "it-wsu-b", x: "it-wsu-x" } as const;
@@ -259,5 +261,122 @@ describe("Add project from My projects", () => {
     const fe = (result as SubmissionError).fieldErrors;
     expect(fe).toHaveProperty(SUBMISSION_FIELDS.acknowledge);
     expect(fe).toHaveProperty(SUBMISSION_FIELDS.teaser(0));
+  });
+
+  it("fills the draft project's key facts from a PDF teaser in the WBG layout (22 Nov)", async () => {
+    const bytes = buildPlaceholderPdf({
+      title: "IT Workspace A - COASTAL REUSE PLANT",
+      subtitle: "WASTEWATER AND REUSE | North Fictional Coast",
+      lines: [
+        "PPP MODEL",
+        "Design-Build-Operate (DBO)",
+        "TOTAL PROJECT SIZE",
+        "US$40-60m CAPEX",
+        "DEVELOPMENT STAGE",
+        "Pre-tender",
+      ],
+    });
+    const receipt = await submitWorkspaceTeasers(
+      v.focalA,
+      input({
+        teasers: [
+          {
+            sector: "Wastewater and reuse",
+            file: { name: "teaser.pdf", bytes },
+          },
+        ],
+      }),
+      opts,
+    );
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: receipt.projectIds[0] },
+    });
+    expect(project.title).toBe("Coastal Reuse Plant");
+    expect(project.sector).toBe("Wastewater and reuse");
+    expect(project.region).toBe("North Fictional Coast");
+    expect(project.pppModel).toBe("DBO");
+    expect(project.sizeMinUsd?.toString()).toBe("40000000");
+    expect(project.sizeMaxUsd?.toString()).toBe("60000000");
+    expect(project.developmentStage).toBe("Pre-tender");
+    const created = await db.auditEvent.findFirst({
+      where: { entityId: project.id, action: "project.create" },
+    });
+    expect(created?.metadata).toMatchObject({
+      fromTeaser: expect.arrayContaining([
+        "title",
+        "pppModel",
+        "developmentStage",
+      ]),
+    });
+  });
+
+  it("keeps the file name as the title when the PDF cannot be read", async () => {
+    const receipt = await submitWorkspaceTeasers(
+      v.focalA,
+      input({
+        teasers: [{ sector: "Desalination", file: pdf("Plain_file-name") }],
+      }),
+      opts,
+    );
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: receipt.projectIds[0] },
+    });
+    expect(project.title).toBe("Plain file name");
+    expect(project.pppModel).toBeNull();
+  });
+
+  it("fills only the empty fields when the Summit team uploads a new teaser, and reads facts on request", async () => {
+    const receipt = await submitWorkspaceTeasers(
+      v.focalA,
+      input({
+        teasers: [{ sector: "Desalination", file: pdf("Harbour_plant") }],
+      }),
+      opts,
+    );
+    const projectId = receipt.projectIds[0];
+    // Someone already entered the stage: the teaser must not change it.
+    await db.project.update({
+      where: { id: projectId },
+      data: { developmentStage: "RFQ" },
+    });
+    const bytes = buildPlaceholderPdf({
+      title: "IT Workspace A - HARBOUR DESALINATION PLANT",
+      lines: [
+        "PPP MODEL",
+        "Concession",
+        "TOTAL PROJECT SIZE",
+        "Up to USD 90 million",
+        "DEVELOPMENT STAGE",
+        "Tender RFP",
+      ],
+    });
+    const report = { filled: [] as string[] };
+    await uploadTeaser(
+      v.admin,
+      projectId,
+      { name: "harbour.pdf", bytes },
+      { allowDownload: true },
+      { acknowledged: true },
+      { ...opts, report },
+    );
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+    });
+    expect(project.title).toBe("Harbour Desalination Plant");
+    expect(project.pppModel).toBe("Concession");
+    expect(project.sizeMinUsd).toBeNull();
+    expect(project.sizeMaxUsd?.toString()).toBe("90000000");
+    expect(project.developmentStage).toBe("RFQ");
+    expect(report.filled.sort()).toEqual(
+      ["pppModel", "sizeMinUsdMillion", "title"].sort(),
+    );
+    // "Fill from teaser" reads everything again (nothing saved), for admins only.
+    const facts = await readProjectTeaserFacts(v.admin, projectId, {
+      store: opts.store,
+    });
+    expect(facts?.developmentStage).toBe("RFP");
+    await expect(
+      readProjectTeaserFacts(v.focalA, projectId, { store: opts.store }),
+    ).rejects.toMatchObject({ code: "forbidden" });
   });
 });
