@@ -13,7 +13,7 @@ import { Tag } from "@/components/workspace/status-badge";
 import { UserRole, UserStatus } from "@/generated/prisma/enums";
 import { listAccounts, listCountryChoices } from "@/lib/auth/accounts";
 import { ROLE_LABEL } from "@/lib/auth/role-labels";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import {
   assignableRoles,
   canManageAccounts,
@@ -49,12 +49,7 @@ export default async function AccountsPage() {
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        viewer={viewer}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">

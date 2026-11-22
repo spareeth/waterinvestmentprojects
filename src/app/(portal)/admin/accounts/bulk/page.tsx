@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminSectionCard, AdminShell } from "@/components/admin/admin-shell";
 import { BulkAccountsForm } from "@/components/admin/bulk-accounts-form";
 import { ROLE_LABEL } from "@/lib/auth/role-labels";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { assignableRoles } from "@/lib/authz/account-policies";
 import { canBulkCreateAccounts } from "@/lib/authz/admin";
 import { appConfig } from "@/lib/config";
@@ -22,7 +22,7 @@ export default async function BulkAccountsPage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/accounts"
       title="Create accounts from a CSV"
       intro={`Each account gets its own generated password. Investors and admins change it at the first sign-in to ${appConfig.name}; country and WBG coordinator accounts keep it. Several people may be named for the same country: give each their own row. No emails are sent: you pass the details on yourself.`}

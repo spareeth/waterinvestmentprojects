@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canUseAdminConsole } from "@/lib/authz/admin";
 import { getAdminOverview } from "@/lib/admin/projects";
 
@@ -49,7 +49,7 @@ export default async function AdminPage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin"
       title="Admin"
       intro="Everything the Summit team manages: projects and their filters, countries and contacts, accounts, and exports. Every change is recorded in the audit log."

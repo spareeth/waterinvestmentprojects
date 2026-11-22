@@ -27,6 +27,8 @@ export interface AdminFormState {
   error?: string;
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** createCountryAction: the new country, so the account form can tick it straight away. */
+  countryId?: string;
 }
 
 function refused(error: unknown): AdminFormState {
@@ -58,11 +60,11 @@ export async function createCountryAction(
   });
   if (!parsed.success) return fieldErrorsOf(parsed.error.issues);
   try {
-    await createCountry(viewer, parsed.data, {
+    const created = await createCountry(viewer, parsed.data, {
       meta: requestMetaFrom(await headers()),
     });
     refresh();
-    return { message: `${parsed.data.name} added.` };
+    return { message: `${parsed.data.name} added.`, countryId: created.id };
   } catch (error) {
     return refused(error);
   }

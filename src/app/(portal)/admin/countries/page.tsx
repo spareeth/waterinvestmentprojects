@@ -9,7 +9,7 @@ import {
 } from "@/components/admin/country-forms";
 import { Tag } from "@/components/workspace/status-badge";
 import { CountryContactRole, CountryStatus } from "@/generated/prisma/enums";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canManageCountries } from "@/lib/authz/admin";
 import { listAdminCountries } from "@/lib/admin/countries";
 
@@ -27,7 +27,7 @@ export default async function AdminCountriesPage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/countries"
       title="Countries and contacts"
       intro="Focal points receive their country's meeting requests; coordinators are copied. A contact gives no access by itself: give the person an account as well (it is linked by the same email address)."

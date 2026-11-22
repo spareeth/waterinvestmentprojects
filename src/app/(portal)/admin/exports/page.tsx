@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminSectionCard, AdminShell } from "@/components/admin/admin-shell";
 import { Tag } from "@/components/workspace/status-badge";
 import { CountryStatus } from "@/generated/prisma/enums";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canExportKind } from "@/lib/authz/admin";
 import { listAdminCountries } from "@/lib/admin/countries";
 
@@ -60,7 +60,7 @@ export default async function AdminExportsPage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/exports"
       title="Exports"
       intro="CSV files open in Excel. Times are in UTC. Every download is recorded in the audit log; handle the files as confidential."

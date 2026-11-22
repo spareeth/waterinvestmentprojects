@@ -382,10 +382,10 @@ export async function listAccounts(
 /** Countries an admin can link a new account to. */
 export async function listCountryChoices(
   viewer: Viewer | null,
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; iso3: string }[]> {
   if (!canManageAccounts(viewer)) return [];
   return db.country.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, iso3: true },
   });
 }

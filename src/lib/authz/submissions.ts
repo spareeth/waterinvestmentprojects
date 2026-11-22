@@ -9,7 +9,7 @@
 
 import type { Prisma } from "@/generated/prisma/client";
 import { CountryStatus } from "@/generated/prisma/enums";
-import { isAdminViewer, type Viewer } from "./viewer";
+import { isAdminViewer, ownCountryIds, type Viewer } from "./viewer";
 
 /** Matches no submission. */
 export const NO_SUBMISSION: Prisma.SubmissionWhereInput = { id: { in: [] } };
@@ -18,6 +18,19 @@ export const NO_UPLOAD_LINK: Prisma.UploadLinkWhereInput = { id: { in: [] } };
 
 export function canManageUploadLinks(viewer: Viewer | null): boolean {
   return isAdminViewer(viewer);
+}
+
+/**
+ * 22 Nov (user request): a country focal point (COUNTRY role) adds teasers from My projects with the same form
+ * and checks as the upload link, for its own countries only. Without a country: whether the viewer may use the
+ * page at all. Coordinators, investors and admins (who use Add a project) may not.
+ */
+export function canSubmitFromWorkspace(
+  viewer: Viewer | null,
+  countryId?: string,
+): boolean {
+  const own = ownCountryIds(viewer);
+  return countryId === undefined ? own.length > 0 : own.includes(countryId);
 }
 
 export function canListSubmissions(viewer: Viewer | null): boolean {

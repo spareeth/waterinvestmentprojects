@@ -10,6 +10,7 @@ import {
 } from "@/components/workspace/status-badge";
 import {
   canCreateProject,
+  canSubmitFromWorkspace,
   canUseWorkspace,
   isAdminViewer,
   requirePortalUser,
@@ -48,13 +49,15 @@ export default async function WorkspacePage() {
   );
   const admin = isAdminViewer(viewer);
   const canAdd = canCreateProject(viewer) && countries.length > 0;
+  // 22 Nov: focal points add projects with the upload link form (teasers become draft projects).
+  const canUpload = canSubmitFromWorkspace(viewer);
   const intro = admin
     ? "All country workspaces. You can add and update projects for a country, upload a teaser once its government has consented in writing, and publish on its behalf."
-    : `${countries.map((c) => c.name).join(", ")} projects. Only your country team and the Summit administrators can see this page. The Summit team publishes teasers and updates project details.`;
+    : `${countries.map((c) => c.name).join(", ")} projects. Only your country team and the Summit administrators can see this page. Add projects by sending their one-page teasers; the Summit team checks them, publishes them and updates project details.`;
 
   return (
     <>
-      <PortalHeader name={user.name} viewer={viewer} showWorkspace />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -67,6 +70,10 @@ export default async function WorkspacePage() {
             <Button asChild size="lg">
               <Link href="/workspace/projects/new">Add a project</Link>
             </Button>
+          ) : canUpload ? (
+            <Button asChild size="lg">
+              <Link href="/workspace/upload">Add project</Link>
+            </Button>
           ) : null}
         </div>
 
@@ -76,7 +83,9 @@ export default async function WorkspacePage() {
             <p className="mt-2 text-muted-foreground">
               {canAdd
                 ? "Add a project, upload its one-page teaser and publish it to the pipeline when it is ready."
-                : "Teasers your government submits through its upload link appear here."}
+                : canUpload
+                  ? "Use Add project to send your one-page teasers. Teasers sent through your country's upload link appear here too."
+                  : "Teasers your government submits through its upload link appear here."}
             </p>
           </section>
         ) : (

@@ -4,11 +4,7 @@ import { PipelineFilterBar } from "@/components/pipeline/pipeline-filters";
 import { ProjectCard } from "@/components/pipeline/project-card";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { Button } from "@/components/ui/button";
-import {
-  canListSubmissions,
-  canUseWorkspace,
-  requirePortalUser,
-} from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { hasActiveFilters, parsePipelineFilters } from "@/lib/pipeline/filters";
 import { listPipelineProjects, pipelineFacets } from "@/lib/pipeline/service";
 
@@ -46,12 +42,7 @@ export default async function PipelinePage({
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        viewer={viewer}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin={canListSubmissions(viewer)}
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <section className="border-b border-water-200 bg-linear-to-b from-water-100 to-water-50">
         <div className="mx-auto flex w-full max-w-page flex-wrap items-end justify-between gap-6 px-4 py-8 sm:px-8">
           <div className="max-w-3xl min-w-0">

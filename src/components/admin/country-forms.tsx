@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type FormEvent,
-  type KeyboardEvent,
-  useId,
-  useState,
-  useTransition,
-} from "react";
+import { type FormEvent, useState, useTransition } from "react";
 import {
   type AdminFormState,
   addContactAction,
@@ -26,7 +20,7 @@ import {
 } from "@/components/workspace/form-controls";
 import { CountryContactRole } from "@/generated/prisma/enums";
 import { CONTACT_ROLE_LABEL } from "@/lib/admin/contacts-input";
-import { searchWorldCountries, type WorldCountry } from "@/lib/countries/world";
+import { WorldCountrySearch } from "./world-country-search";
 
 // Countries, contacts and account switches for the admin console (M7). Forms call their server actions from a
 // submit handler (not useActionState), like the upload link forms, because of the production hydration problem
@@ -76,119 +70,34 @@ export function CreateCountryForm({
 }) {
   const [name, setName] = useState("");
   const [iso3, setIso3] = useState("");
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
   const { state, pending, submit } = useFormAction(
     createCountryAction,
     true,
     () => {
       setName("");
       setIso3("");
-      setOpen(false);
     },
   );
   const fe = state.fieldErrors ?? {};
-  const listId = useId();
-  const taken = new Set(existing.map((c) => c.toUpperCase()));
-  const matches = open ? searchWorldCountries(name) : [];
-  const shown = matches.length > 0;
-
-  function pick(country: WorldCountry) {
-    setName(country.name);
-    setIso3(country.iso3);
-    setOpen(false);
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      if (!open) {
-        setOpen(true);
-        setActive(0);
-        return;
-      }
-      if (!shown) return;
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActive((i) => (i + step + matches.length) % matches.length);
-    } else if (event.key === "Enter" && shown) {
-      event.preventDefault();
-      pick(matches[Math.min(active, matches.length - 1)]);
-    } else if (event.key === "Escape" && shown) {
-      event.preventDefault();
-      setOpen(false);
-    }
-  }
 
   return (
     <form className="flex flex-col gap-3" onSubmit={submit}>
       <div className="grid gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-start">
-        <FieldShell
+        <WorldCountrySearch
           id="country-name"
           label="Country name"
           hint="Type a few letters and pick the country; the ISO code fills in."
           error={fe.name}
-        >
-          <div className="relative">
-            <TextInput
-              name="name"
-              required
-              maxLength={100}
-              autoComplete="off"
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={shown}
-              aria-controls={listId}
-              aria-activedescendant={
-                shown ? `${listId}-${matches[active]?.iso3}` : undefined
-              }
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                setOpen(true);
-                setActive(0);
-              }}
-              onKeyDown={onKeyDown}
-              onBlur={() => setOpen(false)}
-              {...describe("country-name", true, fe.name)}
-            />
-            {shown ? (
-              <ul
-                id={listId}
-                role="listbox"
-                aria-label="Matching countries"
-                className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-auto rounded-lg border bg-card py-1 shadow-lg"
-              >
-                {matches.map((country, i) => {
-                  const added = taken.has(country.iso3);
-                  return (
-                    <li
-                      key={country.iso3}
-                      id={`${listId}-${country.iso3}`}
-                      role="option"
-                      aria-selected={i === active}
-                      // mousedown, not click: picking must happen before the input's blur closes the list.
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        pick(country);
-                      }}
-                      onMouseEnter={() => setActive(i)}
-                      className={`flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm ${
-                        i === active ? "bg-muted" : ""
-                      }`}
-                    >
-                      <span>{country.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {added
-                          ? `${country.iso3}, already added`
-                          : country.iso3}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        </FieldShell>
+          name="name"
+          required
+          value={name}
+          onValueChange={setName}
+          onPick={(country) => {
+            setName(country.name);
+            setIso3(country.iso3);
+          }}
+          existing={existing}
+        />
         <FieldShell
           id="country-iso3"
           label="ISO code (3 letters)"

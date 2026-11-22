@@ -34,12 +34,7 @@ export default async function HomePage() {
     : null;
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        viewer={viewer}
-        showWorkspace={workspace}
-        showAdmin={admin}
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <p className="text-sm font-bold text-brand-teal uppercase">

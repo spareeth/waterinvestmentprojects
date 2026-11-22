@@ -7,6 +7,7 @@ import {
   createAccountAction,
   resetPasswordAction,
 } from "@/app/(portal)/admin/accounts/actions";
+import { createCountryAction } from "@/app/(portal)/admin/countries/actions";
 import { Button } from "@/components/ui/button";
 import {
   describe,
@@ -17,6 +18,8 @@ import {
 } from "@/components/workspace/form-controls";
 import type { UserRole } from "@/generated/prisma/enums";
 import { ROLE_HINT, ROLE_LABEL } from "@/lib/auth/role-labels";
+import type { WorldCountry } from "@/lib/countries/world";
+import { WorldCountrySearch } from "./world-country-search";
 
 // Like the upload link forms, these call their server actions from a submit handler (not useActionState), so a
 // temporary password shown once cannot vanish when React rebuilds the page.
@@ -69,12 +72,63 @@ export function CreateAccountForm({
   countries,
 }: {
   roles: UserRole[];
-  countries: { id: string; name: string }[];
+  /** Every country in the portal; `iso3` lets a country picked from the world list be matched. */
+  countries: { id: string; name: string; iso3?: string }[];
 }) {
   const [state, setState] = useState<AccountFormState>({});
   const [pending, startTransition] = useTransition();
   const [role, setRole] = useState<string>("");
   const needsCountries = COUNTRY_ROLES.includes(role);
+  // Ticked countries, by id. A country picked from the world list that is not in the portal yet is added first.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [adding, startAdding] = useTransition();
+  const [countryNote, setCountryNote] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  function tick(id: string, on: boolean) {
+    setSelected((now) =>
+      on
+        ? now.includes(id)
+          ? now
+          : [...now, id]
+        : now.filter((x) => x !== id),
+    );
+  }
+
+  function pickCountry(country: WorldCountry) {
+    setSearch("");
+    const known = countries.find(
+      (c) =>
+        c.iso3?.toUpperCase() === country.iso3 ||
+        c.name.toLowerCase() === country.name.toLowerCase(),
+    );
+    if (known) {
+      tick(known.id, true);
+      setCountryNote({ tone: "success", text: `${known.name} ticked.` });
+      return;
+    }
+    const data = new FormData();
+    data.set("name", country.name);
+    data.set("iso3", country.iso3);
+    startAdding(async () => {
+      const result = await createCountryAction({}, data);
+      if (result.countryId) {
+        tick(result.countryId, true);
+        setCountryNote({
+          tone: "success",
+          text: `${country.name} added to the portal and ticked.`,
+        });
+      } else {
+        setCountryNote({
+          tone: "error",
+          text: result.error ?? `${country.name} could not be added.`,
+        });
+      }
+    });
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,6 +140,8 @@ export function CreateAccountForm({
       if (result.handOut) {
         form.reset();
         setRole("");
+        setSelected([]);
+        setCountryNote(null);
       }
     });
   }
@@ -158,14 +214,15 @@ export function CreateAccountForm({
                 data-empty="countries"
                 className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground"
               >
-                No countries yet. Add the country under{" "}
+                No countries in the portal yet. Find the country below to add
+                it, or add it under{" "}
                 <Link
                   href="/admin/countries"
                   className="font-medium text-brand-deep underline underline-offset-4"
                 >
                   Admin, Countries
-                </Link>{" "}
-                first, then come back to create this account.
+                </Link>
+                .
               </p>
             ) : null}
             <div className="flex flex-wrap gap-x-5 gap-y-2">
@@ -178,12 +235,37 @@ export function CreateAccountForm({
                     type="checkbox"
                     name="countryIds"
                     value={country.id}
+                    checked={selected.includes(country.id)}
+                    onChange={(event) => tick(country.id, event.target.checked)}
                     className="size-4 accent-brand-teal"
                   />
                   {country.name}
                 </label>
               ))}
             </div>
+            <div className="max-w-md">
+              <WorldCountrySearch
+                id="account-country-search"
+                label="Another country"
+                hint="Type a few letters and pick any country. One not yet in the portal is added and ticked."
+                value={search}
+                onValueChange={setSearch}
+                onPick={pickCountry}
+                existing={countries.flatMap((c) => (c.iso3 ? [c.iso3] : []))}
+              />
+            </div>
+            {adding ? (
+              <p className="text-xs text-muted-foreground" role="status">
+                Adding the country…
+              </p>
+            ) : countryNote ? (
+              <p
+                role="status"
+                className={`text-xs ${countryNote.tone === "error" ? "text-destructive" : "text-muted-foreground"}`}
+              >
+                {countryNote.text}
+              </p>
+            ) : null}
             {errors.countryIds ? (
               <p
                 id="account-countries-error"

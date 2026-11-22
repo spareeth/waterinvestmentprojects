@@ -105,14 +105,12 @@ export type PartnerConfig = {
 function investorAcknowledgement(): {
   version: string;
   text: string;
-  isPlaceholder: boolean;
 } {
   const version = process.env.INVESTOR_ACK_VERSION?.trim();
   const text = process.env.INVESTOR_ACK_TEXT?.trim();
-  if (version && text) return { version, text, isPlaceholder: false };
+  if (version && text) return { version, text };
   return {
     version: "investor-ack-placeholder-v1",
     text: "I confirm that I will use the project teasers and other information shared through this portal only for the purposes of the Water Investment Summit and related bilateral discussions, and that I will not pass them on outside my organisation without the agreement of the country concerned.",
-    isPlaceholder: true,
   };
 }

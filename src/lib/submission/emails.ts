@@ -64,7 +64,7 @@ export function uploaderConfirmationEmail(facts: SubmissionMailFacts): {
       `On ${formatUaeTime(facts.acceptedAt)} you confirmed:`,
       `"${facts.ackText}"`,
       "",
-      "The Summit team will check the files before they are shared with the invited participants. To replace a file, upload it again through the same link and reply to this email to say which one it replaces.",
+      "The Summit team will check the files before they are shared with the invited participants. To replace a file, upload it again the same way and reply to this email to say which one it replaces.",
       "",
       `Reference: ${facts.submissionId}`,
       "",

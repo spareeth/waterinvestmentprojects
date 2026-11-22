@@ -12,7 +12,7 @@ import { CountryStatus, UserStatus } from "@/generated/prisma/enums";
 import { CONTACT_ROLE_LABEL } from "@/lib/admin/contacts-input";
 import { getAdminCountry } from "@/lib/admin/countries";
 import { ROLE_LABEL } from "@/lib/auth/role-labels";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canManageCountries } from "@/lib/authz/admin";
 
 // Reads the session and the database on the server before rendering, so it may block.
@@ -36,7 +36,7 @@ export default async function AdminCountryPage({
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/countries"
       title={country.name}
       intro={

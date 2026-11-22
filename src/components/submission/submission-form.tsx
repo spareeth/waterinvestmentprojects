@@ -1,10 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useActionState, useRef, useState } from "react";
-import {
-  type SubmitFormState,
-  submitTeasersAction,
-} from "@/app/submit/[token]/actions";
 import { Button } from "@/components/ui/button";
 import {
   describe,
@@ -14,6 +11,10 @@ import {
   TextInput,
 } from "@/components/workspace/form-controls";
 import { FIELD_MESSAGES } from "@/lib/submission/errors";
+import type {
+  SubmitFormState,
+  SubmitFormValues,
+} from "@/lib/submission/form-data";
 import {
   GOVERNMENT_ORGANISATION_MAX,
   MAX_SUBMISSION_BYTES,
@@ -40,22 +41,29 @@ let nextRowId = 1;
  * everything again, including the file contents.
  */
 export function SubmissionForm({
-  token,
+  action,
   countryName,
   countries,
   acknowledgementText,
+  defaults,
+  workspace = false,
 }: {
-  token: string;
-  /** Set on a country link: the country is fixed. */
+  /** The server action: the upload link one bound to its token, or the My projects one (22 Nov). */
+  action: (
+    prev: SubmitFormState,
+    formData: FormData,
+  ) => Promise<SubmitFormState>;
+  /** Set when the country is fixed (country link, or a focal point with one country). */
   countryName: string | null;
-  /** Generic link only. */
+  /** The countries to choose from when it is not fixed. */
   countries: { id: string; name: string }[];
   acknowledgementText: string;
+  /** Prefilled values, for example the signed-in person's name and email. */
+  defaults?: SubmitFormValues;
+  /** My projects instead of an upload link: the confirmation leads back to the projects. */
+  workspace?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(
-    submitTeasersAction.bind(null, token),
-    initial,
-  );
+  const [state, formAction, pending] = useActionState(action, initial);
   const [rows, setRows] = useState<number[]>([0]);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
@@ -98,11 +106,21 @@ export function SubmissionForm({
           {r.emailSent
             ? `We have also emailed this confirmation to ${r.uploaderEmail}. You can print or save this page too.`
             : "Please print or save this page, or note the reference."}{" "}
-          To replace a file, send it again through this link and tell the Summit
-          team which one it replaces.
+          {workspace
+            ? "The projects are now in My projects as drafts; the Summit team checks each teaser before publishing it. To replace a file, send it again and tell the Summit team which one it replaces."
+            : "To replace a file, send it again through this link and tell the Summit team which one it replaces."}
         </p>
         <div className="flex flex-wrap gap-3 print:hidden">
-          <Button type="button" onClick={() => window.print()}>
+          {workspace ? (
+            <Button asChild>
+              <Link href="/workspace">Back to My projects</Link>
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant={workspace ? "outline" : "default"}
+            onClick={() => window.print()}
+          >
             Print or save this page
           </Button>
           <Button
@@ -118,7 +136,7 @@ export function SubmissionForm({
   }
 
   const e = { ...(state.fieldErrors ?? {}), ...localErrors };
-  const v = state.values ?? {};
+  const v = state.values ?? defaults ?? {};
 
   function checkSizes(event: FormEvent<HTMLFormElement>) {
     const errors: Record<string, string> = {};

@@ -6,30 +6,30 @@ import {
   canListOwnMeetingRequests,
   canViewRequestInbox,
 } from "@/lib/authz/requests";
+import { canListSubmissions } from "@/lib/authz/submissions";
 import type { Viewer } from "@/lib/authz/viewer";
+import { canUseWorkspace } from "@/lib/authz/workspace";
 
 const linkClass =
   "rounded-md text-white/90 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-aqua/60 focus-visible:outline-none";
 
 /**
- * Top bar for signed-in pages. Which links appear is decided by the page through src/lib/authz
- * (canUseWorkspace, canListSubmissions) and passed in; hiding a link is convenience only, every page checks again.
+ * Top bar for signed-in pages. The links are decided here from the viewer through src/lib/authz, so every page
+ * shows the same tabs for the same person (22 Nov: My projects and the admin pages used to drop some). Hiding a
+ * link is convenience only, every page checks again.
  */
 export function PortalHeader({
   name,
-  showWorkspace,
-  showAdmin = false,
   viewer,
 }: {
   name: string;
-  showWorkspace: boolean;
-  /** Upload links and submissions (M0) and accounts (M2), for Summit and platform admins. */
-  showAdmin?: boolean;
-  /** M5: decides the meeting request links (investor's own requests, country request inbox) through src/lib/authz. */
-  viewer?: Viewer | null;
+  viewer: Viewer | null;
 }) {
-  const showRequests = canListOwnMeetingRequests(viewer ?? null);
-  const showInbox = canViewRequestInbox(viewer ?? null);
+  const showWorkspace = canUseWorkspace(viewer);
+  /** Upload links and submissions (M0) and accounts (M2), for Summit and platform admins. */
+  const showAdmin = canListSubmissions(viewer);
+  const showRequests = canListOwnMeetingRequests(viewer);
+  const showInbox = canViewRequestInbox(viewer);
   return (
     <SiteHeader>
       <Link href="/home" className={linkClass}>

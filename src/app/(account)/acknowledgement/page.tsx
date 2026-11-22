@@ -24,12 +24,6 @@ export default async function InvestorAcknowledgementPage() {
       description="The project teasers are shared by the participating Governments for the Water Investment Summit. Please confirm how you will use them."
       header={<AccountHeader name={user.name} />}
     >
-      {ack.isPlaceholder ? (
-        <p className="mb-4 rounded-lg bg-pending px-3 py-2 text-xs text-pending-foreground">
-          Placeholder wording for the demonstration. The final text will be
-          confirmed by the Summit team.
-        </p>
-      ) : null}
       <InvestorAckForm text={ack.text} />
     </AuthPage>
   );

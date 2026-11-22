@@ -11,6 +11,7 @@ import { appConfig } from "@/lib/config";
 import { formatUaeTime } from "@/lib/submission/format";
 import { SUBMISSION_MESSAGES } from "@/lib/submission/errors";
 import { openUploadLink } from "@/lib/submission/service";
+import { submitTeasersAction } from "./actions";
 
 // Reads the database on the server before rendering, so it may block.
 export const instant = false;
@@ -127,7 +128,7 @@ export default async function SubmitPage({
       </div>
       <div className="mt-6">
         <SubmissionForm
-          token={token}
+          action={submitTeasersAction.bind(null, token)}
           countryName={page.country?.name ?? null}
           countries={page.countries}
           acknowledgementText={appConfig.uploadAcknowledgement.text}

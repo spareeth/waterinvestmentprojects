@@ -9,11 +9,7 @@ import {
   RevokeLinkForm,
 } from "@/components/submission/upload-link-forms";
 import { Tag } from "@/components/workspace/status-badge";
-import {
-  canManageUploadLinks,
-  canUseWorkspace,
-  requirePortalUser,
-} from "@/lib/authz";
+import { canManageUploadLinks, requirePortalUser } from "@/lib/authz";
 import { formatUaeTime } from "@/lib/submission/format";
 import { defaultLinkExpiryDate } from "@/lib/submission/input";
 import {
@@ -65,12 +61,7 @@ export default async function UploadLinksPage() {
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        viewer={viewer}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">

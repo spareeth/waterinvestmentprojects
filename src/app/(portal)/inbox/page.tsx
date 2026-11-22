@@ -13,8 +13,6 @@ import { MeetingRequestStatus } from "@/generated/prisma/enums";
 import { requestMetaFrom } from "@/lib/audit";
 import {
   canExportMeetingRequests,
-  canListSubmissions,
-  canUseWorkspace,
   canViewRequestInbox,
   isAdminViewer,
   requirePortalUser,
@@ -101,12 +99,7 @@ export default async function InboxPage({
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin={canListSubmissions(viewer)}
-        viewer={viewer}
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

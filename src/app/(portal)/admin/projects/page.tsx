@@ -6,7 +6,7 @@ import { ProjectTable } from "@/components/admin/project-table";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/workspace/form-controls";
 import { CountryStatus, ProjectStatus } from "@/generated/prisma/enums";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canUseAdminConsole } from "@/lib/authz/admin";
 import { listAdminCountries } from "@/lib/admin/countries";
 import { listAdminProjects } from "@/lib/admin/projects";
@@ -54,7 +54,7 @@ export default async function AdminProjectsPage({
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/projects"
       title="Projects"
       intro="All projects of all countries. Fill in PPP model, size and development stage (here through Edit, or many at once by CSV import), then publish. A project can be published once its teaser has passed the virus check."

@@ -7,7 +7,7 @@ import {
   tableRowClass,
 } from "@/components/ui/table-styles";
 import { MeetingRequestStatus } from "@/generated/prisma/enums";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canUseAdminConsole } from "@/lib/authz/admin";
 import { MEETING_SCHEDULE } from "@/lib/meetings/schedule";
 import { getMeetingSchedule, type ScheduleSlot } from "@/lib/meetings/slots";
@@ -29,7 +29,7 @@ export default async function MeetingSchedulePage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/meetings"
       title="Meeting schedule"
       intro={`Bilateral meetings in ${MEETING_SCHEDULE.rooms.join(" and ")}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers.`}

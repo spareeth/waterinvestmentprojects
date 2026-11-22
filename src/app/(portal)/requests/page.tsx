@@ -6,9 +6,7 @@ import { WithdrawRequestForm } from "@/components/requests/request-forms";
 import { RequestStatusBadge } from "@/components/requests/request-status-badge";
 import { requestMetaFrom } from "@/lib/audit";
 import {
-  canListSubmissions,
   canListOwnMeetingRequests,
-  canUseWorkspace,
   canWithdrawMeetingRequest,
   requirePortalUser,
 } from "@/lib/authz";
@@ -31,12 +29,7 @@ export default async function MyRequestsPage() {
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin={canListSubmissions(viewer)}
-        viewer={viewer}
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">

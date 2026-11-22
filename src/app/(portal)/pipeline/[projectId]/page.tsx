@@ -12,11 +12,7 @@ import { PortalHeader } from "@/components/portal/portal-header";
 import { MeetingRequestPanel } from "@/components/requests/meeting-request-panel";
 import { Button } from "@/components/ui/button";
 import { requestMetaFrom } from "@/lib/audit";
-import {
-  canListSubmissions,
-  canUseWorkspace,
-  requirePortalUser,
-} from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { formatUsdRange, pipelineHref } from "@/lib/pipeline/filters";
 import { getPipelineProject } from "@/lib/pipeline/service";
 import { PROJECT_TYPE_LABEL } from "@/lib/workspace/project-input";
@@ -62,12 +58,7 @@ export default async function PipelineProjectPage({
 
   return (
     <>
-      <PortalHeader
-        name={user.name}
-        viewer={viewer}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin={canListSubmissions(viewer)}
-      />
+      <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-8 sm:px-8 sm:py-10">
         <div>
           <nav

@@ -1,7 +1,6 @@
 import { LandingPage } from "@/components/landing/landing-page";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { getCurrentSession } from "@/lib/auth/session";
-import { canListSubmissions, canUseWorkspace } from "@/lib/authz";
 import { viewerFrom } from "@/lib/authz/viewer";
 import { getEnv } from "@/lib/env";
 
@@ -18,12 +17,7 @@ export default async function Home() {
   const viewer = viewerFrom(session);
   const portalHeader =
     session && viewer ? (
-      <PortalHeader
-        name={session.user.name}
-        viewer={viewer}
-        showWorkspace={canUseWorkspace(viewer)}
-        showAdmin={canListSubmissions(viewer)}
-      />
+      <PortalHeader name={session.user.name} viewer={viewer} />
     ) : null;
   return (
     <LandingPage

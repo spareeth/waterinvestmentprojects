@@ -12,8 +12,11 @@ import { type RequestMeta, writeAudit } from "@/lib/audit";
 import {
   canListSubmissions,
   canManageUploadLinks,
+  canSubmitFromWorkspace,
   generateUploadToken,
   hashUploadToken,
+  ownCountryIds,
+  type ResolvedUploadLink,
   resolveUploadLink,
   submissionCountryId,
   submissionWhere,
@@ -211,6 +214,10 @@ async function recordUploaderContact(
     submissionId: string;
   },
   meta: RequestMeta | undefined,
+  origin: { actorId: string | null; source: SubmissionOrigin } = {
+    actorId: null,
+    source: "upload_link",
+  },
 ): Promise<string | null> {
   const email = contact.email.trim().toLowerCase();
   const role = CountryContactRole.FOCAL_POINT;
@@ -245,7 +252,7 @@ async function recordUploaderContact(
   });
   await writeAudit(
     {
-      actorId: null,
+      actorId: origin.actorId,
       action: SUBMISSION_AUDIT.CONTACT_CREATE,
       entityType: "CountryContact",
       entityId: created.id,
@@ -255,7 +262,7 @@ async function recordUploaderContact(
         role,
         name: contact.name,
         email,
-        source: "upload_link",
+        source: origin.source,
         submissionId: contact.submissionId,
       },
     },
@@ -289,19 +296,84 @@ export async function submitTeasers(
       resolved.state === "expired" ? "link_expired" : "link_invalid",
     );
   }
-  const link = resolved.link;
+  return storeSubmission({ kind: "link", link: resolved.link }, input, {
+    ...options,
+    now,
+  });
+}
+
+/**
+ * 22 Nov (user request): a country focal point adds teasers from My projects ("Add project"), with the same
+ * form, checks, storage, audit and emails as the upload link. No link: the signed-in account authorises it, for
+ * its own ACTIVE countries only (canSubmitFromWorkspace); the audit events name the account.
+ */
+export async function submitWorkspaceTeasers(
+  viewer: Viewer,
+  input: SubmissionInput,
+  options: SubmissionOptions = {},
+): Promise<SubmissionReceipt> {
+  if (!canSubmitFromWorkspace(viewer)) throw new SubmissionError("forbidden");
+  return storeSubmission({ kind: "workspace", viewer }, input, options);
+}
+
+/** Countries a focal point can send teasers for from My projects (own and ACTIVE). */
+export async function listWorkspaceSubmissionCountries(
+  viewer: Viewer,
+): Promise<{ id: string; name: string }[]> {
+  if (!canSubmitFromWorkspace(viewer)) return [];
+  return db.country.findMany({
+    where: { id: { in: ownCountryIds(viewer) }, status: CountryStatus.ACTIVE },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+type SubmissionOrigin = "upload_link" | "workspace";
+
+type SubmissionSource =
+  | { kind: "link"; link: NonNullable<ResolvedUploadLink["link"]> }
+  | { kind: "workspace"; viewer: Viewer };
+
+async function storeSubmission(
+  source: SubmissionSource,
+  input: SubmissionInput,
+  options: SubmissionOptions,
+): Promise<SubmissionReceipt> {
+  const { meta, now = new Date() } = options;
+  const link = source.kind === "link" ? source.link : null;
+  const actorId = source.kind === "workspace" ? source.viewer.id : null;
+  const origin: SubmissionOrigin =
+    source.kind === "link" ? "upload_link" : "workspace";
   const fieldErrors: Record<string, string> = {};
 
-  // The country comes from the link; only the generic link lets the uploader choose (an ACTIVE country).
-  const countryId = submissionCountryId(link, input.countryId);
-  let country = link.country;
-  if (link.countryId === null) {
-    country = countryId
-      ? await db.country.findFirst({
-          where: { id: countryId, status: CountryStatus.ACTIVE },
-          select: { id: true, name: true },
-        })
-      : null;
+  let country: { id: string; name: string } | null;
+  if (source.kind === "link") {
+    // The country comes from the link; only the generic link lets the uploader choose (an ACTIVE country).
+    const countryId = submissionCountryId(source.link, input.countryId);
+    country = source.link.country;
+    if (source.link.countryId === null) {
+      country = countryId
+        ? await db.country.findFirst({
+            where: { id: countryId, status: CountryStatus.ACTIVE },
+            select: { id: true, name: true },
+          })
+        : null;
+      if (!country)
+        fieldErrors[SUBMISSION_FIELDS.countryId] = FIELD_MESSAGES.countryId;
+    }
+  } else {
+    // My projects: one of the focal point's own ACTIVE countries; with only one, it needs no choosing.
+    const viewer = source.viewer;
+    const own = ownCountryIds(viewer);
+    const requested =
+      input.countryId?.trim() || (own.length === 1 ? own[0] : "");
+    country =
+      requested && canSubmitFromWorkspace(viewer, requested)
+        ? await db.country.findFirst({
+            where: { id: requested, status: CountryStatus.ACTIVE },
+            select: { id: true, name: true },
+          })
+        : null;
     if (!country)
       fieldErrors[SUBMISSION_FIELDS.countryId] = FIELD_MESSAGES.countryId;
   }
@@ -381,27 +453,38 @@ export async function submitTeasers(
     }
 
     receipt = await db.$transaction(async (tx) => {
-      // The link may have been revoked while the files were being stored.
-      const fresh = await tx.uploadLink.findUnique({
-        where: { id: link.id },
-        select: {
-          countryId: true,
-          expiresAt: true,
-          revokedAt: true,
-          country: { select: { status: true } },
-        },
-      });
-      const state = uploadLinkState(fresh, now);
-      if (state !== "valid") {
-        throw new SubmissionError(
-          state === "expired" ? "link_expired" : "link_invalid",
-        );
+      if (link) {
+        // The link may have been revoked while the files were being stored.
+        const fresh = await tx.uploadLink.findUnique({
+          where: { id: link.id },
+          select: {
+            countryId: true,
+            expiresAt: true,
+            revokedAt: true,
+            country: { select: { status: true } },
+          },
+        });
+        const state = uploadLinkState(fresh, now);
+        if (state !== "valid") {
+          throw new SubmissionError(
+            state === "expired" ? "link_expired" : "link_invalid",
+          );
+        }
+      } else {
+        // The country may have been switched off while the files were being stored.
+        const fresh = await tx.country.findUnique({
+          where: { id: target.id },
+          select: { status: true },
+        });
+        if (fresh?.status !== CountryStatus.ACTIVE) {
+          throw new SubmissionError("forbidden");
+        }
       }
 
       const submission = await tx.submission.create({
         data: {
           countryId: target.id,
-          uploadLinkId: link.id,
+          uploadLinkId: link?.id ?? null,
           uploaderName,
           uploaderEmail,
           uploaderJobTitle,
@@ -440,7 +523,7 @@ export async function submitTeasers(
             sha256: teaser.sha256,
             sizeBytes: teaser.file.bytes.byteLength,
             scanStatus: scan.scanStatus,
-            uploadedById: null,
+            uploadedById: actorId,
           },
           select: { id: true },
         });
@@ -448,7 +531,7 @@ export async function submitTeasers(
         documentIds.push(doc.id);
         await writeAudit(
           {
-            actorId: null,
+            actorId,
             action: SUBMISSION_AUDIT.PROJECT_CREATE,
             entityType: "Project",
             entityId: project.id,
@@ -458,14 +541,14 @@ export async function submitTeasers(
               submissionId: submission.id,
               title,
               sector: teaser.sector,
-              source: "upload_link",
+              source: origin,
             },
           },
           tx,
         );
         await writeAudit(
           {
-            actorId: null,
+            actorId,
             action: SUBMISSION_AUDIT.DOCUMENT_UPLOAD,
             entityType: "Document",
             entityId: doc.id,
@@ -479,14 +562,14 @@ export async function submitTeasers(
               fileType: teaser.type,
               sha256: teaser.sha256,
               sizeBytes: teaser.file.bytes.byteLength,
-              source: "upload_link",
+              source: origin,
             },
           },
           tx,
         );
         await writeAudit(
           {
-            actorId: null,
+            actorId,
             action: SUBMISSION_AUDIT.DOCUMENT_SCAN,
             entityType: "Document",
             entityId: doc.id,
@@ -499,15 +582,16 @@ export async function submitTeasers(
 
       await writeAudit(
         {
-          actorId: null,
+          actorId,
           action: SUBMISSION_AUDIT.SUBMISSION_CREATE,
           entityType: "Submission",
           entityId: submission.id,
           meta,
           metadata: {
             countryId: target.id,
-            uploadLinkId: link.id,
-            genericLink: link.countryId === null,
+            uploadLinkId: link?.id ?? null,
+            genericLink: link ? link.countryId === null : false,
+            source: origin,
             uploaderName,
             uploaderEmail,
             uploaderJobTitle,
@@ -530,6 +614,7 @@ export async function submitTeasers(
           submissionId: submission.id,
         },
         meta,
+        { actorId, source: origin },
       );
 
       return {

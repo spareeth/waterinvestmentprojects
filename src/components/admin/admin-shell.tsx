@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PortalHeader } from "@/components/portal/portal-header";
+import type { Viewer } from "@/lib/authz/viewer";
 import { cn } from "@/lib/utils";
 
 // Frame for every admin console page (M7): the portal header, a row of admin sections and the page body.
@@ -46,14 +47,14 @@ export function AdminNav({ current }: { current: AdminSection }) {
 
 export function AdminShell({
   name,
-  showWorkspace,
+  viewer,
   current,
   title,
   intro,
   children,
 }: {
   name: string;
-  showWorkspace: boolean;
+  viewer: Viewer;
   current: AdminSection;
   title: string;
   intro?: ReactNode;
@@ -61,7 +62,7 @@ export function AdminShell({
 }) {
   return (
     <>
-      <PortalHeader name={name} showWorkspace={showWorkspace} showAdmin />
+      <PortalHeader name={name} viewer={viewer} />
       <AdminNav current={current} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>

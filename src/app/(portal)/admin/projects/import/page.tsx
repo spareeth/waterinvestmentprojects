@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AdminSectionCard, AdminShell } from "@/components/admin/admin-shell";
 import { MetadataImportForm } from "@/components/admin/metadata-import-form";
-import { canUseWorkspace, requirePortalUser } from "@/lib/authz";
+import { requirePortalUser } from "@/lib/authz";
 import { canImportProjectMetadata } from "@/lib/authz/admin";
 
 // Reads the session on the server before rendering, so it may block.
@@ -17,7 +17,7 @@ export default async function ImportProjectFiltersPage() {
   return (
     <AdminShell
       name={user.name}
-      showWorkspace={canUseWorkspace(viewer)}
+      viewer={viewer}
       current="/admin/projects"
       title="Import project filters"
       intro="Fill in PPP model, size and development stage for many projects at once. Nothing is saved until you have checked the preview."
