@@ -28,14 +28,20 @@ export default async function RegisterPage() {
           Home
         </Link>
       }
+      aside={{
+        headline: "Join the Summit's water project pipeline",
+        text: "Investors and operators invited to the Water Investment Summit register here.",
+        points: [
+          "Register with your organisation details",
+          "The Summit team checks and approves each registration",
+          "Then review the teasers and request bilateral meetings",
+        ],
+      }}
     >
       <RegisterForm />
       <p className="mt-6 text-sm text-muted-foreground">
         Already registered?{" "}
-        <Link
-          href="/sign-in?as=investor"
-          className="font-medium text-brand-deep underline underline-offset-4"
-        >
+        <Link href="/sign-in?as=investor" className="link">
           Sign in
         </Link>
         . Representing a government? The Summit team gives you your account.

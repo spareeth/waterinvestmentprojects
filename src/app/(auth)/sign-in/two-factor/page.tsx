@@ -13,10 +13,7 @@ export default function SecondStepPage() {
     >
       <SecondStepForm />
       <p className="mt-6 text-sm text-muted-foreground">
-        <Link
-          href="/sign-in"
-          className="text-brand-deep underline-offset-4 hover:underline"
-        >
+        <Link href="/sign-in" className="link">
           Start again
         </Link>
       </p>

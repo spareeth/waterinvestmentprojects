@@ -97,10 +97,7 @@ export default async function SubmissionsPage() {
                 </div>
                 <p className="mt-1 text-sm">
                   {s.uploaderName}{" "}
-                  <a
-                    href={`mailto:${s.uploaderEmail}`}
-                    className="text-brand-teal hover:underline"
-                  >
+                  <a href={`mailto:${s.uploaderEmail}`} className="link">
                     {s.uploaderEmail}
                   </a>
                   {s.uploaderJobTitle ? (
@@ -162,7 +159,7 @@ export default async function SubmissionsPage() {
                             d.scanStatus === "PENDING" ? (
                               <a
                                 href={`/files/${d.id}?download=1`}
-                                className="text-sm font-medium text-brand-teal hover:underline"
+                                className="text-sm link"
                               >
                                 Download
                               </a>

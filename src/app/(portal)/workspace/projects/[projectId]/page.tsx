@@ -61,10 +61,7 @@ export default async function WorkspaceProjectPage({
       <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
-          <Link
-            href="/workspace"
-            className="text-sm text-brand-teal hover:underline"
-          >
+          <Link href="/workspace" className="text-sm link">
             Back to my projects
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -129,7 +126,7 @@ export default async function WorkspaceProjectPage({
                             href={`/files/${t.id}`}
                             target="_blank"
                             rel="noopener"
-                            className="text-sm font-medium text-brand-teal hover:underline"
+                            className="text-sm link"
                           >
                             Open
                           </a>

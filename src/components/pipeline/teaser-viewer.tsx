@@ -65,7 +65,7 @@ export function TeaserViewer({
       <iframe
         src={`${viewHref}#view=FitH&navpanes=0`}
         title={`Teaser: ${title}`}
-        className="hidden h-[80vh] min-h-[36rem] w-full rounded-lg border bg-muted md:block"
+        className="hidden h-[80vh] min-h-[36rem] w-full rounded-md border border-water-100 bg-muted md:block"
       />
       <div className="md:hidden">
         <Placeholder>
@@ -83,7 +83,7 @@ export function TeaserViewer({
           href={viewHref}
           target="_blank"
           rel="noopener"
-          className="inline-flex items-center gap-1 font-medium text-brand-teal hover:underline"
+          className="inline-flex items-center gap-1 link"
         >
           <ExternalLink aria-hidden="true" className="size-4" />
           Open in a new tab

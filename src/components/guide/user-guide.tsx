@@ -68,10 +68,7 @@ function Section({
 
 function SupportContact() {
   return appConfig.supportEmail ? (
-    <a
-      href={`mailto:${appConfig.supportEmail}`}
-      className="font-medium text-brand-deep underline underline-offset-4"
-    >
+    <a href={`mailto:${appConfig.supportEmail}`} className="link">
       {appConfig.supportEmail}
     </a>
   ) : (
@@ -135,10 +132,7 @@ export function UserGuide() {
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {GUIDE_SECTIONS.map((section) => (
             <li key={section.id}>
-              <a
-                href={`#${section.id}`}
-                className="text-brand-deep underline-offset-4 hover:underline"
-              >
+              <a href={`#${section.id}`} className="link">
                 {section.title}
               </a>
             </li>

@@ -31,7 +31,7 @@ export function PortalHeader({
   const showRequests = canListOwnMeetingRequests(viewer);
   const showInbox = canViewRequestInbox(viewer);
   return (
-    <SiteHeader>
+    <SiteHeader menuFrom={showAdmin ? "wide" : "xl"}>
       <Link href="/home" className={linkClass}>
         Home
       </Link>

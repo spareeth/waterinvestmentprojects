@@ -1,3 +1,4 @@
+import { Briefcase, Check, Landmark, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,14 +21,17 @@ export const instant = false;
 const OPTIONS = {
   country: {
     label: "Government or country",
-    hint: "Sign in with the account the Summit team gave you for your country. Project teasers are uploaded through your country's upload link.",
+    icon: Landmark,
+    hint: "Sign in with the account the Summit team gave you for your country. Add project teasers under My projects, or through your country's upload link.",
   },
   investor: {
     label: "Investor or operator",
+    icon: Briefcase,
     hint: "Sign in with the email address and password you registered with, or that the Summit team gave you.",
   },
   team: {
     label: "Summit team",
+    icon: Users,
     hint: "Sign in with your Summit team account.",
   },
 } as const;
@@ -55,25 +59,55 @@ export default async function SignInPage({
           Home
         </Link>
       }
+      aside={{
+        headline: "The Summit's water project pipeline, in one place",
+        text: "Participating governments share their project teasers; invited investors and operators review them and request bilateral meetings.",
+        points: [
+          "Personal, invitation-only access",
+          "One-page teasers from participating governments",
+          "Bilateral meetings booked through the portal",
+        ],
+      }}
     >
       <nav aria-label="I am signing in as" className="mb-6">
-        <ul className="grid gap-2 sm:grid-cols-3">
-          {(Object.keys(OPTIONS) as Option[]).map((key) => (
-            <li key={key}>
-              <Link
-                href={`/sign-in?as=${key}`}
-                aria-current={chosen === key ? "true" : undefined}
-                className={cn(
-                  "flex h-full items-center justify-center rounded-lg border px-3 py-2.5 text-center text-sm font-medium transition-colors hover:border-brand-teal focus-visible:ring-3 focus-visible:ring-brand-teal/40 focus-visible:outline-none",
-                  chosen === key
-                    ? "border-brand-teal bg-water-50 text-brand-navy"
-                    : "bg-card text-foreground/80",
-                )}
-              >
-                {OPTIONS[key].label}
-              </Link>
-            </li>
-          ))}
+        <p className="mb-2 text-sm font-semibold text-foreground">
+          I am signing in as
+        </p>
+        {/* Segmented buttons (22 Nov styling pass): an icon each and an obvious selected state. */}
+        <ul className="grid gap-1 rounded-xl bg-muted p-1 sm:grid-cols-3">
+          {(Object.keys(OPTIONS) as Option[]).map((key) => {
+            const Icon = OPTIONS[key].icon;
+            const selected = chosen === key;
+            return (
+              <li key={key}>
+                <Link
+                  href={`/sign-in?as=${key}`}
+                  aria-current={selected ? "true" : undefined}
+                  className={cn(
+                    "relative flex h-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-brand-teal/50 focus-visible:outline-none sm:flex-col sm:justify-center sm:gap-1.5 sm:text-center",
+                    selected
+                      ? "bg-card font-semibold text-brand-navy shadow-sm ring-2 ring-brand-teal"
+                      : "text-foreground/80 hover:bg-card/70 hover:text-brand-navy",
+                  )}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={cn(
+                      "size-5 shrink-0",
+                      selected ? "text-brand-deep" : "text-muted-foreground",
+                    )}
+                  />
+                  {OPTIONS[key].label}
+                  {selected ? (
+                    <Check
+                      aria-hidden="true"
+                      className="absolute top-1.5 right-1.5 size-3.5 text-brand-deep"
+                    />
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
         {chosen ? (
           <p className="mt-3 text-sm text-muted-foreground">
@@ -86,10 +120,7 @@ export default async function SignInPage({
         <p className="mt-6 text-sm text-muted-foreground">
           Investor or operator and new here?{" "}
           {registration ? (
-            <Link
-              href="/register"
-              className="font-medium text-brand-deep underline underline-offset-4"
-            >
+            <Link href="/register" className="link">
               Register here
             </Link>
           ) : (

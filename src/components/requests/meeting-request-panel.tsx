@@ -54,10 +54,7 @@ export async function MeetingRequestPanel({
           <RoomCalendar rooms={panel.rooms} readOnly />
           <WithdrawRequestForm requestId={panel.open.id} />
           <p className="text-sm">
-            <Link
-              href="/requests"
-              className="font-medium text-brand-teal hover:underline"
-            >
+            <Link href="/requests" className="link">
               See all my meeting requests
             </Link>
           </p>

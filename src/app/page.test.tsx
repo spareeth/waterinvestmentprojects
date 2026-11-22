@@ -101,54 +101,55 @@ describe("Landing page", () => {
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
   });
 
-  it("shows the partner logos in the hero in the agreed order, and only the copyright in the footer", async () => {
+  it("shows the partner logos in the hero in the agreed order, in one treatment, and again in the dark footer", async () => {
     const { container } = await renderLanding();
     const hero = screen.getByRole("region", {
       name: /A pipeline of water project opportunities/,
     });
     const list = within(hero).getByRole("list", { name: "Partners" });
-    // Order set by Sajid, 22 Nov: UNWC (logo to follow), ECD|Terra, GCFC, WBG. No MoFA logo (PLAN v0.4 0b.27).
+    // Order set by Sajid, 22 Nov: UNWC, ECD|Terra, GCFC, WBG. No MoFA logo (PLAN v0.4 0b.27). The UN Water
+    // Conference slot stays hidden until its logo file is added (styling pass, 22 Nov).
     const items = within(list).getAllByRole("listitem");
-    expect(
-      items.map((li) => li.textContent || li.querySelector("img")?.alt),
-    ).toEqual([
-      "2026 UN Water Conference",
+    expect(items.map((li) => li.querySelector("img")?.alt)).toEqual([
       "Terra, Expo City Dubai",
       "GCFC",
       "World Bank Group",
     ]);
-    expect(within(list).getByText("2026 UN Water Conference")).toHaveAttribute(
-      "data-placeholder",
-      "partner-logo",
+    expect(within(list).queryByText("2026 UN Water Conference")).toBeNull();
+    expect(
+      container.querySelector('[data-placeholder="partner-logo"]'),
+    ).toBeNull();
+    // One height for every mark.
+    const heights = new Set(
+      within(list)
+        .getAllByRole("img")
+        .map((img) => img.className.match(/\bh-\d+\b/)?.[0]),
     );
-    expect(within(list).getAllByRole("img")).toHaveLength(3);
+    expect(heights.size).toBe(1);
     expect(within(list).queryByText(/MoFA/)).toBeNull();
-    // The partner logos sit next to the hero buttons, not in the footer.
     expect(
       within(hero).getByRole("link", { name: "How access works" }),
     ).toBeInTheDocument();
+    // The footer is a dark band with the logos, the contact and the copyright.
     const footer = container.querySelector("footer");
     expect(footer).toHaveTextContent("© 2026 Terra, Expo City Dubai");
-    expect(footer?.querySelector('[aria-label="Partners"]')).toBeNull();
+    expect(footer?.querySelector('[aria-label="Partners"]')).not.toBeNull();
+    expect(footer?.className).toContain("bg-brand-navy");
     expect(container).not.toHaveTextContent(/developed by/i);
   });
 
-  it("lists the partners from config, as placeholders until logos arrive", async () => {
+  it("lists every partner from config that has a logo", async () => {
     const { appConfig } = await renderLanding();
-    const list = screen.getByRole("list", { name: "Partners" });
-    const items = within(list).getAllByRole("listitem");
-    expect(items).toHaveLength(appConfig.partners.length);
-    for (const partner of appConfig.partners) {
-      if (partner.logo) {
-        expect(
-          within(list).getByRole("img", { name: partner.name }),
-        ).toBeInTheDocument();
-      } else {
-        expect(within(list).getByText(partner.name)).toHaveAttribute(
-          "data-placeholder",
-          "partner-logo",
-        );
-      }
+    const hero = screen.getByRole("region", {
+      name: /A pipeline of water project opportunities/,
+    });
+    const list = within(hero).getByRole("list", { name: "Partners" });
+    const withLogo = appConfig.partners.filter((p) => p.logo);
+    expect(within(list).getAllByRole("listitem")).toHaveLength(withLogo.length);
+    for (const partner of withLogo) {
+      expect(
+        within(list).getByRole("img", { name: partner.name }),
+      ).toBeInTheDocument();
     }
   });
 

@@ -27,10 +27,7 @@ export default async function WorkspaceUploadPage() {
       <PortalHeader name={user.name} viewer={viewer} />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
-          <Link
-            href="/workspace"
-            className="text-sm text-brand-teal hover:underline"
-          >
+          <Link href="/workspace" className="text-sm link">
             Back to my projects
           </Link>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-brand-navy">

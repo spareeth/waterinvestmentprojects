@@ -216,10 +216,7 @@ export function CreateAccountForm({
               >
                 No countries in the portal yet. Find the country below to add
                 it, or add it under{" "}
-                <Link
-                  href="/admin/countries"
-                  className="font-medium text-brand-deep underline underline-offset-4"
-                >
+                <Link href="/admin/countries" className="link">
                   Admin, Countries
                 </Link>
                 .

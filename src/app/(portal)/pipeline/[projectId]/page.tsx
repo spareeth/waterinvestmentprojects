@@ -67,10 +67,7 @@ export default async function PipelineProjectPage({
           >
             <ol className="flex flex-wrap items-center gap-1">
               <li>
-                <Link
-                  href="/pipeline"
-                  className="text-brand-teal hover:underline"
-                >
+                <Link href="/pipeline" className="link">
                   Pipeline
                 </Link>
               </li>
@@ -78,7 +75,7 @@ export default async function PipelineProjectPage({
               <li>
                 <Link
                   href={pipelineHref({ country: project.country.iso3 })}
-                  className="text-brand-teal hover:underline"
+                  className="link"
                 >
                   {project.country.name}
                 </Link>
@@ -105,15 +102,45 @@ export default async function PipelineProjectPage({
           </div>
         </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-stretch">
+          {/* A clean frame around the teaser with its own download button (22 Nov styling pass). */}
           <section
             aria-labelledby="teaser-heading"
-            className="rounded-xl border bg-card p-4 sm:p-6"
+            className="overflow-hidden rounded-xl border border-water-100 bg-card shadow-sm lg:self-start"
           >
-            <h2 id="teaser-heading" className="sr-only">
-              Teaser
-            </h2>
-            <TeaserViewer teaser={teaser} title={project.title} />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-water-100 bg-water-50/60 px-4 py-3 sm:px-5">
+              <div className="min-w-0">
+                <h2
+                  id="teaser-heading"
+                  className="text-sm font-semibold text-brand-navy"
+                >
+                  Project teaser
+                </h2>
+                {teaser ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {teaser.filename} · {formatBytes(teaser.sizeBytes)} ·
+                    version {teaser.version}
+                  </p>
+                ) : null}
+              </div>
+              {teaser?.canDownload ? (
+                <Button asChild size="sm">
+                  <a href={teaserFileHref(teaser.id, "download")} download>
+                    <Download aria-hidden="true" />
+                    Download teaser
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+            <div className="p-3 sm:p-4">
+              <TeaserViewer teaser={teaser} title={project.title} />
+            </div>
+            <p className="border-t border-water-100 px-4 py-3 text-xs text-muted-foreground sm:px-5">
+              {teaser?.canOpen && !teaser.canDownload
+                ? "The country has switched off downloads for this teaser; you can read it on this page. "
+                : ""}
+              Access is personal and logged.
+            </p>
           </section>
 
           <div className="flex flex-col gap-6">
@@ -143,38 +170,10 @@ export default async function PipelineProjectPage({
               </dl>
             </section>
 
-            <MeetingRequestPanel viewer={viewer} projectId={project.id} />
-
-            <section
-              aria-labelledby="download-heading"
-              className="rounded-xl border bg-card p-6"
-            >
-              <h2 id="download-heading" className="text-lg font-semibold">
-                Teaser file
-              </h2>
-              {teaser?.canDownload ? (
-                <>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {teaser.filename} ({formatBytes(teaser.sizeBytes)})
-                  </p>
-                  <Button asChild size="lg" className="mt-4">
-                    <a href={teaserFileHref(teaser.id, "download")} download>
-                      <Download aria-hidden="true" />
-                      Download teaser
-                    </a>
-                  </Button>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {teaser?.canOpen
-                    ? "The country has switched off downloads for this teaser. You can read it on this page."
-                    : "The teaser can be downloaded once it is available."}
-                </p>
-              )}
-              <p className="mt-4 text-xs text-muted-foreground">
-                Access is personal and logged.
-              </p>
-            </section>
+            {/* Stays in view while the teaser is read (desktop). */}
+            <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:rounded-xl">
+              <MeetingRequestPanel viewer={viewer} projectId={project.id} />
+            </div>
           </div>
         </div>
       </main>

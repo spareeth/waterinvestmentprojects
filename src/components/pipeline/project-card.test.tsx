@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import { ProjectCard, sectorTone } from "./project-card";
 
 describe("sectorTone", () => {
-  it("gives each sector family its own colour and falls back to water", () => {
-    expect(sectorTone("Wastewater and reuse").stripe).toBe("bg-[#4f6fb3]");
-    expect(sectorTone("Desalination").stripe).toBe("bg-sand-500");
-    expect(sectorTone("Irrigation infrastructure").stripe).toBe("bg-[#4f8a3a]");
-    expect(sectorTone("Water supply").stripe).toBe("bg-water-500");
+  it("gives each sector family its own colour and icon, and falls back to water", () => {
+    expect(sectorTone("Wastewater and reuse").tag).toContain("#2f4a8a");
+    expect(sectorTone("Desalination").tag).toContain("sand");
+    expect(sectorTone("Irrigation infrastructure").tag).toContain("#3a6a2a");
+    expect(sectorTone("Water supply").tag).toContain("water");
+    expect(sectorTone("Non-revenue water (NRW)").icon).not.toBe(
+      sectorTone("Water supply").icon,
+    );
   });
 });
 

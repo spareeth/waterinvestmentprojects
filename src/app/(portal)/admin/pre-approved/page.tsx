@@ -35,10 +35,7 @@ export default async function PreApprovedPage() {
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <p className="text-sm">
-            <Link
-              href="/admin/accounts"
-              className="text-brand-teal hover:underline"
-            >
+            <Link href="/admin/accounts" className="link">
               Accounts
             </Link>
           </p>

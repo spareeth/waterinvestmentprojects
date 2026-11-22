@@ -134,10 +134,7 @@ export default async function UploadLinksPage() {
             <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
               <p className="text-sm text-muted-foreground">
                 No active countries yet. Add a country here (or under{" "}
-                <Link
-                  href="/admin/countries"
-                  className="font-medium text-brand-deep underline underline-offset-4"
-                >
+                <Link href="/admin/countries" className="link">
                   Countries
                 </Link>
                 ), then create its link.

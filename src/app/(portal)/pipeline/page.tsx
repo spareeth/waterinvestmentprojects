@@ -84,10 +84,7 @@ export default async function PipelinePage({
                   : `Showing all ${plural(projects.length, "project", "projects")}.`}
               </p>
               {filtered ? (
-                <Link
-                  href="/pipeline"
-                  className="text-sm font-medium text-brand-teal hover:underline"
-                >
+                <Link href="/pipeline" className="text-sm link">
                   Clear filters
                 </Link>
               ) : null}

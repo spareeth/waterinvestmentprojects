@@ -222,10 +222,7 @@ export default async function InboxPage({
                     <p className="font-medium">
                       {contact.name}, {r.role}, {r.organisation}
                     </p>
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="text-brand-teal hover:underline"
-                    >
+                    <a href={`mailto:${contact.email}`} className="link">
                       {contact.email}
                     </a>
                   </div>

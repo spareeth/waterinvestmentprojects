@@ -103,12 +103,14 @@
   --card-foreground: #1d2b2a;
   --popover: #ffffff;
   --popover-foreground: #1d2b2a;
-  --primary: var(--brand-teal);
+  /* Buttons use water-600 (white text 5.4:1, WCAG AA); brand-teal stays the accent and focus colour. */
+  --primary: #187486;
   --primary-foreground: #ffffff;
   --secondary: #d6f1f4;
   --secondary-foreground: #124855;
   --muted: #f0f3f3;
-  --muted-foreground: #6b7b7a;
+  /* Darkened from #6b7b7a for WCAG AA on the page background (22 Nov styling pass). */
+  --muted-foreground: #5d6b6a;
   --accent: #e3f3f5;
   --accent-foreground: var(--brand-navy);
   --destructive: #b42318;
@@ -129,7 +131,7 @@
   --success: #e1f4e8;
   --success-foreground: #24774a;
   --pending: #fdf1dc;
-  --pending-foreground: #9a6512;
+  --pending-foreground: #875810;
   --declined: #fde8e7;
   --declined-foreground: #b42318;
 
@@ -183,10 +185,36 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Visible keyboard focus everywhere (WCAG 2.4.7); components with their own ring keep it. */
+  :where(
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]
+  ):focus-visible {
+    outline: 3px solid var(--brand-teal);
+    outline-offset: 2px;
+  }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* One link style for text links (22 Nov styling pass): brand-deep on light backgrounds (7.9:1), underlined. */
+@utility link {
+  color: var(--brand-deep);
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  &:hover {
+    color: var(--brand-navy);
+    text-decoration-thickness: 2px;
   }
 }

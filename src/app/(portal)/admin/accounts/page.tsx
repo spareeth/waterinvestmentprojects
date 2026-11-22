@@ -74,10 +74,7 @@ export default async function AccountsPage() {
             <h2 id="pending-heading" className="text-lg font-semibold">
               Registrations waiting for approval ({pending.length})
             </h2>
-            <Link
-              href="/admin/pre-approved"
-              className="text-sm font-medium text-brand-teal hover:underline"
-            >
+            <Link href="/admin/pre-approved" className="text-sm link">
               Pre-approved organisations and people
             </Link>
           </div>
