@@ -18,7 +18,10 @@ import {
   UserStatus,
 } from "../../src/generated/prisma/enums";
 import { appConfig } from "../../src/lib/config";
-import { MEETING_SCHEDULE } from "../../src/lib/meetings/schedule";
+import {
+  MEETING_ROOMS,
+  MEETING_SCHEDULE,
+} from "../../src/lib/meetings/schedule";
 import { buildPlaceholderPdf } from "./pdf";
 
 /** Summit venue time zone is Gulf Standard Time (UTC+4, no daylight saving). */
@@ -1074,14 +1077,15 @@ export const meetingRequests = [
 ];
 
 // ---------------------------------------------------------------------------
-// Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Room A and Room B,
-// 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00, 10 Dec 09:00 to 17:00 (GST)
+// Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Al Jimi (22 people) and
+// Shawka (10 people), 8, 9 and 10 Dec 09:00 to 19:00 (GST)
 // ---------------------------------------------------------------------------
 
-export const rooms = [
-  { id: "seed-room-1", name: MEETING_SCHEDULE.rooms[0], capacity: 0 },
-  { id: "seed-room-2", name: MEETING_SCHEDULE.rooms[1], capacity: 0 },
-];
+export const rooms = MEETING_ROOMS.map((room, i) => ({
+  id: `seed-room-${i + 1}`,
+  name: room.name,
+  capacity: room.capacity,
+}));
 
 export const SLOT_WINDOWS = MEETING_SCHEDULE.days;
 

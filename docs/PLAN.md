@@ -47,7 +47,7 @@ and Jacob differ, Jacob's WBG answers are treated as the working decision unless
 16. **Branding:** restrained partner set: MoFA, single World Bank Group mark, GCFC, Expo City Dubai/Terra. UN Water
     Conference branding only with approval (MoFA to lead). Logos as config/assets, easy to swap.
 17. **Support:** a shared support mailbox managed by Terra/Expo City Dubai and GCFC, not a personal inbox.
-18. **Slot booking:** built 20 Nov (user decision): Room A and Room B, 30-minute slots, 8 Dec 09:00 to 17:00, 9 Dec
+18. **Slot booking:** built 20 Nov (user decision; rooms and hours updated 22 Nov, see 0b.24): Room A and Room B, 30-minute slots, 8 Dec 09:00 to 17:00, 9 Dec
     09:00 to 13:00 and 10 Dec 09:00 to 17:00 UAE time (10 Dec added 20 Nov at the user's request) (src/lib/meetings/schedule.ts). The investor picks a time on the request; the first free
     room is held until the country answers (accept books it, decline or withdraw frees it). No investor or country
     has two meetings at once. Admins see the grid under Admin, Meeting schedule. Rooms, hours and any competing
@@ -169,6 +169,10 @@ verify them, do not rebuild.
     exact slots; Jacob wants the widest window (conference hours roughly 09:00 to 19:00). The code currently uses Room A
     and Room B, 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00 and 10 Dec 09:00 to 17:00. Keep A/B until Smita confirms,
     then change names and hours in `src/lib/meetings/schedule.ts`. Note: no source shows rooms held on 10 Dec.
+    **Finalised 22 Nov (user):** Meeting room 1 is **Al Jimi** (22 people) and Meeting room 2 is **Shawka** (10 people),
+    both in use 09:00 to 19:00. Built: 09:00 to 19:00 on all three days, 9 Dec included (user decision, 22 Nov,
+    although the Summit runs from 15:30 that day). Existing Room A and Room B rows are renamed in place on the next read, so held and booked
+    slots stay. Open: which days the rooms are actually held (10 Dec still unconfirmed).
 25. Jacob asked whether an official UN Water Conference matchmaking platform exists. Not resolved; the portal keeps its
     own simple request and slot flow.
 
@@ -238,7 +242,7 @@ verify them, do not rebuild.
 ### Should / could (only if they do not delay 24 Nov)
 | # | Feature |
 |---|---|
-| F9 | Slot booking for two rooms (8 Dec full day, 9 Dec morning, 30-min slots), if MoFA/BCG confirm and no competing system |
+| F9 | Slot booking for two rooms (8 to 10 Dec, 09:00 to 19:00, 30-min slots; rooms and hours updated 22 Nov), if MoFA/BCG confirm and no competing system |
 | F10 | Watermark on view and download (viewer name, organisation, time) |
 | F11 | View analytics for countries |
 | F12 | Map view |

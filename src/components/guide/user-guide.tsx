@@ -8,6 +8,10 @@ import {
   MAX_TEASERS_PER_SUBMISSION,
 } from "@/lib/submission/input";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
+import {
+  describeMeetingRooms,
+  MEETING_SCHEDULE,
+} from "@/lib/meetings/schedule";
 
 // The user guide (public page /guide), linked from every header. Plain language, one section per role. Name,
 // support mailbox and upload limits come from config and the code, so the guide stays true when they change.
@@ -306,9 +310,10 @@ export function UserGuide() {
             project page: the name and email address of the person who will
             attend, your organisation and role, and, if you wish, a short note.
             Choose a <strong>Meeting time</strong>: 30-minute bilateral meetings
-            in Room A or Room B, UAE time. Times you or the country already have
-            are not offered. The time is held for you until the country answers.
-            You can have one open request per project.
+            in {describeMeetingRooms()}, UAE time. Pick the room on its tab,
+            then a free time. Times you or the country already have are not
+            offered. The time is held for you until the country answers. You can
+            have one open request per project.
           </li>
           <li>
             <strong>My requests</strong> shows each request and its status:
@@ -386,8 +391,9 @@ export function UserGuide() {
             listed address, are marked as pre-approved.
           </li>
           <li>
-            <strong>Meeting schedule</strong>: the grid of Room A and Room B,
-            with the times held for pending requests and the meetings booked.
+            <strong>Meeting schedule</strong>: the grid of{" "}
+            {MEETING_SCHEDULE.rooms.join(" and ")}, with the times held for
+            pending requests and the meetings booked.
           </li>
           <li>
             <strong>Countries and contacts</strong>, <strong>Exports</strong>:

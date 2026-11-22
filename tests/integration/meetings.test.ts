@@ -20,6 +20,7 @@ import {
   getMeetingSchedule,
   listMeetingTimes,
   listRoomTimes,
+  syncSchedule,
 } from "@/lib/meetings/slots";
 import {
   createMeetingRequest,
@@ -176,7 +177,7 @@ describe("choosing a meeting time", () => {
     expect(await slotOf(id)).toMatchObject({
       status: SlotStatus.HELD,
       startsAt: T1,
-      room: { name: "Room A" },
+      room: { name: "Al Jimi" },
     });
     const row = await db.meetingRequest.findUniqueOrThrow({ where: { id } });
     expect(row).toMatchObject({
@@ -184,7 +185,7 @@ describe("choosing a meeting time", () => {
       contactEmail: "ivy.attendee@it.example",
     });
     expect(mailer.sent[0].text).toContain(
-      "Proposed meeting: Tuesday 8 December, 09:00 to 09:30 (UAE time), Room A",
+      "Proposed meeting: Tuesday 8 December, 09:00 to 09:30 (UAE time), Al Jimi",
     );
     expect(mailer.sent[0].text).toContain(
       "Ivy Attendee <ivy.attendee@it.example>",
@@ -218,7 +219,7 @@ describe("choosing a meeting time", () => {
       opts(),
     );
     R.i2b1 = id;
-    expect((await slotOf(id))?.room.name).toBe("Room B");
+    expect((await slotOf(id))?.room.name).toBe("Shawka");
     expect(await available(v.i3, C.c, T1)).toBe(false);
     expect(
       await refusal(createMeetingRequest(v.i3, P.c1, input(T1), opts())),
@@ -251,7 +252,7 @@ describe("answers free or book the time", () => {
     expect((await slotOf(R.i1a1))?.status).toBe(SlotStatus.BOOKED);
     expect(mailer.sent[0].to).toEqual(["ivy.attendee@it.example"]);
     expect(mailer.sent[0].text).toContain(
-      "Your meeting: Tuesday 8 December, 09:00 to 09:30 (UAE time), Room A.",
+      "Your meeting: Tuesday 8 December, 09:00 to 09:30 (UAE time), Al Jimi.",
     );
   });
 
@@ -265,7 +266,7 @@ describe("answers free or book the time", () => {
       opts(),
     );
     R.i3c1 = id;
-    expect((await slotOf(id))?.room.name).toBe("Room B");
+    expect((await slotOf(id))?.room.name).toBe("Shawka");
   });
 
   it("frees the slot when the country declines", async () => {
@@ -285,18 +286,18 @@ describe("showing the meetings", () => {
     const rows = await listInboxRequests(v.focalA, {}, opts());
     const row = rows.find((r) => r.id === R.i1a1)!;
     expect(row.contactName).toBe("Ivy Attendee");
-    expect(row.slot?.room.name).toBe("Room A");
+    expect(row.slot?.room.name).toBe("Al Jimi");
     const { csv } = await exportRequestsCsv(v.focalA, {}, opts());
     expect(csv).toContain("2026-12-08 09:00");
-    expect(csv).toContain("Room A");
+    expect(csv).toContain("Al Jimi");
     expect(csv).toContain("ivy.attendee@it.example");
   });
 
   it("gives admins the room grid and nobody else", async () => {
     const days = await getMeetingSchedule(v.admin);
     const day = days.find((d) => d.key === "2026-12-08")!;
-    expect(day.rooms.map((r) => r.name)).toEqual(["Room A", "Room B"]);
-    expect(day.rows).toHaveLength(16);
+    expect(day.rooms.map((r) => r.name)).toEqual(["Al Jimi", "Shawka"]);
+    expect(day.rows).toHaveLength(20);
     const nine = day.rows[0];
     expect(nine.label).toBe("09:00 to 09:30");
     expect(nine.cells[0]?.meetingRequest?.id).toBe(R.i1a1);
@@ -331,29 +332,29 @@ describe("room calendar (22 Nov)", () => {
 
   it("holds the room the investor chose, and shows each room's slots by state without naming anyone", async () => {
     const rooms = await listRoomTimes(v.i3.id, C.c, NOW);
-    expect(rooms.map((r) => r.room)).toEqual(["Room A", "Room B"]);
-    expect(await stateOf(v.i3, C.c, "Room B", T3)).toBe("free");
+    expect(rooms.map((r) => r.room)).toEqual(["Al Jimi", "Shawka"]);
+    expect(await stateOf(v.i3, C.c, "Shawka", T3)).toBe("free");
 
     const { id } = await createMeetingRequest(
       v.i3,
       P.c1,
-      { ...input(T3, "Rae Roomchooser"), slotRoom: "Room B" },
+      { ...input(T3, "Rae Roomchooser"), slotRoom: "Shawka" },
       opts(),
     );
-    expect((await slotOf(id))?.room.name).toBe("Room B");
-    // The investor sees their own slot; Room A at that time is not available to them (one meeting at a time).
-    expect(await stateOf(v.i3, C.c, "Room B", T3)).toBe("yours");
-    expect(await stateOf(v.i3, C.c, "Room A", T3)).toBe("unavailable");
-    // Another investor on another country's project: Room B is awaiting an answer, Room A is free.
-    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("pending");
-    expect(await stateOf(v.i2, C.b, "Room A", T3)).toBe("free");
+    expect((await slotOf(id))?.room.name).toBe("Shawka");
+    // The investor sees their own slot; Al Jimi at that time is not available to them (one meeting at a time).
+    expect(await stateOf(v.i3, C.c, "Shawka", T3)).toBe("yours");
+    expect(await stateOf(v.i3, C.c, "Al Jimi", T3)).toBe("unavailable");
+    // Another investor on another country's project: Shawka is awaiting an answer, Al Jimi is free.
+    expect(await stateOf(v.i2, C.b, "Shawka", T3)).toBe("pending");
+    expect(await stateOf(v.i2, C.b, "Al Jimi", T3)).toBe("free");
     const json = JSON.stringify(await listRoomTimes(v.i2.id, C.b, NOW));
     expect(json).not.toContain(v.i3.id);
     expect(json).not.toContain("Rae");
 
     // Once accepted, it shows as booked to others.
     await decideMeetingRequest(v.admin, id, "ACCEPTED", opts());
-    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("booked");
+    expect(await stateOf(v.i2, C.b, "Shawka", T3)).toBe("booked");
 
     // A chosen room that is taken is refused, even when the other room is free.
     expect(
@@ -361,13 +362,68 @@ describe("room calendar (22 Nov)", () => {
         createMeetingRequest(
           v.i2,
           P.b1,
-          { ...input(T3, "Bo Second"), slotRoom: "Room B" },
+          { ...input(T3, "Bo Second"), slotRoom: "Shawka" },
           opts(),
         ),
       ),
     ).toBe("slot_taken");
 
     await withdrawMeetingRequest(v.i3, id, opts());
-    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("free");
+    expect(await stateOf(v.i2, C.b, "Shawka", T3)).toBe("free");
+  });
+
+  it("shows each room's capacity", async () => {
+    const rooms = await listRoomTimes(v.i3.id, C.c, NOW);
+    expect(rooms.map((r) => [r.room, r.capacity])).toEqual([
+      ["Al Jimi", 22],
+      ["Shawka", 10],
+    ]);
+  });
+});
+
+describe("rooms finalised 22 Nov (Al Jimi and Shawka)", () => {
+  const T4 = uaeTime("2026-12-10", "18:30");
+
+  it("renames a room still under its placeholder name, keeping its held slots, and accepts the old name from a calendar opened before", async () => {
+    // A request holds Shawka at 18:30 on 10 Dec (a time only the new 19:00 end allows).
+    const held = await createMeetingRequest(
+      v.i3,
+      P.c1,
+      { ...input(T4, "Rae Renamed"), slotRoom: "Shawka" },
+      opts(),
+    );
+    const shawka = await db.room.findUniqueOrThrow({
+      where: { name: "Shawka" },
+    });
+    // As in a database from before 22 Nov: the placeholder name, no capacity.
+    await db.room.update({
+      where: { id: shawka.id },
+      data: { name: "Room B", capacity: 0 },
+    });
+
+    await syncSchedule();
+
+    const renamed = await db.room.findUniqueOrThrow({
+      where: { id: shawka.id },
+    });
+    expect(renamed).toMatchObject({ name: "Shawka", capacity: 10 });
+    expect(await db.room.count({ where: { name: "Room B" } })).toBe(0);
+    expect(await slotOf(held.id)).toMatchObject({
+      status: SlotStatus.HELD,
+      startsAt: T4,
+      room: { name: "Shawka" },
+    });
+
+    // A form still sending "…|Room A" gets Al Jimi.
+    const old = await createMeetingRequest(
+      v.i2,
+      P.b1,
+      { ...input(T4, "Bo Oldform"), slotRoom: "Room A" },
+      opts(),
+    );
+    expect((await slotOf(old.id))?.room.name).toBe("Al Jimi");
+
+    await withdrawMeetingRequest(v.i3, held.id, opts());
+    await withdrawMeetingRequest(v.i2, old.id, opts());
   });
 });

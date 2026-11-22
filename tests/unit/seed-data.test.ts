@@ -413,21 +413,24 @@ describe("seed data: meeting requests and slots", () => {
     }
   });
 
-  it("has two rooms with 30-minute slots on 8 Dec (full day), 9 Dec (morning) and 10 Dec (full day) only", () => {
-    expect(rooms.map((r) => r.name)).toEqual(["Room A", "Room B"]);
+  it("has two rooms with 30-minute slots on 8, 9 and 10 Dec, 09:00 to 19:00, only", () => {
+    expect(rooms.map((r) => [r.name, r.capacity])).toEqual([
+      ["Al Jimi", 22],
+      ["Shawka", 10],
+    ]);
     for (const s of slots) {
       expect(s.endsAt.getTime() - s.startsAt.getTime()).toBe(
         SLOT_MINUTES * 60_000,
       );
       const inDay8 =
         s.startsAt >= gst("2026-12-08T09:00") &&
-        s.endsAt <= gst("2026-12-08T17:00");
+        s.endsAt <= gst("2026-12-08T19:00");
       const inDay9 =
         s.startsAt >= gst("2026-12-09T09:00") &&
-        s.endsAt <= gst("2026-12-09T13:00");
+        s.endsAt <= gst("2026-12-09T19:00");
       const inDay10 =
         s.startsAt >= gst("2026-12-10T09:00") &&
-        s.endsAt <= gst("2026-12-10T17:00");
+        s.endsAt <= gst("2026-12-10T19:00");
       expect(inDay8 || inDay9 || inDay10, s.id).toBe(true);
     }
     for (const room of rooms) {
@@ -435,7 +438,7 @@ describe("seed data: meeting requests and slots", () => {
         .filter((s) => s.roomId === room.id)
         .map((s) => s.startsAt.getTime());
       expect(new Set(starts).size).toBe(starts.length);
-      expect(starts).toHaveLength(16 + 8 + 16);
+      expect(starts).toHaveLength(20 + 20 + 20);
     }
   });
 

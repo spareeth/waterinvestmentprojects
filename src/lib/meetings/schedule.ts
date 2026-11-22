@@ -1,7 +1,22 @@
-// Bilateral meeting rooms and times (F9, PLAN v0.3): two rooms, 30-minute slots, 8 Dec full day, 9 Dec morning
-// (the Summit itself is on 9 Dec from 15:30) and 10 Dec full day. Hours 09:00 to 17:00 UAE time (user decisions,
-// 20 Nov). Pure, so the form, the server and tests share it. To add a day or change the hours, edit DAYS: the
-// missing slots are created the next time the schedule is read; slots already in the database are never removed.
+// Bilateral meeting rooms and times (F9, PLAN v0.3): two rooms, 30-minute slots, UAE time. Rooms finalised 22 Nov:
+// Al Jimi (22 people) and Shawka (10 people), both in use 09:00 to 19:00 on 8, 9 and 10 Dec (user decision,
+// 22 Nov: the full room hours on every day, 9 Dec included, although the Summit runs from 15:30 that day).
+// Pure, so the form, the server and tests share it. To add a day or change the hours, edit `days`: the missing
+// slots are created the next time the schedule is read; slots already in the database are never removed.
+
+export interface MeetingRoom {
+  name: string;
+  /** Number of people the room seats. */
+  capacity: number;
+  /** Earlier names of this room in the database, renamed on the next read so held and booked slots stay. */
+  formerNames: readonly string[];
+}
+
+/** Rooms finalised 22 Nov (Meeting room 1 and 2). Room A and Room B were the placeholders until then. */
+export const MEETING_ROOMS: readonly MeetingRoom[] = [
+  { name: "Al Jimi", capacity: 22, formerNames: ["Room A"] },
+  { name: "Shawka", capacity: 10, formerNames: ["Room B"] },
+];
 
 export interface MeetingDay {
   /** YYYY-MM-DD, UAE date. */
@@ -44,10 +59,12 @@ export interface RoomDayTimes {
 
 export interface RoomTimes {
   room: string;
+  /** Number of people the room seats; 0 when not known. */
+  capacity?: number;
   days: RoomDayTimes[];
 }
 
-/** "2026-12-08T05:00:00.000Z|Room A": a start time in one room. */
+/** "2026-12-08T05:00:00.000Z|Al Jimi": a start time in one room. */
 export function roomSlotValue(startsAt: Date, room: string): string {
   return `${startsAt.toISOString()}|${room}`;
 }
@@ -70,14 +87,24 @@ export interface MeetingDayTimes {
 }
 
 export const MEETING_SCHEDULE = {
-  rooms: ["Room A", "Room B"] as readonly string[],
+  rooms: MEETING_ROOMS.map((r) => r.name) as readonly string[],
   slotMinutes: 30,
   days: [
-    { date: "2026-12-08", from: "09:00", to: "17:00" },
-    { date: "2026-12-09", from: "09:00", to: "13:00" },
-    { date: "2026-12-10", from: "09:00", to: "17:00" },
+    { date: "2026-12-08", from: "09:00", to: "19:00" },
+    { date: "2026-12-09", from: "09:00", to: "19:00" },
+    { date: "2026-12-10", from: "09:00", to: "19:00" },
   ] as readonly MeetingDay[],
 } as const;
+
+/** "Al Jimi (22 people) and Shawka (10 people)" */
+export function describeMeetingRooms(
+  rooms: readonly MeetingRoom[] = MEETING_ROOMS,
+): string {
+  const parts = rooms.map((r) => `${r.name} (${r.capacity} people)`);
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`
+    : (parts[0] ?? "");
+}
 
 /** The UAE has no daylight saving time. */
 const UAE_OFFSET = "+04:00";

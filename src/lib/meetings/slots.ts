@@ -7,7 +7,7 @@ import { RequestError } from "@/lib/requests/errors";
 import {
   formatClock,
   formatMeetingDay,
-  MEETING_SCHEDULE,
+  MEETING_ROOMS,
   type MeetingDayTimes,
   plannedSlots,
   type RoomSlotState,
@@ -20,35 +20,57 @@ import {
 // free room at that time (HELD) until the country answers: accepted makes it BOOKED, declined or withdrawn frees it
 // again. Nobody can hold two meetings at the same time: neither the investor nor the country (one delegation).
 // Every change runs inside the caller's transaction under one advisory lock, so two requests cannot take the
-// same slot. Rooms and slots come from MEETING_SCHEDULE (src/lib/meetings/schedule.ts).
+// same slot. Rooms and slots come from MEETING_ROOMS and MEETING_SCHEDULE (src/lib/meetings/schedule.ts).
 
 const SLOT_LOCK = "meeting-slots";
-/** A room's size is not known yet (MoFA/BCG); 0 means "not set". */
-const UNKNOWN_CAPACITY = 0;
 
 let ensured: Promise<void> | null = null;
 
-/** Creates the rooms and slots of MEETING_SCHEDULE that are missing. Runs once per server process. */
+/**
+ * Brings the database in line with MEETING_ROOMS and MEETING_SCHEDULE: renames a room still under a former name
+ * (its held and booked slots stay with it), sets each room's capacity, and creates the missing slots. Runs once
+ * per server process.
+ */
 export function ensureSchedule(): Promise<void> {
-  ensured ??= createMissingSlots().catch((error) => {
+  ensured ??= syncSchedule().catch((error) => {
     ensured = null;
     throw error;
   });
   return ensured;
 }
 
-async function createMissingSlots(): Promise<void> {
+/** The current name of a room given under its current or a former name (a calendar opened before a rename). */
+export function currentRoomName(name: string): string {
+  return MEETING_ROOMS.find((r) => r.formerNames.includes(name))?.name ?? name;
+}
+
+/** ensureSchedule without the once-per-process memo (exported for tests). */
+export async function syncSchedule(): Promise<void> {
   const planned = plannedSlots();
   if (planned.length === 0) return;
   const rooms = new Map<string, string>();
-  for (const name of MEETING_SCHEDULE.rooms) {
-    const room = await db.room.upsert({
-      where: { name },
-      create: { name, capacity: UNKNOWN_CAPACITY },
-      update: {},
-      select: { id: true },
-    });
-    rooms.set(name, room.id);
+  for (const room of MEETING_ROOMS) {
+    const existing =
+      (await db.room.findUnique({
+        where: { name: room.name },
+        select: { id: true },
+      })) ??
+      (await db.room.findFirst({
+        where: { name: { in: [...room.formerNames] } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      }));
+    const saved = existing
+      ? await db.room.update({
+          where: { id: existing.id },
+          data: { name: room.name, capacity: room.capacity },
+          select: { id: true },
+        })
+      : await db.room.create({
+          data: { name: room.name, capacity: room.capacity },
+          select: { id: true },
+        });
+    rooms.set(room.name, saved.id);
   }
   await db.slot.createMany({
     data: planned.map((s) => ({
@@ -84,7 +106,7 @@ export async function listRoomTimes(
       startsAt: true,
       status: true,
       meetingRequestId: true,
-      room: { select: { name: true } },
+      room: { select: { name: true, capacity: true } },
       meetingRequest: {
         select: { requesterId: true, project: { select: { countryId: true } } },
       },
@@ -105,7 +127,7 @@ export async function listRoomTimes(
   for (const s of slots) {
     let room = rooms.get(s.room.name);
     if (!room) {
-      room = { room: s.room.name, days: [] };
+      room = { room: s.room.name, capacity: s.room.capacity, days: [] };
       rooms.set(s.room.name, room);
     }
     const key = uaeDateKey(s.startsAt);
@@ -223,7 +245,7 @@ export async function holdSlot(
     where: {
       startsAt,
       meetingRequestId: null,
-      ...(room ? { room: { name: room } } : {}),
+      ...(room ? { room: { name: currentRoomName(room) } } : {}),
     },
     orderBy: { room: { name: "asc" } },
     select: { id: true },

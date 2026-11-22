@@ -171,6 +171,11 @@ export function RoomCalendar({
           hidden={i !== active}
           className="flex flex-col gap-3"
         >
+          {r.capacity ? (
+            <p className="text-xs text-muted-foreground">
+              {r.room} seats up to {r.capacity} people.
+            </p>
+          ) : null}
           {r.days.map((day) => (
             <div
               key={day.key}

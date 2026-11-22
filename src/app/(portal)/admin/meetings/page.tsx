@@ -9,7 +9,10 @@ import {
 import { MeetingRequestStatus } from "@/generated/prisma/enums";
 import { requirePortalUser } from "@/lib/authz";
 import { canUseAdminConsole } from "@/lib/authz/admin";
-import { MEETING_SCHEDULE } from "@/lib/meetings/schedule";
+import {
+  describeMeetingRooms,
+  MEETING_SCHEDULE,
+} from "@/lib/meetings/schedule";
 import { getMeetingSchedule, type ScheduleSlot } from "@/lib/meetings/slots";
 
 // Reads the session and the database on the server before rendering, so it may block.
@@ -32,7 +35,7 @@ export default async function MeetingSchedulePage() {
       viewer={viewer}
       current="/admin/meetings"
       title="Meeting schedule"
-      intro={`Bilateral meetings in ${MEETING_SCHEDULE.rooms.join(" and ")}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers.`}
+      intro={`Bilateral meetings in ${describeMeetingRooms()}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers.`}
     >
       {days.length === 0 ? (
         <p className="rounded-xl border bg-card p-6 text-muted-foreground">
