@@ -9,6 +9,7 @@ import {
   DocumentKind,
   MeetingRequestStatus,
   MembershipRole,
+  OrganisationType,
   ProjectStatus,
   ProjectType,
   ScanStatus,
@@ -81,6 +82,16 @@ const termsAccepted = gst("2026-11-10T09:00");
  */
 export const INVESTOR_WITHOUT_ACK = "seed-user-investor-3";
 
+/** M13 (PLAN v0.4 0b.16): fictional organisation types, so the demo shows demand by type. */
+const SEED_ORGANISATION_TYPE: Partial<Record<string, OrganisationType>> = {
+  "investor-1": OrganisationType.INFRASTRUCTURE_OPERATOR,
+  "investor-2": OrganisationType.INVESTOR_FUND,
+  "investor-3": OrganisationType.COMMERCIAL_BANK,
+  "investor-4": OrganisationType.INFRASTRUCTURE_OPERATOR,
+  "investor-pending": OrganisationType.INVESTOR_FUND,
+  "investor-deactivated": OrganisationType.INFRASTRUCTURE_OPERATOR,
+};
+
 function user(
   id: string,
   email: string,
@@ -95,6 +106,7 @@ function user(
     email,
     name,
     organisation,
+    organisationType: SEED_ORGANISATION_TYPE[id] ?? null,
     jobTitle,
     role,
     status,

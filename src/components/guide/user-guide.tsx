@@ -148,9 +148,18 @@ export function UserGuide() {
 
       <Section id="signing-in" title="Signing in">
         <p>
-          Everyone except government uploaders needs a personal account. The
-          Summit team creates it and gives you your email address and a
-          temporary password directly. There is no public registration.
+          Governments and the Summit team receive their accounts from the Summit
+          team. Investors and operators{" "}
+          <Link
+            href="/register"
+            className="text-brand-deep underline underline-offset-4"
+          >
+            register
+          </Link>{" "}
+          with their name, work email, organisation, organisation type, job
+          title and a password of their choice; the Summit team checks each
+          registration, and the projects become visible once it is approved. The
+          Summit team can also create an investor account directly.
         </p>
         <ol>
           <li>
@@ -160,15 +169,17 @@ export function UserGuide() {
               className="text-brand-deep underline underline-offset-4"
             >
               Sign in
-            </Link>{" "}
-            and enter your email address and the temporary password.
+            </Link>
+            , choose how you take part (government or country, investor or
+            operator, Summit team) and enter your email address and password.
           </li>
           <li>
-            Investors, operators and the Summit team then choose their own
-            password (at least {MIN_PASSWORD_LENGTH} characters), and the
-            temporary password stops working. Country and WBG coordinator
-            accounts keep the password they were given, because WBG colleagues
-            may help a government manage its account.
+            If the Summit team gave you a temporary password, investors,
+            operators and the Summit team then choose their own (at least{" "}
+            {MIN_PASSWORD_LENGTH} characters), and the temporary one stops
+            working. Country and WBG coordinator accounts keep the password they
+            were given, because WBG colleagues may help a government manage its
+            account.
           </li>
           <li>
             Investors and operators then read and accept a short acknowledgement
@@ -252,9 +263,11 @@ export function UserGuide() {
             every participating country, read-only, as investors see them.
           </li>
           <li>
-            <strong>My projects</strong> lists your country&apos;s projects and
-            whether each one is published. Changes to projects are made by the
-            Summit team; contact them if something needs correcting.
+            <strong>My projects</strong> lists your country&apos;s projects,
+            whether each one is published, and how many meeting requests it has
+            received by type of organisation (declined requests included).
+            Changes to projects are made by the Summit team; contact them if
+            something needs correcting.
           </li>
           <li>
             <strong>Meeting requests</strong> lists the requests from investors
@@ -369,6 +382,14 @@ export function UserGuide() {
             personally, issue new ones, and deactivate accounts. Country and WBG
             coordinator accounts keep the password they are given; switch them
             off after the Summit.
+          </li>
+          <li>
+            <strong>Registrations</strong>: investor and operator registrations
+            wait at the top of Accounts. Approve or reject each one; the Summit
+            mailbox is told of every new registration. Under{" "}
+            <strong>Pre-approved organisations and people</strong>, keep the
+            list from WBG: registrants at a listed email domain, or with a
+            listed address, are marked as pre-approved.
           </li>
           <li>
             <strong>Meeting schedule</strong>: the grid of Room A and Room B,

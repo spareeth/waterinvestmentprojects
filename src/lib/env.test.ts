@@ -12,7 +12,10 @@ describe("parseEnv", () => {
     expect(env.DATABASE_URL).toBe("postgresql://user:pass@localhost:5432/db");
     expect(env.NODE_ENV).toBe("development");
     expect(env.APP_ENV).toBe("development");
-    expect(env.SELF_REGISTRATION_ENABLED).toBe(false);
+    // M13: investor registration is on unless switched off; pre-approved auto-access and registrant emails are off.
+    expect(env.SELF_REGISTRATION_ENABLED).toBe(true);
+    expect(env.REGISTRATION_AUTO_APPROVE).toBe(false);
+    expect(env.REGISTRATION_NOTIFY_REGISTRANT).toBe(false);
     expect(env.AUTH_SECOND_STEP).toBe("none");
     expect(env.SESSION_IDLE_MINUTES).toBe(120);
     expect(env.SESSION_MAX_HOURS).toBe(12);

@@ -195,8 +195,14 @@ export async function actorFor(userId: string): Promise<Actor> {
 
 /** Removes everything the integration tests created. */
 export async function cleanUp(): Promise<void> {
+  // Test addresses are "@it.example" or, for organisation domains (M13), "@<something>.it.example".
   const users = await db.user.findMany({
-    where: { email: { endsWith: `@${IT_DOMAIN}` } },
+    where: {
+      OR: [
+        { email: { endsWith: `@${IT_DOMAIN}` } },
+        { email: { endsWith: `.${IT_DOMAIN}` } },
+      ],
+    },
     select: { id: true },
   });
   const ids = users.map((u) => u.id);
@@ -258,4 +264,16 @@ export async function cleanUp(): Promise<void> {
   });
   await db.user.deleteMany({ where: { id: { in: ids } } });
   await db.country.deleteMany({ where: { id: { startsWith: "it-" } } });
+  // M13: pre-approved test entries.
+  await db.approvedContact.deleteMany({
+    where: {
+      OR: [
+        { email: { endsWith: `@${IT_DOMAIN}` } },
+        { email: { endsWith: `.${IT_DOMAIN}` } },
+      ],
+    },
+  });
+  await db.approvedOrganisation.deleteMany({
+    where: { name: { startsWith: "IT " } },
+  });
 }

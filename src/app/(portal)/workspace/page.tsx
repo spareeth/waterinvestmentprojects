@@ -14,6 +14,8 @@ import {
   isAdminViewer,
   requirePortalUser,
 } from "@/lib/authz";
+import { describeDemand } from "@/lib/requests/demand";
+import { getProjectDemand } from "@/lib/requests/service";
 import {
   listWorkspaceCountries,
   listWorkspaceProjects,
@@ -39,6 +41,11 @@ export default async function WorkspacePage() {
     listWorkspaceProjects(viewer),
     listWorkspaceCountries(viewer),
   ]);
+  // M13 (PLAN v0.4 0b.16): the country sees the demand for each project, declined requests included.
+  const demand = await getProjectDemand(
+    viewer,
+    projects.map((p) => p.id),
+  );
   const admin = isAdminViewer(viewer);
   const canAdd = canCreateProject(viewer) && countries.length > 0;
   const intro = admin
@@ -89,6 +96,9 @@ export default async function WorkspacePage() {
                       <span className="text-sm text-muted-foreground">
                         {admin ? `${p.country.name} · ` : ""}
                         {p.sector}
+                      </span>
+                      <span className="text-sm">
+                        {describeDemand(demand.get(p.id))}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

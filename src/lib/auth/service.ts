@@ -1,11 +1,22 @@
 import "server-only";
 import { isAPIError } from "better-auth/api";
-import { UserStatus } from "@/generated/prisma/enums";
+import { type OrganisationType, UserStatus } from "@/generated/prisma/enums";
 import { requestMetaFrom, writeAudit } from "@/lib/audit";
 import { type Actor, canApproveUsers } from "@/lib/authz/account-policies";
 import { db } from "@/lib/db";
+import { getEnv } from "@/lib/env";
+import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
 import { type Auth, getAuth, normaliseEmail } from "./auth";
 import { AUTH_AUDIT, AUTH_ERROR } from "./constants";
+import {
+  describeMatch,
+  type PreApprovedList,
+  preApprovalMatch,
+} from "./pre-approval";
+import {
+  registrationNotice,
+  registrationOutcomeEmail,
+} from "./registration-emails";
 import { TERMS_VERSION } from "./terms";
 
 // Sign-in steps behind the server actions. Every function takes the request headers explicitly so the same
@@ -241,46 +252,76 @@ export interface RegisterInput {
   password: string;
   name: string;
   organisation: string;
-  jobTitle?: string | null;
+  /** M13 (PLAN v0.4 0b.16, 0b.17). */
+  organisationType: OrganisationType;
+  jobTitle: string;
 }
 
 export type RegisterResult =
-  | { status: "ok"; userId: string; headers: Headers }
+  | {
+      status: "ok";
+      userId: string;
+      headers: Headers;
+      /** ACTIVE when a pre-approved registrant got immediate access, otherwise PENDING_APPROVAL. */
+      accountStatus: UserStatus;
+    }
   | { status: "failed"; reason: "disabled" | "rejected" };
 
+export interface RegisterOptions {
+  auth?: Auth;
+  /** Defaults to REGISTRATION_AUTO_APPROVE. */
+  autoApprove?: boolean;
+  mailer?: Mailer;
+  summitEmails?: string[];
+}
+
+/** The pre-approved list as the matching rules need it. */
+export async function loadPreApprovedList(): Promise<PreApprovedList> {
+  const [contacts, organisations] = await Promise.all([
+    db.approvedContact.findMany({
+      select: { email: true, organisation: { select: { name: true } } },
+    }),
+    db.approvedOrganisation.findMany({
+      select: { name: true, emailDomains: true },
+    }),
+  ]);
+  return {
+    contacts: contacts.map((c) => ({
+      email: c.email,
+      organisationName: c.organisation?.name ?? null,
+    })),
+    organisations,
+  };
+}
+
 /**
- * Self-registration (off unless SELF_REGISTRATION_ENABLED). Creates an INVESTOR with status PENDING_APPROVAL,
- * who sees only the pending screen until a Summit admin approves. Role and status cannot be set by the form.
+ * Investor and operator self-registration (M13, PLAN v0.4 0b.17 to 0b.21; off when SELF_REGISTRATION_ENABLED
+ * is "false"). Creates an INVESTOR who waits for a Summit admin (PENDING_APPROVAL, nothing visible but the
+ * pending screen). A registrant on the pre-approved list gets immediate access only with REGISTRATION_AUTO_APPROVE;
+ * otherwise the match is shown to the approver. Role and status are never taken from the form. After the commit
+ * the Summit mailbox is told; a mail failure is audited and never undoes the registration.
  */
 export async function register(
   input: RegisterInput,
   headers: Headers,
-  auth: Auth = getAuth(),
+  options: RegisterOptions = {},
 ): Promise<RegisterResult> {
+  const auth = options.auth ?? getAuth();
   const email = normaliseEmail(input.email);
+  const meta = requestMetaFrom(headers);
+  let result;
   try {
-    const result = await auth.api.signUpEmail({
+    result = await auth.api.signUpEmail({
       body: {
         email,
         password: input.password,
         name: input.name.trim(),
         organisation: input.organisation.trim(),
-        jobTitle: input.jobTitle?.trim() || undefined,
+        jobTitle: input.jobTitle.trim(),
       },
       headers,
       returnHeaders: true,
     });
-    const userId = (result.response as { user?: { id: string } }).user?.id;
-    if (!userId) throw new Error("Sign-up returned no user");
-    await writeAudit({
-      actorId: userId,
-      action: AUTH_AUDIT.REGISTER,
-      entityType: "User",
-      entityId: userId,
-      meta: requestMetaFrom(headers),
-      metadata: { status: UserStatus.PENDING_APPROVAL },
-    });
-    return { status: "ok", userId, headers: result.headers };
   } catch (error) {
     if (!isAPIError(error)) throw error;
     const code = errorCode(error);
@@ -290,33 +331,143 @@ export async function register(
         code === "EMAIL_PASSWORD_SIGN_UP_DISABLED" ? "disabled" : "rejected",
     };
   }
+  const userId = (result.response as { user?: { id: string } }).user?.id;
+  if (!userId) throw new Error("Sign-up returned no user");
+
+  const match = preApprovalMatch(email, await loadPreApprovedList());
+  const autoApprove =
+    (options.autoApprove ?? getEnv().REGISTRATION_AUTO_APPROVE) &&
+    match !== null;
+  const accountStatus = autoApprove
+    ? UserStatus.ACTIVE
+    : UserStatus.PENDING_APPROVAL;
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { organisationType: input.organisationType, status: accountStatus },
+    });
+    await writeAudit(
+      {
+        actorId: userId,
+        action: AUTH_AUDIT.REGISTER,
+        entityType: "User",
+        entityId: userId,
+        meta,
+        metadata: {
+          status: accountStatus,
+          organisationType: input.organisationType,
+          preApproval: match ? match.kind : null,
+        },
+      },
+      tx,
+    );
+    if (autoApprove) {
+      await writeAudit(
+        {
+          actorId: null,
+          action: AUTH_AUDIT.AUTO_APPROVE,
+          entityType: "User",
+          entityId: userId,
+          meta,
+          metadata: { match: describeMatch(match) },
+        },
+        tx,
+      );
+    }
+  });
+
+  await notifySummitTeam(
+    "registration.summit_notice",
+    registrationNotice({
+      name: input.name.trim(),
+      email,
+      organisation: input.organisation.trim(),
+      organisationType: input.organisationType,
+      jobTitle: input.jobTitle.trim(),
+      match,
+      approved: autoApprove,
+    }),
+    {
+      mailer: options.mailer,
+      meta,
+      entityType: "User",
+      entityId: userId,
+      recipients: options.summitEmails,
+    },
+  );
+  return { status: "ok", userId, headers: result.headers, accountStatus };
+}
+
+export class RegistrationDecisionError extends Error {
+  constructor(public readonly code: "forbidden" | "not_pending") {
+    super(
+      code === "forbidden"
+        ? "Not allowed to decide registrations."
+        : "This registration has already been decided.",
+    );
+    this.name = "RegistrationDecisionError";
+  }
 }
 
 /**
- * A Summit admin approves a self-registered account (self-registration is off since M2). What the account then
- * sees follows from its role alone (PLAN v0.3: every investor sees every published teaser).
+ * A Summit or platform admin approves or rejects a registration that is waiting (M13, PLAN v0.4 0b.19). Only a
+ * PENDING_APPROVAL account changes, once: approval makes it ACTIVE (what it then sees follows from its role: every
+ * investor sees every published teaser after the investor acknowledgement), rejection makes it REJECTED (it keeps
+ * seeing only the pending screen). Audited. The registrant is emailed the outcome only with
+ * REGISTRATION_NOTIFY_REGISTRANT; until then the Summit team tells them personally.
  */
+export async function decideRegistration(
+  actor: Actor,
+  userId: string,
+  decision: "approve" | "reject",
+  headers: Headers,
+  options: { mailer?: Mailer; notifyRegistrant?: boolean } = {},
+): Promise<void> {
+  if (!canApproveUsers(actor)) {
+    throw new RegistrationDecisionError("forbidden");
+  }
+  const meta = requestMetaFrom(headers);
+  const status =
+    decision === "approve" ? UserStatus.ACTIVE : UserStatus.REJECTED;
+  const user = await db.$transaction(async (tx) => {
+    const updated = await tx.user.updateMany({
+      where: { id: userId, status: UserStatus.PENDING_APPROVAL },
+      data: { status },
+    });
+    if (updated.count !== 1) {
+      throw new RegistrationDecisionError("not_pending");
+    }
+    await writeAudit(
+      {
+        actorId: actor.id,
+        action: decision === "approve" ? AUTH_AUDIT.APPROVE : AUTH_AUDIT.REJECT,
+        entityType: "User",
+        entityId: userId,
+        meta,
+      },
+      tx,
+    );
+    return tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+  });
+  if (options.notifyRegistrant ?? getEnv().REGISTRATION_NOTIFY_REGISTRANT) {
+    await sendMail(
+      `registration.${decision === "approve" ? "approved" : "rejected"}`,
+      { to: [user.email], ...registrationOutcomeEmail(user.name, decision) },
+      { mailer: options.mailer, meta, entityType: "User", entityId: userId },
+    );
+  }
+}
+
+/** Kept for callers from before M13. */
 export async function approveUser(
   actor: Actor,
   userId: string,
   headers: Headers,
 ): Promise<void> {
-  if (!canApproveUsers(actor)) throw new Error("Not allowed to approve users.");
-  await db.$transaction(async (tx) => {
-    const updated = await tx.user.updateMany({
-      where: { id: userId, status: UserStatus.PENDING_APPROVAL },
-      data: { status: UserStatus.ACTIVE },
-    });
-    if (updated.count !== 1) throw new Error("No pending account to approve.");
-    await writeAudit(
-      {
-        actorId: actor.id,
-        action: AUTH_AUDIT.APPROVE,
-        entityType: "User",
-        entityId: userId,
-        meta: requestMetaFrom(headers),
-      },
-      tx,
-    );
+  await decideRegistration(actor, userId, "approve", headers, {
+    notifyRegistrant: false,
   });
 }

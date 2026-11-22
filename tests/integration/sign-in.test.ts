@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { UserRole, UserStatus } from "@/generated/prisma/enums";
+import {
+  OrganisationType,
+  UserRole,
+  UserStatus,
+} from "@/generated/prisma/enums";
 import { LOCKOUT_MAX_FAILURES } from "@/lib/auth/constants";
 import {
   approveUser,
@@ -218,13 +222,20 @@ describe("two-step verification at sign-in", () => {
 });
 
 describe("self-registration", () => {
+  const details = {
+    password: PASSWORD,
+    name: "Self Registered",
+    organisation: "X",
+    organisationType: OrganisationType.INVESTOR_FUND,
+    jobTitle: "Partner",
+  };
+
   it("is refused while SELF_REGISTRATION_ENABLED is off", async () => {
     const email = uniqueEmail("selfreg-off");
-    const result = await register(
-      { email, password: PASSWORD, name: "Self Registered", organisation: "X" },
-      requestHeaders(),
-      auth,
-    );
+    const result = await register({ email, ...details }, requestHeaders(), {
+      auth: testAuth({ SELF_REGISTRATION_ENABLED: "false" }),
+      autoApprove: false,
+    });
     expect(result).toEqual({ status: "failed", reason: "disabled" });
     expect(await db.user.count({ where: { email } })).toBe(0);
   });
@@ -232,11 +243,11 @@ describe("self-registration", () => {
   it("creates a pending investor that sees nothing until approved", async () => {
     const openAuth = testAuth({ SELF_REGISTRATION_ENABLED: "true" });
     const email = uniqueEmail("selfreg-on");
-    const result = await register(
-      { email, password: PASSWORD, name: "Self Registered", organisation: "X" },
-      requestHeaders(),
-      openAuth,
-    );
+    const result = await register({ email, ...details }, requestHeaders(), {
+      auth: openAuth,
+      autoApprove: false,
+      summitEmails: [],
+    });
     expect(result.status).toBe("ok");
     const user = await db.user.findUniqueOrThrow({ where: { email } });
     // A pending account has no viewer at all, so no pipeline.

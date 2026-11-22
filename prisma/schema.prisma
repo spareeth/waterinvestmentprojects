@@ -65,6 +65,19 @@ enum UserStatus {
   PENDING_APPROVAL
   ACTIVE
   DEACTIVATED
+  /// M13 (PLAN v0.4 0b.21): a self-registration the Summit team declined. Sees only the pending screen.
+  REJECTED
+}
+
+/// M13 (PLAN v0.4 0b.16): what kind of organisation an investor or operator works for, asked at registration,
+/// so countries can see the demand for their projects by organisation type.
+enum OrganisationType {
+  INFRASTRUCTURE_OPERATOR
+  INVESTOR_FUND
+  DFI_MDB
+  COMMERCIAL_BANK
+  ADVISER
+  OTHER
 }
 
 enum MeetingRequestStatus {
@@ -146,27 +159,29 @@ model CountryMembership {
 /// Application user, also Better Auth's user model. Better Auth's two-factor flag is mapped onto
 /// mfaEnabled (see src/lib/auth/auth.ts); emailVerified and image are fields Better Auth requires.
 model User {
-  id                     String     @id @default(cuid())
-  email                  String     @unique
+  id                     String            @id @default(cuid())
+  email                  String            @unique
   name                   String
   organisation           String?
+  /// M13 (PLAN v0.4 0b.16): asked at investor registration; empty for accounts made before or by admins.
+  organisationType       OrganisationType?
   jobTitle               String?
   role                   UserRole
-  status                 UserStatus @default(PENDING_APPROVAL)
-  mfaEnabled             Boolean    @default(false)
+  status                 UserStatus        @default(PENDING_APPROVAL)
+  mfaEnabled             Boolean           @default(false)
   termsAcceptedAt        DateTime?
   /// M2 (PLAN 0a.4): set when an admin hands out a temporary password; cleared when the person sets their own.
-  mustChangePassword     Boolean    @default(false)
+  mustChangePassword     Boolean           @default(false)
   /// M2: investor acknowledgement (PLAN v0.3 0.6), accepted once per user at first sign-in, again if the
   /// wording version in config changes. Investors see no pipeline before it.
   investorAckTextVersion String?
   investorAckAcceptedAt  DateTime?
   /// Required by Better Auth. True for invited users (the invitation link proves the address).
-  emailVerified          Boolean    @default(false)
+  emailVerified          Boolean           @default(false)
   /// Required by Better Auth; not used by the portal.
   image                  String?
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   sessions           Session[]
   accounts           Account[]
@@ -181,6 +196,27 @@ model User {
   uploadLinksCreated UploadLink[]        @relation("UploadLinkCreatedBy")
 
   @@index([role, status])
+}
+
+/// M13 (PLAN v0.4 0b.18, 0b.21): an organisation WBG pre-approved for the Summit. A registrant whose email
+/// domain is one of `emailDomains` matches it (public email domains never match).
+model ApprovedOrganisation {
+  id           String            @id @default(cuid())
+  name         String
+  /// Lower-case domains without "@", for example "bank-one.example".
+  emailDomains String[]
+  /// Where the entry came from, for example "WBG list, 23 Nov".
+  source       String            @default("")
+  createdAt    DateTime          @default(now())
+  contacts     ApprovedContact[]
+}
+
+/// M13 (PLAN v0.4 0b.18, 0b.21): a person WBG pre-approved by email address (lower case).
+model ApprovedContact {
+  email          String                @id
+  organisationId String?
+  organisation   ApprovedOrganisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime              @default(now())
 }
 
 model Invitation {

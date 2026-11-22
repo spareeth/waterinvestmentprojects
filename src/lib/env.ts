@@ -7,6 +7,12 @@ const flag = z
   .optional()
   .transform((value) => value === "true");
 
+/** Like `flag`, but on unless set to "false". */
+const flagDefaultOn = z
+  .enum(["true", "false", ""])
+  .optional()
+  .transform((value) => value !== "false");
+
 function intInRange(min: number, max: number, fallback: number) {
   return z.coerce
     .number()
@@ -35,8 +41,23 @@ const envSchema = z
     BETTER_AUTH_SECRET: z
       .string()
       .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
-    /** Self-registration is built but off; self-registered accounts wait for a Summit admin. */
-    SELF_REGISTRATION_ENABLED: flag,
+    /**
+     * M13 (PLAN v0.4 0b.17): investors and operators register at /register. On unless set to "false". A
+     * registration waits for a Summit admin, unless REGISTRATION_AUTO_APPROVE lets a pre-approved one straight in.
+     */
+    SELF_REGISTRATION_ENABLED: flagDefaultOn,
+    /**
+     * M13 (PLAN v0.4 0b.18): "true" gives a registrant on the pre-approved list (exact email, or an approved
+     * organisation's email domain) immediate access. Off by default: the portal does not yet verify that the
+     * registrant owns the address, so anyone could type a listed email. Switch on only once that risk is accepted
+     * or email verification is in place.
+     */
+    REGISTRATION_AUTO_APPROVE: flag,
+    /**
+     * M13 (PLAN v0.4 0b.19, 0b.26): "true" emails a registrant when the Summit team approves or rejects them. Off
+     * until the mailbox reaches Outlook and Gmail inboxes; access details go out personally until then.
+     */
+    REGISTRATION_NOTIFY_REGISTRANT: flag,
     /**
      * Second step at sign-in (PLAN 0a.3, 18 Nov: email and password only for now). "none" (default) asks for no
      * second step; "totp" requires an authenticator app (built in the old M3, kept dormant). Email codes come

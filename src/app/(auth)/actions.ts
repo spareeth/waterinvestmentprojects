@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import type { FormState } from "@/components/auth/form-parts";
+import { OrganisationType } from "@/generated/prisma/enums";
 import { requestMetaFrom } from "@/lib/audit";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
 import {
@@ -174,14 +175,34 @@ export async function acceptInvitationAction(
 }
 
 // ---------------------------------------------------------------------------
-// Self-registration (off unless SELF_REGISTRATION_ENABLED=true)
+// Investor and operator registration (M13; off when SELF_REGISTRATION_ENABLED="false")
 // ---------------------------------------------------------------------------
+
+const noLineBreaks = /^[^\u0000-\u001f\u007f]+$/;
 
 const registerSchema = z
   .object({
-    name: z.string().trim().min(2, "Enter your full name.").max(120),
-    organisation: z.string().trim().min(2, "Enter your organisation.").max(160),
-    jobTitle: z.string().trim().max(120).optional(),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Enter your full name.")
+      .max(120)
+      .regex(noLineBreaks, "Enter your name without line breaks."),
+    organisation: z
+      .string()
+      .trim()
+      .min(2, "Enter your organisation.")
+      .max(160)
+      .regex(noLineBreaks, "Enter the organisation without line breaks."),
+    organisationType: z.enum(OrganisationType, {
+      error: "Choose the type of organisation.",
+    }),
+    jobTitle: z
+      .string()
+      .trim()
+      .min(2, "Enter your job title.")
+      .max(120)
+      .regex(noLineBreaks, "Enter your job title without line breaks."),
     email: z.email("Enter a valid email address.").max(254),
     password: passwordRules,
     confirmPassword: z.string(),
@@ -201,7 +222,8 @@ export async function registerAction(
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     organisation: formData.get("organisation"),
-    jobTitle: formData.get("jobTitle") || undefined,
+    organisationType: formData.get("organisationType") ?? "",
+    jobTitle: formData.get("jobTitle") ?? "",
     email: String(formData.get("email") ?? "").trim(),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
@@ -215,5 +237,6 @@ export async function registerAction(
         "We could not create an account with these details. If you already have an account, please sign in.",
     };
   }
-  redirect("/pending");
+  // Waiting for approval: the pending screen. Pre-approved with immediate access: the investor acknowledgement.
+  redirect(await stagePathForUser(result.userId));
 }

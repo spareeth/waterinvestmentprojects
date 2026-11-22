@@ -1,7 +1,11 @@
 import "server-only";
 import { headers as nextHeaders } from "next/headers";
 import { connection } from "next/server";
-import type { MembershipRole, UserRole } from "@/generated/prisma/enums";
+import type {
+  MembershipRole,
+  UserRole,
+  UserStatus,
+} from "@/generated/prisma/enums";
 import { requestMetaFrom, writeAudit } from "@/lib/audit";
 import {
   type AccountStage,
@@ -26,6 +30,8 @@ export interface CurrentUser {
   name: string;
   organisation: string | null;
   role: UserRole;
+  /** M13: tells the pending screen whether a registration is waiting or was rejected. */
+  status: UserStatus;
   mfaEnabled: boolean;
   /** Country memberships: a COUNTRY user's countries, or a WBG coordinator's. */
   memberships: { countryId: string; role: MembershipRole }[];
@@ -150,6 +156,7 @@ export async function getCurrentSession(
       name: user.name,
       organisation: user.organisation,
       role: user.role,
+      status: user.status,
       mfaEnabled: user.mfaEnabled,
       memberships: user.memberships,
     },

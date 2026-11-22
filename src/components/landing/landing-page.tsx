@@ -12,9 +12,9 @@ import { appConfig } from "@/lib/config";
 
 const accessSteps = [
   {
-    eyebrow: "01 · Invitation only",
+    eyebrow: "01 · Approved access",
     title: "Personal accounts",
-    body: "The Summit team creates a personal account for each invited participant and passes on the sign-in details directly.",
+    body: "Governments and the Summit team receive their accounts from the Summit team. Investors and operators register, and the Summit team checks each registration before the projects become visible.",
   },
   {
     eyebrow: "02 · Governments",
@@ -24,7 +24,7 @@ const accessSteps = [
   {
     eyebrow: "03 · Investors and operators",
     title: "From teaser to meeting",
-    body: "Invited investors and operators view and download the published teasers and request bilateral meetings. The country's focal point accepts or declines each request.",
+    body: "Approved investors and operators view and download the published teasers and request bilateral meetings. The country's focal point accepts or declines each request.",
   },
 ] as const;
 
@@ -36,7 +36,12 @@ const navLinkClass = "hidden text-white/90 hover:text-white sm:inline";
  */
 export function LandingPage({
   portalHeader = null,
-}: { portalHeader?: ReactNode } = {}) {
+  registrationOpen = false,
+}: {
+  portalHeader?: ReactNode;
+  /** M13: SELF_REGISTRATION_ENABLED, read by the page at request time. */
+  registrationOpen?: boolean;
+} = {}) {
   const { summit, supportEmail } = appConfig;
   const signedIn = portalHeader !== null;
   const entry = signedIn
@@ -87,6 +92,18 @@ export function LandingPage({
               invited investors and operators ahead of the {summit.name}, so
               that bilateral meetings start from the same information.
             </p>
+            {!signedIn && registrationOpen ? (
+              <p className="text-sm text-white/90 sm:text-base">
+                Investor or operator?{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-white underline underline-offset-4 hover:text-white/80"
+                >
+                  Register here
+                </Link>
+                .
+              </p>
+            ) : null}
             {/* Buttons on the left, partner logos bottom right on the same row; on narrow screens the logos wrap
                 below the buttons. */}
             <div className="flex w-full flex-wrap items-end justify-between gap-x-6 gap-y-8">

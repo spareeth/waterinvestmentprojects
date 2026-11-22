@@ -26,6 +26,7 @@ import {
   SLOT_DISPLAY_SELECT,
 } from "@/lib/meetings/slots";
 import { toCsv } from "./csv";
+import { type ProjectDemand, summariseDemand } from "./demand";
 import {
   type DecisionOutcome,
   focalPointRequestEmail,
@@ -526,6 +527,39 @@ export interface RequestCounts {
   pending: number;
   /** Pending requests younger than NEW_REQUEST_HOURS. */
   newPending: number;
+}
+
+/**
+ * M13 (PLAN v0.4 0b.16): meeting request counts per project by the requester's organisation type, for the
+ * country's "My projects". Only requests in the viewer's inbox (own countries; admins all), so a country never
+ * learns about another country's requests; no requester names leave this function. Withdrawn requests are left out.
+ */
+export async function getProjectDemand(
+  viewer: Viewer,
+  projectIds: string[],
+): Promise<Map<string, ProjectDemand>> {
+  if (!canViewRequestInbox(viewer) || projectIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db.meetingRequest.findMany({
+    where: {
+      AND: [
+        inboxWhere(viewer),
+        { projectId: { in: projectIds } },
+        { status: { not: MeetingRequestStatus.WITHDRAWN } },
+      ],
+    },
+    select: {
+      projectId: true,
+      requester: { select: { organisationType: true } },
+    },
+  });
+  return summariseDemand(
+    rows.map((r) => ({
+      projectId: r.projectId,
+      organisationType: r.requester.organisationType,
+    })),
+  );
 }
 
 /** Counts for the inbox and the home page (the notification that does not depend on email). */

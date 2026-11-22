@@ -70,6 +70,16 @@ export function canApproveUsers(actor: Pick<Actor, "role">): boolean {
   return isAdmin(actor);
 }
 
+/**
+ * M13 (PLAN v0.4 0b.18): the pre-approved organisations and contacts from WBG are kept by the Summit team (or
+ * Terra). Nobody else may see or change the list.
+ */
+export function canManagePreApproval(
+  actor: Pick<Actor, "role"> | null,
+): boolean {
+  return actor !== null && isAdmin(actor);
+}
+
 // ---------------------------------------------------------------------------
 // M2 (PLAN 0a.4): accounts handed out by admins with a temporary password
 // ---------------------------------------------------------------------------

@@ -52,6 +52,53 @@ export function Field({
   );
 }
 
+/** A drop-down in the style of Field (M13: organisation type at registration). */
+export function SelectField({
+  label,
+  name,
+  options,
+  placeholder,
+  error,
+  required,
+}: {
+  label: string;
+  name: string;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  error?: string;
+  required?: boolean;
+}) {
+  const id = `field-${name}`;
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <select
+        id={id}
+        name={name}
+        defaultValue=""
+        required={required}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none aria-invalid:border-destructive"
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {error ? (
+        <p id={`${id}-error`} className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;
   return (

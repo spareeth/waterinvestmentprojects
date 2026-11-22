@@ -24,10 +24,21 @@ vi.mock("@/app/(account)/actions", () => ({
   startEnrolmentAction: vi.fn(),
   confirmEnrolmentAction: vi.fn(),
 }));
+// M13: the sign-in page reads whether investor registration is open.
+vi.mock("@/lib/env", () => ({
+  getEnv: () => ({ SELF_REGISTRATION_ENABLED: true }),
+}));
+
+function signedOut(as?: string) {
+  return {
+    params: Promise.resolve({}),
+    searchParams: Promise.resolve(as ? { as } : {}),
+  } as Parameters<typeof SignInPage>[0];
+}
 
 describe("sign-in screens", () => {
   it("asks for email and password, with labelled fields", async () => {
-    render(await SignInPage());
+    render(await SignInPage(signedOut()));
     expect(
       screen.getByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
@@ -39,9 +50,44 @@ describe("sign-in screens", () => {
       "type",
       "password",
     );
-    // PLAN 0a.3 and 0a.4: email and password only, accounts handed out by the Summit team.
+    // PLAN 0a.3 and 0a.4: email and password only; forgotten passwords are reset by the Summit team.
     expect(screen.getByText(/temporary/)).toBeInTheDocument();
     expect(screen.queryByText(/authenticator app/)).not.toBeInTheDocument();
+  });
+
+  it("offers the three ways in over one form, and registration to investors (M13)", async () => {
+    render(await SignInPage(signedOut("investor")));
+    const options = screen.getByRole("navigation", {
+      name: "I am signing in as",
+    });
+    for (const [label, as] of [
+      ["Government or country", "country"],
+      ["Investor or operator", "investor"],
+      ["Summit team", "team"],
+    ]) {
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        `/sign-in?as=${as}`,
+      );
+    }
+    expect(
+      screen.getByRole("link", { name: "Investor or operator" }),
+    ).toHaveAttribute("aria-current", "true");
+    expect(options).toHaveTextContent(
+      /email address and password you registered/,
+    );
+    expect(screen.getByRole("link", { name: "Register here" })).toHaveAttribute(
+      "href",
+      "/register",
+    );
+    // Only one sign-in form, whatever the choice.
+    expect(screen.getAllByLabelText("Password")).toHaveLength(1);
+  });
+
+  it("does not offer registration to governments or the Summit team", async () => {
+    render(await SignInPage(signedOut("country")));
+    expect(screen.queryByRole("link", { name: "Register here" })).toBeNull();
+    expect(screen.getByText(/upload link/)).toBeInTheDocument();
   });
 
   it("asks for the second step with a one-time code field", () => {
@@ -68,7 +114,7 @@ describe("sign-in screens", () => {
   });
 
   it("uses no em dashes in visible copy or the terms", async () => {
-    const signIn = await SignInPage();
+    const signIn = await SignInPage(signedOut());
     const { container } = render(
       <>
         {signIn}
@@ -91,7 +137,7 @@ describe("sign-in page when already signed in", () => {
       user: { id: "u1" },
     } as Awaited<ReturnType<typeof session.getCurrentSession>>);
     vi.mocked(session.stagePathForUser).mockResolvedValueOnce("/pipeline");
-    await expect(SignInPage()).rejects.toThrow(/NEXT_REDIRECT/);
+    await expect(SignInPage(signedOut())).rejects.toThrow(/NEXT_REDIRECT/);
     expect(session.stagePathForUser).toHaveBeenCalledWith("u1");
   });
 });

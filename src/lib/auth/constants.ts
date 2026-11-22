@@ -25,6 +25,10 @@ export const AUTH_AUDIT = {
   TERMS_ACCEPT: "user.terms_accept",
   REGISTER: "user.register",
   APPROVE: "user.approve",
+  /** M13: a registrant on the pre-approved list got immediate access (REGISTRATION_AUTO_APPROVE). */
+  AUTO_APPROVE: "user.auto_approve",
+  /** M13: an admin declined a registration. */
+  REJECT: "user.reject",
   INVITATION_CREATE: "invitation.create",
   INVITATION_ACCEPT: "invitation.accept",
   /** M2: an admin created an account with a temporary password (PLAN 0a.4). */
