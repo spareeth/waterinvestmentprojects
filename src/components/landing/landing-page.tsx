@@ -84,13 +84,12 @@ export function LandingPage({
               id="about-heading"
               className="max-w-3xl text-3xl leading-tight font-bold tracking-tight sm:text-5xl"
             >
-              Investment-ready water projects, shared securely with the people
-              who can finance them.
+              A pipeline of water project opportunities from participating
+              governments.
             </h1>
             <p className="max-w-2xl text-base text-white/90 sm:text-lg">
-              Participating governments share one-page project teasers with
-              invited investors and operators ahead of the {summit.name}, so
-              that bilateral meetings start from the same information.
+              Invited investors and operators can review the projects and
+              request bilateral meetings with the governments behind them.
             </p>
             {!signedIn && registrationOpen ? (
               <p className="text-sm text-white/90 sm:text-base">

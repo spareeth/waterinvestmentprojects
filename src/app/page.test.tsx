@@ -26,7 +26,7 @@ describe("Landing page", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /investment-ready water projects/i,
+        name: /pipeline of water project opportunities/i,
       }),
     ).toBeInTheDocument();
   });
@@ -104,7 +104,7 @@ describe("Landing page", () => {
   it("shows the partner logos in the hero in the agreed order, and only the copyright in the footer", async () => {
     const { container } = await renderLanding();
     const hero = screen.getByRole("region", {
-      name: /Investment-ready water projects/,
+      name: /A pipeline of water project opportunities/,
     });
     const list = within(hero).getByRole("list", { name: "Partners" });
     // Order set by Sajid, 22 Nov: UNWC (logo to follow), ECD|Terra, GCFC, WBG. No MoFA logo (PLAN v0.4 0b.27).

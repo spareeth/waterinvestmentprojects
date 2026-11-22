@@ -7,7 +7,7 @@ test("landing page loads and is not indexed by search engines", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: /investment-ready water projects/i,
+      name: /pipeline of water project opportunities/i,
     }),
   ).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
