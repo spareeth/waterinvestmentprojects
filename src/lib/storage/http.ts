@@ -24,8 +24,9 @@ export function contentDisposition(mode: ServeMode, filename: string): string {
 }
 
 /**
- * Headers for a private file (PDF, or PowerPoint from the upload link): never cached by shared caches, never
- * sniffed as another type. Browsers cannot show PowerPoint, so it is always sent as a download.
+ * Headers for a private file (PDF, or another accepted format from the upload link): never cached by shared caches,
+ * never sniffed as another type. Only a PDF may be shown in the page; every other format (Office, OpenDocument,
+ * RTF and images too) is always sent as a download, so nothing uploaded renders inline in the portal's origin.
  */
 export function privateFileHeaders(
   mode: ServeMode,

@@ -44,9 +44,9 @@ export const FIELD_MESSAGES = {
   sector: "Choose the sector.",
   file_missing: "Choose the teaser file.",
   file_too_large: `Each teaser must be ${formatBytes(MAX_TEASER_BYTES)} or smaller.`,
-  file_not_pdf: "Upload a PDF or PowerPoint (.pptx) file.",
+  file_not_pdf: "Upload a PDF file.",
   file_wrong_type:
-    "Upload a PDF or PowerPoint (.pptx) file. Other formats, and files whose content does not match their name, are not accepted.",
+    "Upload a PDF (preferred), PowerPoint, Word, Excel, OpenDocument, RTF, JPG or PNG file. Other formats, macro-enabled files, and files whose content does not match their name, are not accepted.",
   totalTooLarge: `Together the files must be ${formatBytes(MAX_SUBMISSION_BYTES)} or smaller. Send the rest in a second submission.`,
   expiresAt: "Choose an expiry date in the future.",
 } as const;

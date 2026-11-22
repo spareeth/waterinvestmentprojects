@@ -47,9 +47,7 @@ export function TeaserViewer({
   if (teaser.fileType !== "pdf") {
     return (
       <Placeholder>
-        <p>
-          This teaser is a PowerPoint file, which cannot be shown in the page.
-        </p>
+        <p>This teaser is not a PDF, so it cannot be shown in the page.</p>
         {teaser.canDownload ? (
           <Button asChild className="mt-4">
             <a href={teaserFileHref(teaser.id, "download")} download>

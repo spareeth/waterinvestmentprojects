@@ -2,6 +2,7 @@
 // to adjust; the acknowledgement itself comes from config.
 
 import { appConfig } from "@/lib/config";
+import { isPdfFilename } from "@/lib/workspace/teaser-file";
 import { formatUaeTime } from "./format";
 
 export interface SubmissionMailFacts {
@@ -9,6 +10,8 @@ export interface SubmissionMailFacts {
   countryName: string;
   uploaderName: string;
   uploaderEmail: string;
+  /** M11: the uploader's job title; may be empty for older submissions. */
+  uploaderJobTitle?: string;
   /** "Represented government organisation"; may be empty for older submissions. */
   governmentOrganisation?: string;
   acceptedAt: Date;
@@ -16,8 +19,27 @@ export interface SubmissionMailFacts {
   files: { filename: string; sector: string }[];
 }
 
-function fileLines(files: SubmissionMailFacts["files"]): string[] {
-  return files.map((f) => `- ${f.filename} (sector: ${f.sector})`);
+function fileLines(
+  files: SubmissionMailFacts["files"],
+  { flagNonPdf = false } = {},
+): string[] {
+  return files.map(
+    (f) =>
+      `- ${f.filename} (sector: ${f.sector})${
+        flagNonPdf && !isPdfFilename(f.filename)
+          ? " [not a PDF: attach the converted PDF before publishing]"
+          : ""
+      }`,
+  );
+}
+
+function uploaderLines(facts: SubmissionMailFacts): string[] {
+  return [
+    ...(facts.uploaderJobTitle ? [`Job title: ${facts.uploaderJobTitle}`] : []),
+    ...(facts.governmentOrganisation
+      ? [`Represented government organisation: ${facts.governmentOrganisation}`]
+      : []),
+  ];
 }
 
 function plural(n: number, word: string): string {
@@ -38,12 +60,7 @@ export function uploaderConfirmationEmail(facts: SubmissionMailFacts): {
       "",
       ...fileLines(facts.files),
       "",
-      ...(facts.governmentOrganisation
-        ? [
-            `Represented government organisation: ${facts.governmentOrganisation}`,
-            "",
-          ]
-        : []),
+      ...(uploaderLines(facts).length > 0 ? [...uploaderLines(facts), ""] : []),
       `On ${formatUaeTime(facts.acceptedAt)} you confirmed:`,
       `"${facts.ackText}"`,
       "",
@@ -67,13 +84,9 @@ export function summitSubmissionNotice(facts: SubmissionMailFacts): {
     subject: `New teaser submission: ${facts.countryName} (${plural(facts.files.length, "file")})`,
     text: [
       `${facts.uploaderName} <${facts.uploaderEmail}> sent ${plural(facts.files.length, "teaser")} for ${facts.countryName} on ${formatUaeTime(facts.acceptedAt)}.`,
-      ...(facts.governmentOrganisation
-        ? [
-            `Represented government organisation: ${facts.governmentOrganisation}`,
-          ]
-        : []),
+      ...uploaderLines(facts),
       "",
-      ...fileLines(facts.files),
+      ...fileLines(facts.files, { flagNonPdf: true }),
       "",
       "The projects are saved as drafts. Review and download them here (sign-in needed):",
       `${appConfig.url.replace(/\/+$/, "")}/admin/submissions`,

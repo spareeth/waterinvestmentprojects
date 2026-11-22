@@ -19,6 +19,7 @@ describe("ProjectCard", () => {
           id: "p1",
           title: "Galle NRW Project",
           sector: "Non-revenue water",
+          region: null,
           pppModel: null,
           sizeMinUsd: null,
           sizeMaxUsd: null,
@@ -34,6 +35,8 @@ describe("ProjectCard", () => {
     ).toHaveAttribute("href", "/pipeline/p1");
     expect(screen.getByText("Non-revenue water")).toBeInTheDocument();
     expect(screen.getByText("RFQ")).toBeInTheDocument();
-    expect(screen.getAllByText("Not stated")).toHaveLength(2);
+    expect(screen.getAllByText("Not stated")).toHaveLength(1);
+    // M11: an unknown size reads "TBC" (PLAN v0.4 0b.8).
+    expect(screen.getByText("TBC")).toBeInTheDocument();
   });
 });

@@ -71,6 +71,7 @@ const projects: ProjectSnapshot[] = [
     iso3: "AAA",
     countryName: "Country A",
     title: "Coastal Desalination",
+    region: null,
     pppModel: null,
     sizeMinUsd: "100000000",
     sizeMaxUsd: "200000000",
@@ -82,6 +83,7 @@ const projects: ProjectSnapshot[] = [
     iso3: "BBB",
     countryName: "Country B",
     title: "Same Title",
+    region: null,
     pppModel: "Concession",
     sizeMinUsd: null,
     sizeMaxUsd: null,
@@ -93,6 +95,7 @@ const projects: ProjectSnapshot[] = [
     iso3: "BBB",
     countryName: "Country B",
     title: "same title",
+    region: null,
     pppModel: null,
     sizeMinUsd: null,
     sizeMaxUsd: null,
@@ -107,7 +110,7 @@ describe("planMetadataImport", () => {
       table(
         [
           PROJECT_EXPORT_HEADER.join(","),
-          "p1,Country A,AAA,NEW TITLE,Energy,X,concession,,250,-,DRAFT,,,",
+          "p1,Country A,AAA,NEW TITLE,Energy,,X,concession,,250,-,DRAFT,,,",
         ].join("\n"),
       ),
       projects,

@@ -96,7 +96,7 @@ export function ProjectCard({ project }: { project: PipelineCard }) {
         </h2>
         <dl className="mt-auto grid grid-cols-3 gap-2 pt-1">
           <Fact label="PPP model" value={project.pppModel ?? "Not stated"} />
-          <Fact label="Size" value={size ?? "Not stated"} />
+          <Fact label="Size" value={size ?? "TBC"} />
           <Fact
             label="Stage"
             value={project.developmentStage ?? "Not stated"}

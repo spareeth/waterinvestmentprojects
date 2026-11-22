@@ -30,21 +30,23 @@ export const appConfig = {
   ] as readonly PartnerConfig[],
   /**
    * The government uploader's acknowledgement, given once per submission through the upload link (PLAN v0.3
-   * section 3). Exact WBG wording (Jacob Kim, 17 Nov). Change the text AND bump the version together: every
-   * Submission stores the version that was accepted.
+   * section 3). M11: the v2 working text from the 20 Nov test run (PLAN v0.4 0b.3), until WBG confirms it.
+   * Change the text AND bump the version together: every Submission stores the version that was accepted, so
+   * submissions made under v1 keep their v1 version.
    */
   uploadAcknowledgement: {
-    version: "country-upload-ack-v1",
-    text: "I confirm, on behalf of the represented Government, consent for the uploaded project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
+    version: "country-upload-ack-v2",
+    text: "I confirm, on behalf of the government organisation I represent, consent for the uploaded project teaser(s) to be shared with the participants invited to the Water Investment Summit, through the Water Investment Projects portal.",
   },
   /**
    * M1: what a Summit or platform admin confirms when uploading a teaser for a country in the portal workspace
    * (an admin cannot consent for a government, only record that its consent was received). Terra wording, to be
-   * confirmed with WBG. Stored on the Submission like the uploader's acknowledgement.
+   * confirmed with WBG; v2 follows the v2 uploader wording. Stored on the Submission like the uploader's
+   * acknowledgement.
    */
   uploadAcknowledgementOnBehalf: {
-    version: "country-upload-ack-v1-on-behalf",
-    text: "I confirm that the represented Government has given its consent, in writing, for this project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
+    version: "country-upload-ack-v2-on-behalf",
+    text: "I confirm that the government organisation concerned has given its consent, in writing, for this project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Projects portal.",
   },
   /**
    * M2: the investor or operator acknowledgement, accepted once per user at first sign-in before the pipeline is

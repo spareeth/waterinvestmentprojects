@@ -1,14 +1,17 @@
-// Upload link form rules (M0, PLAN v0.3 F0). Pure and browser-safe, so the form and the server share them.
-// Governments give only: country (fixed by the link, or chosen on the generic link), their name and email, the
-// government organisation they represent, and per teaser a sector and a file. British spelling, no em dashes.
+// Upload link form rules (M0, PLAN v0.3 F0; M11, PLAN v0.4 0b.2). Pure and browser-safe, so the form and the
+// server share them. Governments give only: country (fixed by the link, or chosen on the generic link), their full
+// name, email and job title, the government organisation they represent, and per teaser a sector and a file.
+// British spelling, no em dashes.
 
 import { z } from "zod";
 import { SECTOR_SUGGESTIONS } from "@/lib/workspace/project-input";
+import { typeFromExtension } from "@/lib/workspace/teaser-file";
 
-/** Sector drop-down. Placeholder list until WBG confirms one; "Other" keeps nobody stuck. */
-export const SUBMISSION_SECTORS = [...SECTOR_SUGGESTIONS, "Other"] as const;
+/** Sector drop-down: the WBG list (PLAN v0.4 0b.8), which ends in "Other" so nobody is stuck. */
+export const SUBMISSION_SECTORS = SECTOR_SUGGESTIONS;
 
-export const MAX_TEASERS_PER_SUBMISSION = 5;
+/** PLAN v0.4 0b.2 asks for no practical limit on the number of teasers; 20 per upload, then use the link again. */
+export const MAX_TEASERS_PER_SUBMISSION = 20;
 /** All files of one submission together (each file is also limited to 25 MB). */
 export const MAX_SUBMISSION_BYTES = 60 * 1024 * 1024;
 
@@ -17,6 +20,7 @@ export const SUBMISSION_FIELDS = {
   countryId: "countryId",
   uploaderName: "uploaderName",
   uploaderEmail: "uploaderEmail",
+  uploaderJobTitle: "uploaderJobTitle",
   governmentOrganisation: "governmentOrganisation",
   acknowledge: "acknowledge",
   sector: (i: number) => `sector-${i}`,
@@ -61,6 +65,15 @@ const uploaderSchema = z.object({
     .pipe(
       z.email("Enter a valid email address, for example name@ministry.gov."),
     ),
+  uploaderJobTitle: z
+    .string()
+    .trim()
+    .min(2, "Enter your job title.")
+    .max(120, "Keep your job title to 120 characters or fewer.")
+    .regex(
+      /^[^\u0000-\u001f\u007f]+$/,
+      "Enter your job title without line breaks.",
+    ),
 });
 
 export const GOVERNMENT_ORGANISATION_MAX = 200;
@@ -97,6 +110,7 @@ export type UploaderParseResult =
 export function parseUploader(values: {
   uploaderName: string;
   uploaderEmail: string;
+  uploaderJobTitle: string;
 }): UploaderParseResult {
   const result = uploaderSchema.safeParse(values);
   if (result.success) {
@@ -105,6 +119,7 @@ export function parseUploader(values: {
       data: {
         uploaderName: result.data.uploaderName.replace(/\s+/g, " "),
         uploaderEmail: result.data.uploaderEmail.toLowerCase(),
+        uploaderJobTitle: result.data.uploaderJobTitle.replace(/\s+/g, " "),
       },
     };
   }
@@ -121,8 +136,11 @@ export function parseUploader(values: {
  * "Lake Basin PPP teaser"). The Summit team edits it later; governments are not asked for a title.
  */
 export function projectNameFromFilename(filename: string): string {
-  const stem = filename
-    .replace(/\.(pdf|pptx)$/i, "")
+  const stem = (
+    typeFromExtension(filename)
+      ? filename.replace(/\.[A-Za-z0-9]+$/, "")
+      : filename
+  )
     .replace(/[_\s]+/g, " ")
     .replace(/\s-\s|(?<=\S)-(?=\S)/g, " ")
     .replace(/\s+/g, " ")

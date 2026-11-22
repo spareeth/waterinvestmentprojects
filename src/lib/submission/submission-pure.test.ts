@@ -124,7 +124,90 @@ describe("submission permissions", () => {
   });
 });
 
+/** A ZIP whose first entry is the stored "mimetype" file, as OpenDocument writes it. */
+function odf(kind: string, extra = ""): Uint8Array {
+  const header = new Uint8Array(30);
+  header.set([0x50, 0x4b, 0x03, 0x04]);
+  const rest = enc(
+    `mimetypeapplication/vnd.oasis.opendocument.${kind}${extra}`,
+  );
+  const out = new Uint8Array(header.length + rest.length);
+  out.set(header);
+  out.set(rest, header.length);
+  return out;
+}
+const ole2 = new Uint8Array([
+  0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0, 0,
+]);
+const ooxml = (part: string, extra = "") =>
+  enc(`PK\u0003\u0004....[Content_Types].xml....${part}....${extra}`);
+
 describe("teaser files", () => {
+  it("accepts every format in PLAN v0.4 0b.4 when name and content agree (M11)", () => {
+    const ok: [string, Uint8Array, string][] = [
+      ["a.pdf", pdfBytes, "pdf"],
+      ["a.ppt", ole2, "ppt"],
+      ["a.doc", ole2, "doc"],
+      ["a.XLS", ole2, "xls"],
+      ["a.pptx", pptxBytes, "pptx"],
+      ["a.docx", ooxml("word/document.xml"), "docx"],
+      ["a.xlsx", ooxml("xl/workbook.xml"), "xlsx"],
+      ["a.odt", odf("text"), "odt"],
+      ["a.odp", odf("presentation"), "odp"],
+      ["a.ods", odf("spreadsheet"), "ods"],
+      ["a.rtf", enc("{\\rtf1\\ansi hello}"), "rtf"],
+      ["a.jpg", new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0]), "jpg"],
+      ["a.JPEG", new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0]), "jpg"],
+      [
+        "a.png",
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]),
+        "png",
+      ],
+    ];
+    for (const [name, bytes, type] of ok) {
+      expect(detectTeaserType({ name, bytes }), name).toBe(type);
+      expect(submissionFileProblem({ name, bytes }), name).toBeNull();
+    }
+  });
+
+  it("refuses executables, scripts, archives, HTML, macros and disguised files (M11)", () => {
+    const refused: [string, Uint8Array][] = [
+      ["a.exe", enc("MZ\u0090\u0000")],
+      ["a.pdf.exe", pdfBytes],
+      ["a.js", enc("alert(1)")],
+      ["a.html", enc("<!doctype html><script>")],
+      ["a.svg", enc("<svg onload=alert(1)>")],
+      ["a.zip", enc("PK\u0003\u0004 anything")],
+      ["a.rar", enc("Rar!\u001a\u0007")],
+      ["a.7z", new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])],
+      // A plain ZIP, HTML or executable renamed to an accepted extension.
+      ["a.docx", enc("PK\u0003\u0004 just a zip")],
+      ["a.pdf", enc("<html><body>teaser</body></html>")],
+      ["a.doc", enc("MZ\u0090\u0000")],
+      ["a.jpg", pdfBytes],
+      ["a.png", new Uint8Array([0xff, 0xd8, 0xff])],
+      ["a.rtf", enc("<html>{\\rtf")],
+      ["a.xlsx", ooxml("word/document.xml")],
+      // Macro-enabled files, even with a harmless-looking extension.
+      ["a.docm", ooxml("word/document.xml")],
+      ["a.docx", ooxml("word/document.xml", "word/vbaProject.bin")],
+      [
+        "a.xlsx",
+        ooxml("xl/workbook.xml", "application/vnd.ms-excel.sheet.macroEnabled"),
+      ],
+      ["a.odt", odf("text", "....Basic/Standard/Module1.xml")],
+      // OpenDocument of another kind or a template.
+      ["a.odt", odf("presentation")],
+      ["a.odt", odf("text-template")],
+    ];
+    for (const [name, bytes] of refused) {
+      expect(detectTeaserType({ name, bytes }), name).toBeNull();
+      expect(submissionFileProblem({ name, bytes }), name).toBe(
+        "file_wrong_type",
+      );
+    }
+  });
+
   it("accepts PDF and PowerPoint by content and name together", () => {
     expect(detectTeaserType({ name: "a.pdf", bytes: pdfBytes })).toBe("pdf");
     expect(detectTeaserType({ name: "A.PPTX", bytes: pptxBytes })).toBe("pptx");
@@ -167,6 +250,28 @@ describe("teaser files", () => {
     expect(cleanFilename("deck", "pptx")).toBe("deck.pptx");
     expect(cleanFilename("a".repeat(300) + ".pptx", "pptx")).toHaveLength(200);
     expect(cleanFilename("a".repeat(300) + ".pdf")).toHaveLength(200);
+    expect(cleanFilename("Scan.JPEG", "jpg")).toBe("Scan.jpg");
+    expect(cleanFilename("Budget.xlsx", "xlsx")).toBe("Budget.xlsx");
+  });
+
+  it("serves every format other than PDF as a download only", () => {
+    for (const name of [
+      "a.docx",
+      "a.xls",
+      "a.odp",
+      "a.rtf",
+      "a.png",
+      "a.jpg",
+    ]) {
+      expect(
+        privateFileHeaders("view", name, 10)["Content-Disposition"],
+        name,
+      ).toMatch(/^attachment;/);
+    }
+    expect(privateFileHeaders("view", "a.png", 10)["Content-Type"]).toBe(
+      "image/png",
+    );
+    expect(() => submissionBlobKey("a", "b", "../pdf")).toThrow();
   });
 
   it("are stored under safe keys and served with the right type", () => {
@@ -192,28 +297,61 @@ describe("upload form input", () => {
       parseUploader({
         uploaderName: "  Ada   Lovelace ",
         uploaderEmail: " Ada@Ministry.GOV ",
+        uploaderJobTitle: "  Director of   Planning ",
       }),
     ).toEqual({
       ok: true,
-      data: { uploaderName: "Ada Lovelace", uploaderEmail: "ada@ministry.gov" },
+      data: {
+        uploaderName: "Ada Lovelace",
+        uploaderEmail: "ada@ministry.gov",
+        uploaderJobTitle: "Director of Planning",
+      },
     });
     const bad = parseUploader({
       uploaderName: "A\nB",
       uploaderEmail: "nope",
+      uploaderJobTitle: "Lead\nEngineer",
     });
     expect(bad.ok).toBe(false);
     if (!bad.ok) {
       expect(Object.keys(bad.fieldErrors).sort()).toEqual([
         "uploaderEmail",
+        "uploaderJobTitle",
         "uploaderName",
       ]);
     }
   });
 
-  it("offers a fixed sector list", () => {
-    expect(SUBMISSION_SECTORS).toContain("Other");
+  it("requires a job title (M11)", () => {
+    const missing = parseUploader({
+      uploaderName: "Ada Lovelace",
+      uploaderEmail: "ada@ministry.gov",
+      uploaderJobTitle: "  ",
+    });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) {
+      expect(missing.fieldErrors.uploaderJobTitle).toBe(
+        "Enter your job title.",
+      );
+    }
+  });
+
+  it("offers the WBG sector list, ending in Other (M11)", () => {
+    expect(SUBMISSION_SECTORS).toEqual([
+      "Water supply",
+      "Water treatment",
+      "Wastewater treatment",
+      "Wastewater and reuse",
+      "Water supply and wastewater",
+      "Desalination",
+      "Sludge",
+      "Non-revenue water (NRW)",
+      "Irrigation infrastructure",
+      "Other",
+    ]);
     expect(isSubmissionSector("Desalination")).toBe(true);
     expect(isSubmissionSector("desalination")).toBe(false);
+    expect(isSubmissionSector("Network efficiency")).toBe(false);
   });
 
   it("makes a working project name from the file name", () => {
@@ -221,6 +359,12 @@ describe("upload form input", () => {
       "Lake Basin PPP teaser",
     );
     expect(projectNameFromFilename("x.pptx")).toBe("Project teaser");
+    expect(projectNameFromFilename("Coastal reuse plan.DOCX")).toBe(
+      "Coastal reuse plan",
+    );
+    expect(projectNameFromFilename("Scan of teaser.jpeg")).toBe(
+      "Scan of teaser",
+    );
   });
 
   it("reads expiry dates as the end of the day in UAE time", () => {
@@ -238,11 +382,16 @@ describe("upload form input", () => {
 });
 
 describe("texts", () => {
-  it("uses the exact WBG acknowledgement wording with a version", () => {
+  it("uses the v2 acknowledgement working text with its version (PLAN v0.4 0b.3)", () => {
     expect(appConfig.uploadAcknowledgement.text).toBe(
-      "I confirm, on behalf of the represented Government, consent for the uploaded project teaser to be shared with the participants invited to the Water Investment Summit, through the Water Investment Summit Project Portal.",
+      "I confirm, on behalf of the government organisation I represent, consent for the uploaded project teaser(s) to be shared with the participants invited to the Water Investment Summit, through the Water Investment Projects portal.",
     );
-    expect(appConfig.uploadAcknowledgement.version).toMatch(/v\d+$/);
+    expect(appConfig.uploadAcknowledgement.version).toBe(
+      "country-upload-ack-v2",
+    );
+    expect(appConfig.uploadAcknowledgementOnBehalf.version).toBe(
+      "country-upload-ack-v2-on-behalf",
+    );
   });
 
   it("shows times in UAE time", () => {
@@ -274,6 +423,25 @@ describe("texts", () => {
     expect(notice.subject).toBe("New teaser submission: Country A (1 file)");
     expect(notice.text).toContain("Ada <ada@ministry.example>");
     expect(notice.text).toMatch(/\/admin\/submissions$/m);
+    expect(notice.text).not.toContain("not a PDF");
+  });
+
+  it("shows the job title and flags files that are not a PDF to the Summit team (M11)", () => {
+    const more = {
+      ...facts,
+      uploaderJobTitle: "Head of PPP Unit",
+      files: [
+        { filename: "Teaser.pdf", sector: "Desalination" },
+        { filename: "Deck.pptx", sector: "Sludge" },
+      ],
+    };
+    const confirmation = uploaderConfirmationEmail(more);
+    const notice = summitSubmissionNotice(more);
+    expect(confirmation.text).toContain("Job title: Head of PPP Unit");
+    expect(notice.text).toContain("Job title: Head of PPP Unit");
+    expect(notice.text).toMatch(/Deck\.pptx \(sector: Sludge\) \[not a PDF/);
+    expect(notice.text).not.toMatch(/Teaser\.pdf .*not a PDF/);
+    expect(confirmation.text).not.toContain("not a PDF");
   });
 
   it("writes messages without em dashes or tiers", () => {

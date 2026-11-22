@@ -20,6 +20,7 @@ export interface SubmitFormValues {
   countryId?: string;
   uploaderName?: string;
   uploaderEmail?: string;
+  uploaderJobTitle?: string;
   governmentOrganisation?: string;
   sectors?: string[];
 }
@@ -35,6 +36,7 @@ export interface SubmitFormState {
     countryName: string;
     uploaderName: string;
     uploaderEmail: string;
+    uploaderJobTitle: string;
     governmentOrganisation: string;
     /** When the acknowledgement was given, already formatted in UAE time. */
     acceptedAt: string;
@@ -81,6 +83,7 @@ export async function submitTeasersAction(
     countryId: text(formData, SUBMISSION_FIELDS.countryId),
     uploaderName: text(formData, SUBMISSION_FIELDS.uploaderName),
     uploaderEmail: text(formData, SUBMISSION_FIELDS.uploaderEmail),
+    uploaderJobTitle: text(formData, SUBMISSION_FIELDS.uploaderJobTitle),
     governmentOrganisation: text(
       formData,
       SUBMISSION_FIELDS.governmentOrganisation,
@@ -97,6 +100,7 @@ export async function submitTeasersAction(
         countryId: values.countryId,
         uploaderName: values.uploaderName ?? "",
         uploaderEmail: values.uploaderEmail ?? "",
+        uploaderJobTitle: values.uploaderJobTitle ?? "",
         governmentOrganisation: values.governmentOrganisation ?? "",
         acknowledged: text(formData, SUBMISSION_FIELDS.acknowledge) === "yes",
         teasers,
@@ -109,6 +113,7 @@ export async function submitTeasersAction(
         countryName: receipt.countryName,
         uploaderName: receipt.uploaderName,
         uploaderEmail: receipt.uploaderEmail,
+        uploaderJobTitle: receipt.uploaderJobTitle,
         governmentOrganisation: receipt.governmentOrganisation,
         acceptedAt: formatUaeTime(receipt.acceptedAt),
         files: receipt.files,

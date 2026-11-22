@@ -57,6 +57,7 @@ const email = {} as Record<keyof typeof v, string>;
 const input = (title: string): ProjectInput => ({
   title,
   sector: "Desalination",
+  region: null,
   projectType: ProjectType.SUMMIT_PIPELINE,
   pppModel: null,
   sizeMinUsd: "10000000",

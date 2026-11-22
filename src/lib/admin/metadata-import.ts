@@ -1,6 +1,6 @@
 // CSV import of the project filters that the WBG team prepares from the teasers (M7, PLAN v0.3 0.5 and F7):
-// PPP model, size and development stage. Pure and browser-safe: the server applies the plan in
-// src/lib/admin/projects.ts.
+// PPP model, size and development stage, and since M11 the region (PLAN v0.4 0b.8). Pure and browser-safe: the
+// server applies the plan in src/lib/admin/projects.ts.
 //
 // Rules (user decision, 18 Nov):
 // - A row is matched by project_id (from the projects export). Without an id, by country ISO3 + exact title, only
@@ -31,6 +31,7 @@ export const PROJECT_EXPORT_HEADER = [
   "iso3",
   "title",
   "sector",
+  "region",
   "project_type",
   "ppp_model",
   "size_min_usd_million",
@@ -47,6 +48,7 @@ const ISO3_COLUMNS = ["iso3", "country_iso3"] as const;
 const TITLE_COLUMNS = ["title", "project_title", "project"] as const;
 
 export const METADATA_FIELDS = [
+  "region",
   "pppModel",
   "sizeMinUsd",
   "sizeMaxUsd",
@@ -55,6 +57,7 @@ export const METADATA_FIELDS = [
 export type MetadataField = (typeof METADATA_FIELDS)[number];
 
 export const METADATA_COLUMN: Record<MetadataField, string> = {
+  region: "region",
   pppModel: "ppp_model",
   sizeMinUsd: "size_min_usd_million",
   sizeMaxUsd: "size_max_usd_million",
@@ -62,6 +65,7 @@ export const METADATA_COLUMN: Record<MetadataField, string> = {
 };
 
 export const METADATA_LABEL: Record<MetadataField, string> = {
+  region: "Region",
   pppModel: "PPP model",
   sizeMinUsd: "Size from (USD million)",
   sizeMaxUsd: "Size to (USD million)",
@@ -74,6 +78,7 @@ export interface ProjectSnapshot {
   iso3: string;
   countryName: string;
   title: string;
+  region: string | null;
   pppModel: string | null;
   sizeMinUsd: string | null;
   sizeMaxUsd: string | null;
@@ -282,6 +287,7 @@ export function planMetadataImport(
       const data: Partial<Record<MetadataField, string | null>> = {};
       if (project && errors.length === 0) {
         const merged: Record<MetadataField, string | null> = {
+          region: project.region,
           pppModel: project.pppModel,
           sizeMinUsd: project.sizeMinUsd,
           sizeMaxUsd: project.sizeMaxUsd,

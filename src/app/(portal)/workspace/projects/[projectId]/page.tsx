@@ -172,6 +172,7 @@ export default async function WorkspaceProjectPage({
                 defaults={{
                   title: project.title,
                   sector: project.sector,
+                  region: project.region ?? "",
                   projectType: project.projectType,
                   pppModel: project.pppModel ?? "",
                   sizeMinUsdMillion: usdToMillion(project.sizeMinUsd),

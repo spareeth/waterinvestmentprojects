@@ -6,6 +6,7 @@
 
 import type { Prisma } from "@/generated/prisma/client";
 import { DocumentKind, ScanStatus } from "@/generated/prisma/enums";
+import { isPdfFilename } from "@/lib/workspace/teaser-file";
 import { pipelineProjectWhere } from "./projects";
 import {
   hasPipeline,
@@ -19,6 +20,8 @@ import {
 
 export interface DocumentRef {
   kind: DocumentKind;
+  /** The stored (cleaned) file name; its extension is the checked file type. */
+  filename: string;
   scanStatus: ScanStatus;
   supersededById: string | null;
   allowDownload: boolean;
@@ -31,7 +34,8 @@ export const NO_DOCUMENT: Prisma.DocumentWhereInput = { id: { in: [] } };
 /**
  * Documents the viewer may see listed. Admins: all. Country users: every document of their own countries'
  * projects (any version or scan state). Pipeline (investors, coordinators): the current CLEAN teaser of each
- * pipeline project, never older versions.
+ * pipeline project, never older versions, and only when it is a PDF (M11, PLAN v0.4 0b.4: other formats from the
+ * upload link wait for an admin to attach the converted PDF).
  */
 export function documentWhere(
   viewer: Viewer | null,
@@ -45,6 +49,7 @@ export function documentWhere(
     kind: DocumentKind.TEASER,
     supersededById: null,
     scanStatus: ScanStatus.CLEAN,
+    filename: { endsWith: ".pdf", mode: "insensitive" },
     project: pipelineProjectWhere(viewer),
   };
 }
@@ -61,7 +66,8 @@ export function canViewDocument(
     inPipeline(viewer, doc.project) &&
     doc.kind === DocumentKind.TEASER &&
     doc.supersededById === null &&
-    doc.scanStatus === ScanStatus.CLEAN
+    doc.scanStatus === ScanStatus.CLEAN &&
+    isPdfFilename(doc.filename)
   );
 }
 

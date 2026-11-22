@@ -38,7 +38,7 @@ test("sign-in", async ({ page }) => {
 
 test("government upload link", async ({ page }) => {
   await page.goto(`/submit/${token}`);
-  await expect(page.getByLabel("Your full name")).toBeVisible();
+  await expect(page.getByLabel("Job title")).toBeVisible();
   await shot(page, "upload-link");
 });
 

@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { DocumentKind, ScanStatus } from "@/generated/prisma/enums";
 import type { RequestMeta } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { isPdfFilename } from "@/lib/workspace/teaser-file";
 import { AUTHZ_AUDIT, auditAccess } from "./audit";
 import {
   canDownloadDocument,
@@ -158,7 +159,8 @@ export async function authorizeDocumentFile(
   };
 }
 
-export type PublishBlocker = "not_found" | "forbidden" | "no_clean_teaser";
+export type PublishBlocker =
+  "not_found" | "forbidden" | "no_clean_teaser" | "teaser_not_pdf";
 
 /**
  * Why this viewer cannot publish the project now, or null when they can. Needs the publish role (admins, PLAN v0.3)
@@ -185,9 +187,11 @@ export async function publishBlocker(
       scanStatus: ScanStatus.CLEAN,
     },
     orderBy: { version: "desc" },
-    select: { id: true },
+    select: { id: true, filename: true },
   });
-  return teaser ? null : "no_clean_teaser";
+  if (!teaser) return "no_clean_teaser";
+  // M11 (PLAN v0.4 0b.4): investors only see PDFs; another format waits for the converted PDF.
+  return isPdfFilename(teaser.filename) ? null : "teaser_not_pdf";
 }
 
 /** The room grid, redacted for the viewer: other people's bookings show only as BOOKED. */

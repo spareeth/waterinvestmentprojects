@@ -21,18 +21,23 @@ import {
   SUBMISSION_FIELDS as F,
   SUBMISSION_SECTORS,
 } from "@/lib/submission/input";
-import { formatBytes, MAX_TEASER_BYTES } from "@/lib/workspace/teaser-file";
+import {
+  formatBytes,
+  MAX_TEASER_BYTES,
+  SUBMISSION_ACCEPT,
+  typeFromExtension,
+} from "@/lib/workspace/teaser-file";
 
 const initial: SubmitFormState = {};
-const ACCEPT =
-  ".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 let nextRowId = 1;
 
 /**
- * Government upload form (M0, PLAN v0.3 F0): country (fixed by the link, or chosen on the generic link), name,
- * email, one to five teasers with a sector each, and one acknowledgement for the whole submission. Sizes are
- * checked here first so nobody waits for a large upload that would be refused; the server checks everything again.
+ * Government upload form (M0, PLAN v0.3 F0; M11, PLAN v0.4 0b.2 to 0b.5): country (fixed by the link, or chosen
+ * on the generic link), full name, email, job title and represented government organisation (all required), one
+ * or more teasers with a sector each, and one acknowledgement for the whole submission. Sizes and file name
+ * extensions are checked here first so nobody waits for an upload that would be refused; the server checks
+ * everything again, including the file contents.
  */
 export function SubmissionForm({
   token,
@@ -70,6 +75,8 @@ export function SubmissionForm({
           <dd>
             {r.uploaderName}, {r.uploaderEmail}
           </dd>
+          <dt className="font-semibold">Job title</dt>
+          <dd>{r.uploaderJobTitle}</dd>
           <dt className="font-semibold">Organisation</dt>
           <dd>{r.governmentOrganisation}</dd>
           <dt className="font-semibold">Received</dt>
@@ -122,7 +129,9 @@ export function SubmissionForm({
         input instanceof HTMLInputElement ? input.files?.[0] : undefined;
       if (!file) return;
       total += file.size;
-      if (file.size > MAX_TEASER_BYTES) {
+      if (typeFromExtension(file.name) === null) {
+        errors[F.teaser(i)] = FIELD_MESSAGES.file_wrong_type;
+      } else if (file.size > MAX_TEASER_BYTES) {
         errors[F.teaser(i)] = FIELD_MESSAGES.file_too_large;
       }
     });
@@ -133,7 +142,7 @@ export function SubmissionForm({
     if (Object.keys(errors).length > 0) event.preventDefault();
   }
 
-  const fileHint = `PDF or PowerPoint (.pptx), up to ${formatBytes(MAX_TEASER_BYTES)} each.`;
+  const fileHint = `PDF preferred; PowerPoint, Word, Excel and images are also accepted. Up to ${formatBytes(MAX_TEASER_BYTES)} each.`;
 
   return (
     <form
@@ -192,7 +201,7 @@ export function SubmissionForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldShell
           id="submit-name"
-          label="Your full name"
+          label="Full name"
           error={e[F.uploaderName]}
         >
           <TextInput
@@ -206,7 +215,7 @@ export function SubmissionForm({
         </FieldShell>
         <FieldShell
           id="submit-email"
-          label="Your email address"
+          label="Email"
           hint="We send your confirmation here, and the Summit team uses it if they have questions. Unless they are told otherwise, it also becomes your country's contact for meeting requests."
           error={e[F.uploaderEmail]}
         >
@@ -221,11 +230,24 @@ export function SubmissionForm({
           />
         </FieldShell>
         <FieldShell
+          id="submit-job-title"
+          label="Job title"
+          error={e[F.uploaderJobTitle]}
+        >
+          <TextInput
+            {...describe("submit-job-title", undefined, e[F.uploaderJobTitle])}
+            name={F.uploaderJobTitle}
+            autoComplete="organization-title"
+            defaultValue={v.uploaderJobTitle ?? ""}
+            maxLength={120}
+            required
+          />
+        </FieldShell>
+        <FieldShell
           id="submit-organisation"
           label="Represented government organisation"
           hint="The ministry, utility or agency you send these teasers for, for example Ministry of Water Resources."
           error={e[F.governmentOrganisation]}
-          className="sm:col-span-2"
         >
           <TextInput
             {...describe(
@@ -294,7 +316,7 @@ export function SubmissionForm({
                   {...describe(fileId, undefined, e[F.teaser(i)])}
                   type="file"
                   name={F.teaser(i)}
-                  accept={ACCEPT}
+                  accept={SUBMISSION_ACCEPT}
                   required
                   className="rounded-lg border-2 border-dashed border-brand-aqua/70 bg-card p-3 text-sm file:me-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:font-medium file:text-primary-foreground"
                 />

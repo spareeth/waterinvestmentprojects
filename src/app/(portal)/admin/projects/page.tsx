@@ -139,8 +139,9 @@ export default async function AdminProjectsPage({
             developmentStage: p.developmentStage,
             status: p.status,
             teaser: p.teaser,
+            needsPdf: p.needsPdf,
             missing: p.missing,
-            canPublish: p.can.publish,
+            canPublish: p.can.publish && !p.needsPdf,
             canWithdraw: p.can.withdraw,
           }))}
         />

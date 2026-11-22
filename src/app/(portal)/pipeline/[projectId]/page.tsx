@@ -48,9 +48,10 @@ export default async function PipelineProjectPage({
   const size = formatUsdRange(project.sizeMinUsd, project.sizeMaxUsd);
   const facts: [string, string | null][] = [
     ["Country", project.country.name],
+    ["Region", project.region],
     ["Sector", project.sector],
     ["PPP model", project.pppModel],
-    ["Indicative size", size],
+    ["Indicative size", size ?? "TBC"],
     ["Development stage", project.developmentStage],
     ["Project type", PROJECT_TYPE_LABEL[project.projectType]],
     [

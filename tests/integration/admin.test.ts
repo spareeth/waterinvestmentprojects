@@ -452,10 +452,10 @@ describe("metadata import", () => {
       orderBy: { id: "asc" },
     });
     const csv = [
-      "project_id,title,sector,status,ppp_model,size_min_usd_million,size_max_usd_million,development_stage",
-      `${P.aDraft},Renamed!,Energy,PUBLISHED,"design, build, operate",,250,Feasibility`,
-      `${P.bPub},,,,-,,,`,
-      `it-adm-unknown,,,,Lease,,,`,
+      "project_id,title,sector,status,region,ppp_model,size_min_usd_million,size_max_usd_million,development_stage",
+      `${P.aDraft},Renamed!,Energy,PUBLISHED,North coast,dbo,,250,feasibility in progress`,
+      `${P.bPub},,,,,-,,,`,
+      `it-adm-unknown,,,,,Affermage,,,`,
     ].join("\n");
     const { plan, digest } = await previewMetadataImport(summitAdmin, csv);
     expect(plan.summary).toMatchObject({ changes: 1, unchanged: 1, errors: 1 });
@@ -478,10 +478,12 @@ describe("metadata import", () => {
       if (p.id !== P.aDraft) expect(p.updatedAt).toEqual(old.updatedAt);
     }
     const a = after.find((p) => p.id === P.aDraft)!;
-    expect(a.pppModel).toBe("Design, build, operate");
+    // WBG list spelling (PLAN v0.4 0b.8) and the region (M11).
+    expect(a.region).toBe("North coast");
+    expect(a.pppModel).toBe("DBO");
     expect(a.sizeMinUsd?.toString()).toBe("100000000");
     expect(a.sizeMaxUsd?.toString()).toBe("250000000");
-    expect(a.developmentStage).toBe("Feasibility");
+    expect(a.developmentStage).toBe("Feasibility in progress");
 
     const events = await db.auditEvent.findMany({
       where: {
@@ -497,7 +499,7 @@ describe("metadata import", () => {
       events.find((e) => e.action === "project.update")?.metadata,
     ).toMatchObject({
       source: "csv_import",
-      changed: ["pppModel", "sizeMaxUsd", "developmentStage"],
+      changed: ["region", "pppModel", "sizeMaxUsd", "developmentStage"],
     });
   });
 
@@ -514,7 +516,7 @@ describe("metadata import", () => {
     expect(
       (await db.project.findUniqueOrThrow({ where: { id: P.aDraft } }))
         .developmentStage,
-    ).toBe("Feasibility");
+    ).toBe("Feasibility in progress");
   });
 });
 

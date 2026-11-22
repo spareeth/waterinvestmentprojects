@@ -75,6 +75,42 @@ export function ProjectForm({
     );
   };
 
+  /**
+   * A WBG drop-down (PLAN v0.4 0b.8). A value saved before the lists were agreed stays selectable, so editing an
+   * older project never changes it silently.
+   */
+  const choice = (
+    name: "sector" | "pppModel" | "developmentStage",
+    label: string,
+    values: readonly string[],
+    { required = false }: { required?: boolean } = {},
+  ) => {
+    const id = `project-${name}`;
+    const current = v[name] ?? "";
+    const options =
+      current && !values.includes(current) ? [current, ...values] : values;
+    return (
+      <FieldShell id={id} label={label} error={e[name]}>
+        <Select
+          {...describe(id, undefined, e[name])}
+          name={name}
+          defaultValue={current}
+          required={required}
+          disabled={readOnly}
+        >
+          <option value="" disabled={required}>
+            {required ? "Choose the sector" : "Not stated"}
+          </option>
+          {options.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      </FieldShell>
+    );
+  };
+
   return (
     <form action={formAction} className="flex flex-col gap-5" noValidate>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
@@ -110,7 +146,7 @@ export function ProjectForm({
 
       {text("title", "Project title", { required: true })}
       <div className="grid gap-5 sm:grid-cols-2">
-        {text("sector", "Sector", { required: true, list: "sector-options" })}
+        {choice("sector", "Sector", SECTOR_SUGGESTIONS, { required: true })}
         <FieldShell
           id="project-projectType"
           label="Project type"
@@ -129,33 +165,23 @@ export function ProjectForm({
             ))}
           </Select>
         </FieldShell>
-        {text("pppModel", "PPP model", { list: "ppp-options" })}
+        {text("region", "Region", {
+          hint: "The region or province within the country, if known.",
+        })}
+        {choice("pppModel", "PPP model", PPP_MODEL_SUGGESTIONS)}
         {text("sizeMinUsdMillion", "Size from (USD million)", {
           inputMode: "decimal",
+          hint: "Leave both sizes empty if not known: the pipeline shows TBC.",
         })}
         {text("sizeMaxUsdMillion", "Size to (USD million)", {
           inputMode: "decimal",
         })}
-        {text("developmentStage", "Development stage", {
-          list: "stage-options",
-        })}
+        {choice(
+          "developmentStage",
+          "Development stage",
+          DEVELOPMENT_STAGE_SUGGESTIONS,
+        )}
       </div>
-
-      <datalist id="sector-options">
-        {SECTOR_SUGGESTIONS.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
-      <datalist id="ppp-options">
-        {PPP_MODEL_SUGGESTIONS.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
-      <datalist id="stage-options">
-        {DEVELOPMENT_STAGE_SUGGESTIONS.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
 
       {readOnly ? null : (
         <div>

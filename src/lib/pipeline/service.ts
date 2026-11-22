@@ -19,7 +19,7 @@ import {
   type Viewer,
 } from "@/lib/authz";
 import { db } from "@/lib/db";
-import { teaserTypeOf } from "@/lib/workspace/teaser-file";
+import { type TeaserFileType, teaserTypeOf } from "@/lib/workspace/teaser-file";
 import { type PipelineFilters, pipelineFilterWhere } from "./filters";
 
 // The pipeline (PLAN v0.3 F3, F4): published teasers, as the policy module lets this viewer see them.
@@ -57,6 +57,7 @@ const CARD_SELECT = {
   id: true,
   title: true,
   sector: true,
+  region: true,
   pppModel: true,
   sizeMinUsd: true,
   sizeMaxUsd: true,
@@ -74,6 +75,7 @@ export interface PipelineCard {
   id: string;
   title: string;
   sector: string;
+  region: string | null;
   pppModel: string | null;
   sizeMinUsd: number | null;
   sizeMaxUsd: number | null;
@@ -170,8 +172,8 @@ export interface PipelineTeaser {
   version: number;
   sizeBytes: number;
   uploadedAt: Date;
-  /** "pdf" can be shown in the page; "pptx" can only be downloaded. */
-  fileType: "pdf" | "pptx";
+  /** "pdf" can be shown in the page; any other format can only be downloaded (pipeline viewers only get PDFs). */
+  fileType: TeaserFileType;
   /** The policy module lets this viewer open the file now (scanned CLEAN and visible). */
   canOpen: boolean;
   canDownload: boolean;

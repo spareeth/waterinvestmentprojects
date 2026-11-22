@@ -55,7 +55,7 @@ describe("User guide", () => {
 
   it("states the real upload limits and links to sign-in", async () => {
     const { container } = await renderGuide();
-    expect(container.textContent).toContain("up to 5 at a time");
+    expect(container.textContent).toContain("up to 20 at a time");
     expect(container.textContent).toContain(
       "up to 25 MB each and 60 MB in total",
     );

@@ -324,6 +324,7 @@ describe("documents", () => {
   ): DocumentRef {
     return {
       kind: DocumentKind.TEASER,
+      filename: "Teaser.pdf",
       scanStatus: ScanStatus.CLEAN,
       supersededById: null,
       allowDownload: true,
@@ -340,6 +341,8 @@ describe("documents", () => {
   const draftTeaser = doc(aDraft);
   const otherCountry = doc(bPub);
   const inactiveCountry = doc(xPubInactive);
+  const notPdf = doc(aPub, { filename: "Deck.pptx" });
+  const notPdfOther = doc(bPub, { filename: "Scan.JPG" });
 
   it("shows pipeline roles the current clean teaser of a pipeline project only", () => {
     for (const v of [investor, coordA]) {
@@ -351,8 +354,20 @@ describe("documents", () => {
     }
   });
 
+  it("never shows pipeline roles a teaser that is not a PDF (M11), in any country", () => {
+    for (const v of [investor, coordA]) {
+      expect(canViewDocument(v, notPdf), v.id).toBe(false);
+      expect(canViewDocument(v, notPdfOther), v.id).toBe(false);
+      expect(canDownloadDocument(v, notPdf), v.id).toBe(false);
+    }
+    // The owning country and admins still see it, so it can be converted; another country never does.
+    expect(canDownloadDocument(focalA, notPdf)).toBe(true);
+    expect(canDownloadDocument(summitAdmin, notPdf)).toBe(true);
+    expect(canViewDocument(focalB, notPdf)).toBe(false);
+  });
+
   it("shows country users every document of their own countries and none of others", () => {
-    for (const d of [current, old, pending, infected, draftTeaser]) {
+    for (const d of [current, old, pending, infected, draftTeaser, notPdf]) {
       expect(canViewDocument(focalA, d)).toBe(true);
       expect(canViewDocument(memberA, d)).toBe(true);
       expect(canViewDocument(focalB, d)).toBe(false);
@@ -402,6 +417,7 @@ describe("documents", () => {
       kind: DocumentKind.TEASER,
       supersededById: null,
       scanStatus: ScanStatus.CLEAN,
+      filename: { endsWith: ".pdf", mode: "insensitive" },
       project: { status: PUBLISHED, country: { status: CountryStatus.ACTIVE } },
     });
     expect(documentWhere(investorWithStrayMembership)).toEqual(

@@ -166,6 +166,8 @@ export interface SubmissionInput {
   countryId?: string | null;
   uploaderName: string;
   uploaderEmail: string;
+  /** M11 (PLAN v0.4 0b.2): required job title. */
+  uploaderJobTitle: string;
   /** "Represented government organisation". */
   governmentOrganisation: string;
   acknowledged: boolean;
@@ -179,6 +181,7 @@ export interface SubmissionReceipt {
   /** As stored (trimmed; email in lower case). */
   uploaderName: string;
   uploaderEmail: string;
+  uploaderJobTitle: string;
   governmentOrganisation: string;
   acceptedAt: Date;
   projectIds: string[];
@@ -350,7 +353,7 @@ export async function submitTeasers(
     throw new SubmissionError("invalid", fieldErrors);
   }
   const target = country;
-  const { uploaderName, uploaderEmail } = uploader.data;
+  const { uploaderName, uploaderEmail, uploaderJobTitle } = uploader.data;
   const governmentOrganisation = organisation.value;
 
   const blobs = options.store ?? getBlobStore();
@@ -401,6 +404,7 @@ export async function submitTeasers(
           uploadLinkId: link.id,
           uploaderName,
           uploaderEmail,
+          uploaderJobTitle,
           governmentOrganisation,
           ackTextVersion,
           ackAcceptedAt: now,
@@ -506,6 +510,7 @@ export async function submitTeasers(
             genericLink: link.countryId === null,
             uploaderName,
             uploaderEmail,
+            uploaderJobTitle,
             governmentOrganisation,
             ackTextVersion,
             ackAcceptedAt: now.toISOString(),
@@ -533,6 +538,7 @@ export async function submitTeasers(
         countryName: target.name,
         uploaderName,
         uploaderEmail,
+        uploaderJobTitle,
         governmentOrganisation,
         acceptedAt: now,
         projectIds,
@@ -555,6 +561,7 @@ export async function submitTeasers(
     countryName: receipt.countryName,
     uploaderName,
     uploaderEmail,
+    uploaderJobTitle,
     governmentOrganisation,
     acceptedAt: receipt.acceptedAt,
     ackText: appConfig.uploadAcknowledgement.text,
@@ -819,6 +826,7 @@ export async function listSubmissions(
       id: true,
       uploaderName: true,
       uploaderEmail: true,
+      uploaderJobTitle: true,
       governmentOrganisation: true,
       ackTextVersion: true,
       ackAcceptedAt: true,

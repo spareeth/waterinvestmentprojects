@@ -16,6 +16,7 @@ import {
   canUseAdminConsole,
 } from "@/lib/authz/admin";
 import { db } from "@/lib/db";
+import { isPdfFilename } from "@/lib/workspace/teaser-file";
 import {
   publishProject,
   WorkspaceError,
@@ -104,6 +105,8 @@ export async function listAdminProjects(
     sizeMinUsd: p.sizeMinUsd?.toString() ?? null,
     sizeMaxUsd: p.sizeMaxUsd?.toString() ?? null,
     teaser: documents[0] ?? null,
+    /** M11: the current teaser is another format; an admin attaches the converted PDF before publishing. */
+    needsPdf: documents[0] ? !isPdfFilename(documents[0].filename) : false,
     missing: hasMissingMetadata(p),
     can: workspacePermissions(viewer, p),
   }));
@@ -245,6 +248,7 @@ async function projectSnapshots(viewer: Viewer): Promise<ProjectSnapshot[]> {
     select: {
       id: true,
       title: true,
+      region: true,
       pppModel: true,
       sizeMinUsd: true,
       sizeMaxUsd: true,
@@ -258,6 +262,7 @@ async function projectSnapshots(viewer: Viewer): Promise<ProjectSnapshot[]> {
     iso3: p.country.iso3,
     countryName: p.country.name,
     title: p.title,
+    region: p.region,
     pppModel: p.pppModel,
     sizeMinUsd: p.sizeMinUsd?.toString() ?? null,
     sizeMaxUsd: p.sizeMaxUsd?.toString() ?? null,

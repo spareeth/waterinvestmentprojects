@@ -117,9 +117,9 @@ export default async function SubmitPage({
         <p>
           Use this page to send
           {page.country ? ` ${page.country.name}'s` : " your Government's"}{" "}
-          one-page project teasers for the Water Investment Summit. No account
-          is needed. The Summit team checks every teaser before it is shared
-          with the invited participants.
+          one-page project teasers for the Water Investment Summit. The Summit
+          team checks every teaser before it is shared with the invited
+          participants.
         </p>
         {page.expiresAt ? (
           <p>This link works until {formatUaeTime(page.expiresAt)}.</p>

@@ -318,6 +318,9 @@ model Submission {
   /// "Represented government organisation" from the upload link form (ministry, utility or agency). Empty for
   /// portal workspace uploads and for submissions made before the question was added.
   governmentOrganisation String   @default("")
+  /// M11 (PLAN v0.4 0b.2): the uploader's job title, required on the upload link form. Empty for portal
+  /// workspace uploads and for submissions made before the question was added.
+  uploaderJobTitle       String   @default("")
   ackTextVersion         String
   ackAcceptedAt          DateTime
   ip                     String?
@@ -346,9 +349,11 @@ model Project {
   submissionId     String?
   title            String
   sector           String
+  /// M11 (PLAN v0.4 0b.8): region within the country (free text, from the WBG project list), entered by admins.
+  region           String?
   projectType      ProjectType   @default(SUMMIT_PIPELINE)
   /// pppModel, size and developmentStage are entered by the admin team from the teasers (PLAN 0.5), not by
-  /// governments. Free text with suggestions until WBG fixes the lists.
+  /// governments. Chosen from the WBG lists (PLAN v0.4 0b.8); older values outside the lists are kept.
   pppModel         String?
   sizeMinUsd       Decimal?      @db.Decimal(16, 2)
   sizeMaxUsd       Decimal?      @db.Decimal(16, 2)

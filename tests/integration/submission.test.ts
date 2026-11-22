@@ -48,6 +48,9 @@ import {
   SubmissionError,
   submitTeasers,
 } from "@/lib/submission/service";
+import { publishBlocker } from "@/lib/authz/data";
+import { MAX_TEASERS_PER_SUBMISSION } from "@/lib/submission/input";
+import { publishProject } from "@/lib/workspace/service";
 import { cleanUp, createUser, viewerFor } from "./helpers";
 
 const C = { a: "it-sub-a", b: "it-sub-b", x: "it-sub-x" } as const;
@@ -80,6 +83,7 @@ function input(overrides: Partial<SubmissionInput> = {}): SubmissionInput {
   return {
     uploaderName: "Ada Uploader",
     uploaderEmail: "ada.uploader@it.example",
+    uploaderJobTitle: "Director of Planning",
     governmentOrganisation: "Ministry of Fictional Water",
     acknowledged: true,
     teasers: [{ sector: "Desalination", file: pdf("Coastal desal") }],
@@ -307,7 +311,10 @@ describe("submitting through a country link", () => {
         uploaderEmail: "  Ada.Uploader@IT.example ",
         teasers: [
           { sector: "Desalination", file: pdf("Coastal_desal-plant") },
-          { sector: "Irrigation", file: pptx("Valley irrigation") },
+          {
+            sector: "Irrigation infrastructure",
+            file: pptx("Valley irrigation"),
+          },
         ],
       }),
       { ...opts, now },
@@ -320,10 +327,14 @@ describe("submitting through a country link", () => {
       countryName: "IT Upload A",
       uploaderName: "Ada Uploader",
       uploaderEmail: "ada.uploader@it.example",
+      uploaderJobTitle: "Director of Planning",
       acceptedAt: now,
       files: [
         { filename: "Coastal_desal-plant.pdf", sector: "Desalination" },
-        { filename: "Valley irrigation.pptx", sector: "Irrigation" },
+        {
+          filename: "Valley irrigation.pptx",
+          sector: "Irrigation infrastructure",
+        },
       ],
       emailSent: true,
     });
@@ -338,7 +349,8 @@ describe("submitting through a country link", () => {
       countryId: C.a,
       uploaderName: "Ada Uploader",
       uploaderEmail: "ada.uploader@it.example",
-      ackTextVersion: appConfig.uploadAcknowledgement.version,
+      uploaderJobTitle: "Director of Planning",
+      ackTextVersion: "country-upload-ack-v2",
       ip: meta.ip,
     });
     expect(submission.ackAcceptedAt.getTime()).toBe(now.getTime());
@@ -706,21 +718,21 @@ describe("validation", () => {
             teasers: [
               { sector: "Space mining", file: pdf("a") },
               {
-                sector: "Irrigation",
+                sector: "Irrigation infrastructure",
                 file: { name: "a.pdf", bytes: enc("MZ\u0090 not a pdf") },
               },
               {
-                sector: "Irrigation",
+                sector: "Irrigation infrastructure",
                 file: {
                   name: "deck.pptx",
                   bytes: enc("PK\u0003\u0004 word/document.xml"),
                 },
               },
               {
-                sector: "Irrigation",
+                sector: "Irrigation infrastructure",
                 file: { name: "macro.pptm", bytes: pptx("m").bytes },
               },
-              { sector: "Irrigation", file: null },
+              { sector: "Irrigation infrastructure", file: null },
             ],
           }),
           opts,
@@ -737,7 +749,9 @@ describe("validation", () => {
       await fieldErrors(
         submitTeasers(
           token,
-          input({ teasers: [{ sector: "Irrigation", file: big }] }),
+          input({
+            teasers: [{ sector: "Irrigation infrastructure", file: big }],
+          }),
           opts,
         ),
       ),
@@ -747,10 +761,13 @@ describe("validation", () => {
         submitTeasers(
           token,
           input({
-            teasers: Array.from({ length: 6 }, (_, i) => ({
-              sector: "Irrigation",
-              file: pdf(`t${i}`),
-            })),
+            teasers: Array.from(
+              { length: MAX_TEASERS_PER_SUBMISSION + 1 },
+              (_, i) => ({
+                sector: "Irrigation infrastructure",
+                file: pdf(`t${i}`),
+              }),
+            ),
           }),
           opts,
         ),
@@ -762,7 +779,7 @@ describe("validation", () => {
           token,
           input({
             teasers: [1, 2, 3].map(() => ({
-              sector: "Irrigation",
+              sector: "Irrigation infrastructure",
               file: almostFull(),
             })),
           }),
@@ -774,6 +791,145 @@ describe("validation", () => {
       await fieldErrors(submitTeasers(token, input({ teasers: [] }), opts)),
     ).toHaveProperty("teasers");
     expect(await counts()).toEqual(before);
+  });
+});
+
+describe("other formats stay drafts until an admin attaches the PDF (M11)", () => {
+  let token: string;
+  let projectId: string;
+  let docId: string;
+
+  beforeAll(async () => {
+    token = tokenOf(
+      (
+        await createUploadLink(
+          v.admin,
+          { countryId: C.b, expiresAt: new Date(Date.now() + DAY) },
+          opts,
+        )
+      ).url,
+    );
+  });
+
+  it("requires the job title", async () => {
+    const before = await counts();
+    expect(
+      await fieldErrors(
+        submitTeasers(token, input({ uploaderJobTitle: " " }), opts),
+      ),
+    ).toHaveProperty("uploaderJobTitle");
+    expect(await counts()).toEqual(before);
+  });
+
+  it("accepts a Word file and an image, refuses an archive, and checks the content", async () => {
+    const zip = { name: "teasers.zip", bytes: enc("PK\u0003\u0004 x") };
+    const fakeDocx = { name: "deck.docx", bytes: enc("MZ\u0090 program") };
+    const errors = await fieldErrors(
+      submitTeasers(
+        token,
+        input({
+          teasers: [
+            { sector: "Sludge", file: zip },
+            { sector: "Sludge", file: fakeDocx },
+          ],
+        }),
+        opts,
+      ),
+    );
+    expect(errors).toHaveProperty("teaser-0");
+    expect(errors).toHaveProperty("teaser-1");
+
+    const receipt = await submitTeasers(
+      token,
+      input({
+        uploaderJobTitle: "Head of PPP Unit",
+        teasers: [
+          {
+            sector: "Sludge",
+            file: {
+              name: "Sludge plant.docx",
+              bytes: enc(
+                "PK\u0003\u0004 [Content_Types].xml word/document.xml sludge",
+              ),
+            },
+          },
+          {
+            sector: "Water supply",
+            file: {
+              name: "Scan.JPEG",
+              bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]),
+            },
+          },
+        ],
+      }),
+      opts,
+    );
+    expect(receipt.files.map((f) => f.filename)).toEqual([
+      "Sludge plant.docx",
+      "Scan.jpg",
+    ]);
+    const stored = await db.submission.findUniqueOrThrow({
+      where: { id: receipt.submissionId },
+      select: { uploaderJobTitle: true, countryId: true },
+    });
+    expect(stored).toEqual({
+      uploaderJobTitle: "Head of PPP Unit",
+      countryId: C.b,
+    });
+    projectId = receipt.projectIds[0];
+    docId = receipt.documentIds[0];
+    const doc = await db.document.findUniqueOrThrow({ where: { id: docId } });
+    expect(doc.blobKey).toMatch(/\.docx$/);
+    const notice = mailer.sent.at(-1)!;
+    expect(notice.text).toContain("Job title: Head of PPP Unit");
+    expect(notice.text).toMatch(/Sludge plant\.docx .*not a PDF/);
+  });
+
+  it("cannot be published, and investors and other countries never see the file", async () => {
+    await db.document.update({
+      where: { id: docId },
+      data: { scanStatus: ScanStatus.CLEAN },
+    });
+    expect(await publishBlocker(v.admin, projectId)).toBe("teaser_not_pdf");
+    await expect(publishProject(v.admin, projectId, { meta })).rejects.toThrow(
+      /teaser_not_pdf/,
+    );
+    expect(
+      (await db.project.findUniqueOrThrow({ where: { id: projectId } })).status,
+    ).toBe(ProjectStatus.DRAFT);
+
+    // Even if the project were published some other way, the policy module keeps the non-PDF file from the pipeline.
+    await db.project.update({
+      where: { id: projectId },
+      data: { status: ProjectStatus.PUBLISHED, publishedAt: new Date() },
+    });
+    try {
+      for (const viewer of [v.investor, v.focalA]) {
+        expect(
+          await db.document.count({
+            where: { AND: [{ id: docId }, documentWhere(viewer)] },
+          }),
+        ).toBe(0);
+        expect(
+          await refusal(
+            authorizeDocumentFile(viewer, docId, "download", { meta }),
+          ),
+        ).toBe("not_found");
+      }
+      // The owning country and admins still get it, so it can be converted.
+      for (const viewer of [v.focalB, v.admin]) {
+        const file = await authorizeDocumentFile(viewer, docId, "download", {
+          meta,
+        });
+        const blob = await store.get(file.blobKey);
+        await blob?.stream.cancel();
+      }
+    } finally {
+      await db.project.update({
+        where: { id: projectId },
+        data: { status: ProjectStatus.DRAFT, publishedAt: null },
+      });
+    }
   });
 });
 
@@ -898,7 +1054,7 @@ describe("admin notification (counts)", () => {
       token,
       input({
         teasers: [
-          { sector: "Irrigation", file: pdf("one") },
+          { sector: "Irrigation infrastructure", file: pdf("one") },
           { sector: "Desalination", file: pdf("two") },
         ],
       }),

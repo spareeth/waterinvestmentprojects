@@ -6,36 +6,49 @@
 import { z } from "zod";
 import { ProjectType } from "@/generated/prisma/enums";
 
-/** Suggestions for the sector field (free text, so new sectors need no release). */
+// The three lists below are the WBG drop-down values (PLAN v0.4 0b.8), in WBG's order. The fields stay free text
+// in the database, so values entered before the lists were agreed are kept and still shown.
+
+/** Sector drop-down (the upload link and the workspace form). */
 export const SECTOR_SUGGESTIONS = [
-  "Bulk supply and conveyance",
-  "Desalination",
-  "Irrigation",
-  "Network efficiency",
-  "Stormwater and flood protection",
-  "Wastewater and reuse",
+  "Water supply",
   "Water treatment",
+  "Wastewater treatment",
+  "Wastewater and reuse",
+  "Water supply and wastewater",
+  "Desalination",
+  "Sludge",
+  "Non-revenue water (NRW)",
+  "Irrigation infrastructure",
+  "Other",
 ] as const;
 
+/** PPP modality drop-down. */
 export const PPP_MODEL_SUGGESTIONS = [
-  "Build, operate, transfer",
-  "Build, own, operate",
+  "Affermage",
+  "Management contract and affermage",
   "Concession",
-  "Design, build, finance, operate",
-  "Design, build, operate",
-  "Hybrid PPP",
-  "Lease",
-  "Performance-based contract",
+  "BOT",
+  "DBO",
+  "DBOM",
+  "DBFOM",
+  "DBFOMT",
+  "O&M",
+  "Performance-based contract (PBC)",
+  "Other / TBD",
 ] as const;
 
-/** Suggestions for the development stage (free text until WBG confirms the list). */
+/** Development phase drop-down. */
 export const DEVELOPMENT_STAGE_SUGGESTIONS = [
-  "Concept",
-  "Pre-feasibility",
-  "Feasibility",
-  "Transaction structuring",
-  "Procurement",
-  "Financial close",
+  "Conceptual",
+  "Feasibility in progress",
+  "Design in progress",
+  "Post-feasibility",
+  "Due diligence",
+  "Transaction advisory",
+  "Pre-tender",
+  "RFQ",
+  "RFP",
 ] as const;
 
 export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
@@ -47,6 +60,7 @@ export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
 export const PROJECT_FIELDS = [
   "title",
   "sector",
+  "region",
   "projectType",
   "pppModel",
   "sizeMinUsdMillion",
@@ -91,6 +105,7 @@ const schema = z
   .object({
     title: requiredText("project title", 3, 200),
     sector: requiredText("sector", 2, 100),
+    region: optionalText("region", 120),
     projectType: z.enum(ProjectType, { error: "Choose a project type." }),
     pppModel: optionalText("PPP model", 100),
     sizeMinUsdMillion: optionalNumber(
@@ -123,6 +138,7 @@ const schema = z
 export interface ProjectInput {
   title: string;
   sector: string;
+  region: string | null;
   projectType: ProjectType;
   pppModel: string | null;
   sizeMinUsd: string | null;

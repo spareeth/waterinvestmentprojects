@@ -31,7 +31,7 @@ import { requestScanSweep } from "@/lib/storage/scanner";
 import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WorkspaceError } from "./errors";
 import type { ProjectInput } from "./project-input";
-import { cleanFilename, teaserFileProblem } from "./teaser-file";
+import { cleanFilename, isPdfFilename, teaserFileProblem } from "./teaser-file";
 
 // Country workspace (M5, PLAN F3/F4; v0.3 since M1): create and edit projects, upload teaser versions, publish
 // and withdraw. Every function takes the Viewer from requireViewer() and checks it through src/lib/authz; every
@@ -174,6 +174,7 @@ function projectData(input: ProjectInput) {
   return {
     title: input.title,
     sector: input.sector,
+    region: input.region,
     projectType: input.projectType,
     pppModel: input.pppModel,
     sizeMinUsd: input.sizeMinUsd,
@@ -526,12 +527,16 @@ export async function publishProject(
       orderBy: { version: "desc" },
       select: {
         id: true,
+        filename: true,
         version: true,
         allowDownload: true,
         submissionId: true,
       },
     });
     if (!teaser) throw new WorkspaceError("no_clean_teaser");
+    if (!isPdfFilename(teaser.filename)) {
+      throw new WorkspaceError("teaser_not_pdf");
+    }
     if (
       options.allowDownload !== undefined &&
       options.allowDownload !== teaser.allowDownload

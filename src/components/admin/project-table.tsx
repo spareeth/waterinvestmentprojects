@@ -33,6 +33,8 @@ export interface ProjectRow {
   developmentStage: string | null;
   status: ProjectStatus;
   teaser: { version: number; scanStatus: ScanStatus } | null;
+  /** M11: the current teaser is not a PDF yet, so the project cannot be published. */
+  needsPdf: boolean;
   missing: boolean;
   canPublish: boolean;
   canWithdraw: boolean;
@@ -169,6 +171,11 @@ export function ProjectTable({ projects }: { projects: ProjectRow[] }) {
                 <td className="px-3 py-3">
                   <div className="flex flex-col items-start gap-1">
                     <StatusBadge status={p.status} />
+                    {p.needsPdf ? (
+                      <span className="rounded-full bg-pending px-2 py-0.5 text-xs font-medium text-pending-foreground">
+                        Needs PDF
+                      </span>
+                    ) : null}
                     {p.teaser ? (
                       p.teaser.scanStatus === "CLEAN" ? (
                         <span className="text-xs text-muted-foreground">

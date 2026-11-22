@@ -195,20 +195,20 @@ export function UserGuide() {
       </Section>
 
       <Section id="governments" title="Governments: uploading teasers">
-        <p>
-          Your country receives its own upload link from the Summit team. You do
-          not need an account to use it.
-        </p>
+        <p>Your country receives its own upload link from the Summit team.</p>
         <ol>
           <li>Open the upload link. Your country is already filled in.</li>
           <li>
-            Enter your name, your email address and the government organisation
-            you represent (for example the ministry, utility or agency).
+            Enter your full name, email, job title and the government
+            organisation you represent (for example the ministry, utility or
+            agency). All four are required.
           </li>
           <li>
             Add your project teasers: up to {MAX_TEASERS_PER_SUBMISSION} at a
-            time. For each one, choose the sector and select the file: PDF or
-            PowerPoint (.pptx), up to {maxFile} each and {maxTotal} in total.
+            time. For each one, choose the sector and select the file, up to{" "}
+            {maxFile} each and {maxTotal} in total. PDF is preferred;
+            PowerPoint, Word, Excel and images (JPG, PNG) are also accepted. The
+            Summit team converts other formats to PDF before a teaser is shared.
           </li>
           <li>
             Read the consent statement and tick the box. It confirms, on behalf
@@ -347,9 +347,11 @@ export function UserGuide() {
             virus check, and open clean files.
           </li>
           <li>
-            <strong>Projects</strong>: correct titles and sectors, add PPP
-            model, size and development stage (one by one or by CSV import),
-            then publish.
+            <strong>Projects</strong>: correct titles and sectors, add region,
+            PPP model, size and development stage (one by one or by CSV import),
+            then publish. A project marked <strong>Needs PDF</strong> was sent
+            in another format: convert it, upload the PDF as a new version on
+            the project page, then publish. Investors only ever see PDFs.
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV
