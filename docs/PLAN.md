@@ -1,7 +1,7 @@
 # Water Investment Summit Project Portal: Build Plan
 
-Version 0.3 | 18 November 2026 | Owner: Dr Sajid Pareeth, Terra, Expo City Dubai
-Status: PROPOSED. Previous versions: `docs/PLAN_v0.2.md`, `docs/PLAN_v0.1.md`.
+Version 0.4 | 22 November 2026 | Owner: Dr Sajid Pareeth, Terra, Expo City Dubai
+Status: PROPOSED. **Read section 0b first** (20 Nov test run and emails). Previous versions: `docs/PLAN_v0.3.md`, `docs/PLAN_v0.2.md`, `docs/PLAN_v0.1.md`.
 
 Sources: GCFC note and wireframe (6 Nov); calls on 6, 11 and 12 Nov (`docs/sources/`); email thread
 "Investment Summit -Project Portal!!", in particular Sajid's outline (16 Nov), Dan Vardi (17 Nov), Smita Rawoot (17 Nov),
@@ -73,6 +73,132 @@ and Jacob differ, Jacob's WBG answers are treated as the working decision unless
    (M5, M7, through `notifySummitTeam` in `src/lib/mail`). Admin pages keep counts and "new" markers, so nothing
    depends on email arriving. Emails to focal points, WBG coordinators and investors: not decided yet.
    Sign-in (point 3) and account hand-out (point 4) stay as they are until decided otherwise.
+
+### 0b. Changes from the 20 Nov portal test run and emails of 18 to 21 Nov (v0.4; these override 0 and 0a where they differ)
+
+Sources: `docs/sources/2026-11-20_Portal_test_run_transcript.txt` (Jacob Kim, Smita Rawoot, Benjamin Bartle, Sajid);
+Jacob's email "RE: Water Investment Portal test run" (20 Nov, teaser examples and project list, saved as
+`docs/sources/2026-11-20_WBG_project_list_DEV_ONLY.csv`); "Investment Summit follow up" thread (18 to 20 Nov);
+"Logos for WB coms for the Investment Summit" (20 Nov). Items marked *(built?)* appear in the git log of 20 Nov:
+verify them, do not rebuild.
+
+**Name and domain**
+1. Confirmed in the meeting: **Water Investment Projects**, waterinvestmentprojects.org (Jacob accepted it in place of
+   "waterinvestmentportal", which was not quickly available). Partners also write "Water Investment Projects Portal".
+
+**Government upload link (F0)**
+2. Upload form questions (Sajid, 22 Nov), all required: **Full name**, **Email**, **Job title** and **Represented
+   government organisation**. Keep the existing label "Represented government organisation" exactly
+   *(built: `Submission.governmentOrganisation`)*; it covers ministries, PPP units and sub-national bodies. Add
+   **Job title** (new `Submission.uploaderJobTitle`, shown in the admin submissions list and export). Jacob asked for
+   "name, contact, title, organisation" (20 Nov, 0:08). Name and email are already required (`uploaderName`,
+   `uploaderEmail`); keep email as the contact.
+3. Acknowledgement wording changes from "the represented Government" to "a government organisation". Jacob posted the
+   exact text in the meeting chat (not in the transcript). Working text until Jacob confirms, as a new version
+   `country-upload-ack-v2`:
+   > I confirm, on behalf of the government organisation I represent, consent for the uploaded project teaser(s) to be
+   > shared with the participants invited to the Water Investment Summit, through the Water Investment Projects portal.
+4. **Accept all common document and image formats (Sajid, 22 Nov), not only PDF and PowerPoint.** Countries will
+   upload the wrong format; admins convert. Allowed: PDF; PowerPoint (PPT, PPTX); Word (DOC, DOCX); Excel (XLS, XLSX);
+   OpenDocument (ODT, ODP, ODS); RTF; images (JPG, JPEG, PNG). Still refused: executables, scripts, archives (ZIP, RAR,
+   7z), HTML and anything else. Check the file signature as well as the extension, keep the size limit, and keep the
+   ClamAV scan. Investors only ever see the PDF an admin publishes: a non-PDF upload stays a draft until an admin
+   converts it (manually or with LibreOffice later) and attaches the PDF. Upload page help text: "PDF preferred;
+   PowerPoint, Word, Excel and images are also accepted".
+5. **Delete the sentence "No account is needed"** on the upload page (Jacob: it suggests no account is needed later).
+6. Unlimited teasers per submission stays. **One PDF can hold several projects** (Angola: 4 projects on 2 pages).
+   Admins must be able to create several projects from one uploaded file (same `Document` linked to each project, with
+   an optional page reference), or split the file.
+7. Metadata comes from the PDF (server-side extraction script) and is **reviewed by an admin** before publishing;
+   scanned PDFs need manual entry.
+8. Drop-down values follow the WBG list (`docs/sources/2026-11-20_WBG_project_list_DEV_ONLY.csv`):
+   - **Sector (sub-sector):** Water supply; Water treatment; Wastewater treatment; Wastewater and reuse; Water supply and
+     wastewater; Desalination; Sludge; Non-revenue water (NRW); Irrigation infrastructure; Other.
+   - **PPP modality (admin):** Affermage; Management contract and affermage; Concession; BOT; DBO; DBOM; DBFOM; DBFOMT;
+     O&M; Performance-based contract (PBC); Other / TBD.
+   - **Development phase (admin):** Conceptual; Feasibility in progress; Design in progress; Post-feasibility; Due
+     diligence; Transaction advisory; Pre-tender; RFQ; RFP.
+   - **Size:** USD million, or "TBC". Add **Region** (free text) to Project.
+   - **Countries now 11 / 28 projects** (dev list): Angola, Azerbaijan, DRC, Egypt, Jordan, Morocco, Pakistan,
+     Saint Lucia, Sierra Leone, Sri Lanka, Tanzania. The list is unconfirmed and for development only: use it for
+     vocabularies and the CSV import format; **Sajid to decide** whether it may be loaded on staging (the
+     "no real country data in staging" rule stands until he says so).
+9. Admin CSV import uses the WBG column names: Country, Region, Project name, Sub-sector, PPP modality, Development
+   phase, Size ($m).
+
+**Country accounts**
+10. Each country gets a **unique upload URL plus pre-created username and password**, all on waterinvestmentprojects.org.
+11. **No forced password change for country accounts.** WBG relationship managers or transaction advisers may
+    co-manage a country account with the government, and a change by one would lock out the other (Jacob; agreed for
+    the Summit context, about 15 country users for about one month). Sajid noted this falls short of normal security
+    practice: use long generated passwords, rate limiting, audit, admin reset, and expire the accounts after the
+    Summit. Override `mustChangePassword` for COUNTRY (and WBG coordinator) accounts; keep it for investors.
+12. **Several people per country**, including WBG relationship managers who act for the country (can decide
+    requests). Create individual accounts where the list names people. WBG staff who only monitor stay
+    `WBG_COORDINATOR` (read and export only).
+13. Sajid sends Jacob the country links and the list of roles (admin, WBG contact, country contact, investor); Jacob
+    returns the people per role. Nothing received yet (22 Nov).
+14. **Country users now see the whole published pipeline** ("Pipeline projects": all countries' published teasers,
+    read-only), plus **My projects** (own country, any status) and **Meeting requests**. This replaces the M3 rule
+    "country users see only their own countries' projects". Update `src/lib/authz` and its isolation tests:
+    other countries' drafts and all other countries' requests stay hidden.
+15. If meeting requests are not ready when country links go out, show "coming soon" instead of hiding errors.
+16. Countries should **see their demand** even if they decline: counts of requests per project by organisation type.
+    Add `organisationType` to investor registration (Infrastructure operator or developer; Investor or fund; DFI or
+    MDB; Commercial bank; Transaction or technical adviser; Other).
+
+**Investors and operators: self-registration with pre-approval (replaces 0a.3 "self-registration stays off" for investors)**
+17. Landing page: **"Investor or operator? Register here."** Registration: name, email, organisation, organisation
+    type, title, password (chosen by the person), then the investor acknowledgement.
+18. **Pre-approved list:** WBG (Jacob) sends about 30 target companies and named people. A registrant whose email is on
+    the list, or whose email domain belongs to a pre-approved organisation, gets **immediate access**. Never
+    auto-approve public email domains (gmail.com, outlook.com and similar).
+19. **Everyone else waits for approval** (status `PENDING_APPROVAL`, no pipeline access). The Summit mailbox is told;
+    an approver (Jacob or a WBG designate, as Summit admin) approves or rejects in the admin console; the registrant
+    is told the outcome. Approver address is a placeholder (Jacob or the Summit mailbox) until WBG names one.
+20. Admins can still create investor accounts directly, including during the Conference for late additions.
+21. New data: `ApprovedOrganisation(id, name, emailDomains[], source)`, `ApprovedContact(email, organisationId?)`,
+    `UserStatus` adds `PENDING_APPROVAL` and `REJECTED`; audit every registration and decision.
+
+**Meeting requests and slots**
+22. Request form carries the requester's email and attendee name. *(built? commit 52fcce3)*
+23. **No screening of requests by the Summit team.** The country decides; the Summit mailbox is only informed. No
+    follow-up monitoring was asked for; a reminder to countries with pending requests is optional.
+24. **Rooms (MoFA, via Ben, 18 Nov):** Meeting Room 2 (22 people) and Meeting Room 3 (10 people); 8 Dec 12:00 to 19:00
+    and 9 Dec 09:00 to 12:00 UAE time, still **subject to sponsorship confirmation**. Smita will confirm room names and
+    exact slots; Jacob wants the widest window (conference hours roughly 09:00 to 19:00). The code currently uses Room A
+    and Room B, 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00 and 10 Dec 09:00 to 17:00. Keep A/B until Smita confirms,
+    then change names and hours in `src/lib/meetings/schedule.ts`. Note: no source shows rooms held on 10 Dec.
+25. Jacob asked whether an official UN Water Conference matchmaking platform exists. Not resolved; the portal keeps its
+    own simple request and slot flow.
+
+**Email**
+26. summit@waterinvestmentprojects.org is the **back-end mailbox for incoming items** (meeting requests,
+    registrations). Sajid will forward from it to Jacob and to focal points as needed. Mail sent by the portal risks
+    landing in junk: keep emails to external users (focal points, investors) **off until SPF, DKIM and DMARC pass and a
+    test reaches Outlook and Gmail inboxes**. Access details go out personally (Sajid or WBG), not from the portal.
+
+**Branding and landing page**
+27. Landing page "In partnership with": **World Bank Group** (single mark), **GCFC**, **Expo City Dubai / Terra** and the
+    **2026 UN Water Conference** logo. **No MoFA logo** (Smita). Show the placement to Smita before the page goes
+    public (Sheena, 20 Nov). Logos to come from GCFC (sent to Nigina Alieva, WBG), WBG and Terra communications.
+28. Partners may suggest landing page text, a news item or an image; keep these easy to edit in config or content files.
+
+**Admin**
+29. One admin login is shared among the organisers for now (Sajid). Prefer individual Summit admin accounts for Jacob
+    and other approvers so approvals are attributable in the audit log.
+
+**Timeline (updated)**
+30. Sat 21 Nov: country links and role list to Jacob (promised in the meeting; **not yet sent as of 22 Nov**).
+    Mon 23 Nov (Asia morning): Jacob sends links to countries. **Mon 23 Nov, 17:30 to 18:00 UAE:** check-in call
+    (Ben to send invite). **Tue 24 Nov:** all teasers in the system, portal shared with the wider audience. 24 Nov to
+    about 1 Dec: investors review and request meetings. 30 Nov to 4 Dec: matchmaking and slots. Summit 9 Dec (time
+    given as 15:30 to 18:30 earlier and as 15:30 to 17:00 in a 20 Nov email; to confirm).
+
+**Hosting (no change, but a flag)**
+31. Hosting stays on Terra's Hetzner server in Germany (0a.1). `docs/DEPLOYMENT.md` says the 16 Nov email told the
+    group the data location; the email as sent did not mention hosting. Data location has not been stated to WBG or
+    the countries since Benjamin raised jurisdiction concerns on 6 Nov. Sajid to decide whether to state it.
 
 ---
 
@@ -248,6 +374,15 @@ Decisions while building (18 Nov):
 | M8 | Production deployment on final domain, backups, alerts, security pass | 23 Nov |
 | M9 | Slot booking (only if confirmed) | by 30 Nov |
 | M10 | Nice-to-haves: watermark, view analytics, map | after launch, if time |
+
+**v0.4 work (from section 0b), in this order for the 23 to 24 Nov launch:**
+
+| Order | Milestone | Target |
+|---|---|---|
+| M11 | Upload link fixes: government organisation (verify), required job title, ack v2 text, all common document and image formats accepted (0b item 4), remove "No account is needed", WBG drop-down vocabularies, Region field | **Sun 22 Nov** (before links go to Jacob) |
+| M12 | Country accounts: per-country links and pre-created logins (bulk from Jacob's list), no forced password change for COUNTRY/WBG, several users per country, country view of the full published pipeline + My projects + Meeting requests (authz and tests updated) | Sun 22 Nov |
+| M13 | Investor self-registration with pre-approved organisations/contacts, pending approval queue, approver role, organisation type, demand counts for countries | Mon 23 Nov |
+| M14 | Admin: several projects from one file, CSV import with WBG columns, metadata review before publish; landing logos (WBG, GCFC, Expo City Dubai/Terra, UNWC 2026; no MoFA); rooms and hours once Smita confirms; email deliverability check | Mon 23 Nov |
 
 **Demo on Fri 20 Nov:** M1 to M6 with fictional data. Visual reference `docs/mockups/` (note: tier labels and the
 old acknowledgement wording in the mockups are obsolete; follow this plan).
