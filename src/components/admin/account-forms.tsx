@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useState, useTransition } from "react";
 import {
   type AccountFormState,
@@ -152,6 +153,21 @@ export function CreateAccountForm({
             }
           >
             <legend className="text-sm font-semibold">Countries</legend>
+            {countries.length === 0 ? (
+              <p
+                data-empty="countries"
+                className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground"
+              >
+                No countries yet. Add the country under{" "}
+                <Link
+                  href="/admin/countries"
+                  className="font-medium text-brand-deep underline underline-offset-4"
+                >
+                  Admin, Countries
+                </Link>{" "}
+                first, then come back to create this account.
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {countries.map((country) => (
                 <label

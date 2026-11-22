@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { CreateCountryForm } from "@/components/admin/country-forms";
 import { PortalHeader } from "@/components/portal/portal-header";
 import {
   CreateAllLinksForm,
@@ -138,9 +140,19 @@ export default async function UploadLinksPage() {
             Country links
           </h2>
           {overview.countries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No active countries yet.
-            </p>
+            <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
+              <p className="text-sm text-muted-foreground">
+                No active countries yet. Add a country here (or under{" "}
+                <Link
+                  href="/admin/countries"
+                  className="font-medium text-brand-deep underline underline-offset-4"
+                >
+                  Countries
+                </Link>
+                ), then create its link.
+              </p>
+              <CreateCountryForm />
+            </div>
           ) : (
             <ul className="flex flex-col gap-3">
               {overview.countries.map((c) => (
@@ -174,6 +186,16 @@ export default async function UploadLinksPage() {
               ))}
             </ul>
           )}
+          {overview.countries.length > 0 ? (
+            <details className="rounded-xl border bg-card p-5">
+              <summary className="cursor-pointer text-sm font-semibold text-brand-navy">
+                Country not listed? Add it
+              </summary>
+              <div className="mt-3">
+                <CreateCountryForm />
+              </div>
+            </details>
+          ) : null}
         </section>
       </main>
     </>

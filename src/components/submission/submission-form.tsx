@@ -177,10 +177,19 @@ export function SubmissionForm({
             id="submit-country"
             label="Country"
             error={e[F.countryId]}
+            hint={
+              countries.length === 0
+                ? "No countries are open for uploads yet. Please contact the Summit team."
+                : undefined
+            }
             className="sm:col-span-2"
           >
             <Select
-              {...describe("submit-country", undefined, e[F.countryId])}
+              {...describe(
+                "submit-country",
+                countries.length === 0 ? "hint" : undefined,
+                e[F.countryId],
+              )}
               name={F.countryId}
               defaultValue={v.countryId ?? ""}
               required
