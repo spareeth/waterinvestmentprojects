@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+import { PartnerStrip } from "@/components/brand/partner-logos";
 import { SiteHeader } from "@/components/site-header";
 import { SubmissionForm } from "@/components/submission/submission-form";
 import { requestMetaFrom } from "@/lib/audit";
@@ -71,7 +72,8 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           </h1>
           <div className="mt-3">{children}</div>
         </section>
-        <p className="mt-8 text-center text-xs text-muted-foreground">
+        <PartnerStrip partners={appConfig.partners} className="mt-8" />
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           {appConfig.tagline} · {appConfig.copyright}
           {appConfig.supportEmail ? ` · Help: ${appConfig.supportEmail}` : ""}
         </p>

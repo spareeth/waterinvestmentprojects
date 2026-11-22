@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PartnerStrip } from "@/components/brand/partner-logos";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { SubmissionForm } from "@/components/submission/submission-form";
 import { canSubmitFromWorkspace, requirePortalUser } from "@/lib/authz";
@@ -61,6 +62,7 @@ export default async function WorkspaceUploadPage() {
             />
           )}
         </section>
+        <PartnerStrip partners={appConfig.partners} className="mt-2" />
       </main>
     </>
   );

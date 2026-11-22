@@ -13,10 +13,21 @@ import {
 describe("meeting schedule", () => {
   it("has the two rooms finalised on 22 Nov, 30-minute slots, 09:00 to 19:00 on 8, 9 and 10 Dec", () => {
     expect(MEETING_ROOMS).toEqual([
-      { name: "Al Jimi", capacity: 22, formerNames: ["Room A"] },
-      { name: "Shawka", capacity: 10, formerNames: ["Room B"] },
+      {
+        name: "Room 1 - Al Jimi",
+        capacity: 22,
+        formerNames: ["Room A", "Al Jimi"],
+      },
+      {
+        name: "Room 2 - Shawka",
+        capacity: 10,
+        formerNames: ["Room B", "Shawka"],
+      },
     ]);
-    expect(MEETING_SCHEDULE.rooms).toEqual(["Al Jimi", "Shawka"]);
+    expect(MEETING_SCHEDULE.rooms).toEqual([
+      "Room 1 - Al Jimi",
+      "Room 2 - Shawka",
+    ]);
     expect(MEETING_SCHEDULE.slotMinutes).toBe(30);
     expect(MEETING_SCHEDULE.days).toEqual([
       { date: "2026-12-08", from: "09:00", to: "19:00" },
@@ -24,7 +35,7 @@ describe("meeting schedule", () => {
       { date: "2026-12-10", from: "09:00", to: "19:00" },
     ]);
     expect(describeMeetingRooms()).toBe(
-      "Al Jimi (22 people) and Shawka (10 people)",
+      "Room 1 - Al Jimi (22 people) and Room 2 - Shawka (10 people)",
     );
   });
 
@@ -33,12 +44,12 @@ describe("meeting schedule", () => {
     // 8 Dec 09:00 to 19:00 = 20 slots, 9 Dec 09:00 to 19:00 = 20 slots, 10 Dec 09:00 to 19:00 = 20 slots; two rooms.
     expect(slots).toHaveLength((20 + 20 + 20) * 2);
     expect(slots[0]).toEqual({
-      room: "Al Jimi",
+      room: "Room 1 - Al Jimi",
       startsAt: new Date("2026-12-08T05:00:00Z"),
       endsAt: new Date("2026-12-08T05:30:00Z"),
     });
     const last = slots.at(-1)!;
-    expect(last.room).toBe("Shawka");
+    expect(last.room).toBe("Room 2 - Shawka");
     expect(formatClock(last.startsAt)).toBe("18:30");
     expect(formatClock(last.endsAt)).toBe("19:00");
   });

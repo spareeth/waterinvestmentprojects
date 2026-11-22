@@ -1,5 +1,5 @@
 // Bilateral meeting rooms and times (F9, PLAN v0.3): two rooms, 30-minute slots, UAE time. Rooms finalised 22 Nov:
-// Al Jimi (22 people) and Shawka (10 people), both in use 09:00 to 19:00 on 8, 9 and 10 Dec (user decision,
+// Room 1 - Al Jimi (22 people) and Room 2 - Shawka (10 people), both in use 09:00 to 19:00 on 8, 9 and 10 Dec (user decision,
 // 22 Nov: the full room hours on every day, 9 Dec included, although the Summit runs from 15:30 that day).
 // Pure, so the form, the server and tests share it. To add a day or change the hours, edit `days`: the missing
 // slots are created the next time the schedule is read; slots already in the database are never removed.
@@ -12,10 +12,17 @@ export interface MeetingRoom {
   formerNames: readonly string[];
 }
 
-/** Rooms finalised 22 Nov (Meeting room 1 and 2). Room A and Room B were the placeholders until then. */
+/**
+ * Rooms finalised 22 Nov (Meeting room 1 and 2), named "Room 1 - Al Jimi" and "Room 2 - Shawka" (user, 22 Nov).
+ * Room A and Room B were the placeholders, then "Al Jimi" and "Shawka" for a few hours: both are renamed.
+ */
 export const MEETING_ROOMS: readonly MeetingRoom[] = [
-  { name: "Al Jimi", capacity: 22, formerNames: ["Room A"] },
-  { name: "Shawka", capacity: 10, formerNames: ["Room B"] },
+  {
+    name: "Room 1 - Al Jimi",
+    capacity: 22,
+    formerNames: ["Room A", "Al Jimi"],
+  },
+  { name: "Room 2 - Shawka", capacity: 10, formerNames: ["Room B", "Shawka"] },
 ];
 
 export interface MeetingDay {
@@ -64,7 +71,7 @@ export interface RoomTimes {
   days: RoomDayTimes[];
 }
 
-/** "2026-12-08T05:00:00.000Z|Al Jimi": a start time in one room. */
+/** "2026-12-08T05:00:00.000Z|Room 1 - Al Jimi": a start time in one room. */
 export function roomSlotValue(startsAt: Date, room: string): string {
   return `${startsAt.toISOString()}|${room}`;
 }
@@ -96,7 +103,7 @@ export const MEETING_SCHEDULE = {
   ] as readonly MeetingDay[],
 } as const;
 
-/** "Al Jimi (22 people) and Shawka (10 people)" */
+/** "Room 1 - Al Jimi (22 people) and Room 2 - Shawka (10 people)" */
 export function describeMeetingRooms(
   rooms: readonly MeetingRoom[] = MEETING_ROOMS,
 ): string {

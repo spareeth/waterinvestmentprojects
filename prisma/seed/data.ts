@@ -1077,8 +1077,8 @@ export const meetingRequests = [
 ];
 
 // ---------------------------------------------------------------------------
-// Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Al Jimi (22 people) and
-// Shawka (10 people), 8, 9 and 10 Dec 09:00 to 19:00 (GST)
+// Rooms and 30-minute slots from the meeting schedule (src/lib/meetings/schedule.ts): Room 1 - Al Jimi (22 people) and
+// Room 2 - Shawka (10 people), 8, 9 and 10 Dec 09:00 to 19:00 (GST)
 // ---------------------------------------------------------------------------
 
 export const rooms = MEETING_ROOMS.map((room, i) => ({

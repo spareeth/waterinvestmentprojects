@@ -201,6 +201,8 @@ interface CheckedTeaser {
   sector: string;
   type: TeaserFileType;
   file: SubmissionFile;
+  /** Key facts read from the file (22 Nov); the sector comes from here when the form left it to the teaser. */
+  facts: TeaserFacts;
 }
 
 /**
@@ -400,8 +402,11 @@ async function storeSubmission(
     fieldErrors.teasers = FIELD_MESSAGES.tooManyTeasers;
   }
   let totalBytes = 0;
-  input.teasers.slice(0, MAX_TEASERS_PER_SUBMISSION).forEach((teaser, i) => {
-    if (!isSubmissionSector(teaser.sector)) {
+  // An empty sector means "read it from the teaser" (22 Nov): the file's subtitle usually starts with it.
+  const teasers = input.teasers.slice(0, MAX_TEASERS_PER_SUBMISSION);
+  for (const [i, teaser] of teasers.entries()) {
+    const chosen = teaser.sector.trim();
+    if (chosen !== "" && !isSubmissionSector(chosen)) {
       fieldErrors[SUBMISSION_FIELDS.sector(i)] = FIELD_MESSAGES.sector;
     }
     const problem = teaser.file
@@ -411,11 +416,20 @@ async function storeSubmission(
     if (problem || !teaser.file || !type) {
       fieldErrors[SUBMISSION_FIELDS.teaser(i)] =
         FIELD_MESSAGES[problem ?? "file_wrong_type"];
-      return;
+      continue;
     }
     totalBytes += teaser.file.bytes.byteLength;
-    checked.push({ sector: teaser.sector, type, file: teaser.file });
-  });
+    const facts = await teaserFactsFromFile(
+      teaser.file.bytes,
+      type,
+      country ? [country.name] : [],
+    );
+    const sector = chosen || facts.sector || "";
+    if (!sector) {
+      fieldErrors[SUBMISSION_FIELDS.sector(i)] = FIELD_MESSAGES.sectorUnread;
+    }
+    checked.push({ sector, type, file: teaser.file, facts });
+  }
   if (totalBytes > MAX_SUBMISSION_BYTES) {
     fieldErrors.teasers = FIELD_MESSAGES.totalTooLarge;
   }
@@ -454,9 +468,7 @@ async function storeSubmission(
         blobKey,
         sha256: createHash("sha256").update(teaser.file.bytes).digest("hex"),
         filename: cleanFilename(teaser.file.name, teaser.type),
-        facts: await teaserFactsFromFile(teaser.file.bytes, teaser.type, [
-          target.name,
-        ]),
+        facts: teaser.facts,
       });
     }
 

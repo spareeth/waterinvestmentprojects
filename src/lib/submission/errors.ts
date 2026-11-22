@@ -42,6 +42,8 @@ export const FIELD_MESSAGES = {
   noTeasers: "Add at least one teaser.",
   tooManyTeasers: `Send at most ${MAX_TEASERS_PER_SUBMISSION} teasers at a time. Use the link again for more.`,
   sector: "Choose the sector.",
+  sectorUnread:
+    "The sector could not be read from this file. Please choose it.",
   file_missing: "Choose the teaser file.",
   file_too_large: `Each teaser must be ${formatBytes(MAX_TEASER_BYTES)} or smaller.`,
   file_not_pdf: "Upload a PDF file.",

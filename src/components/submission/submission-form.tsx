@@ -316,17 +316,15 @@ export function SubmissionForm({
               <FieldShell
                 id={sectorId}
                 label={`Teaser ${i + 1}: sector`}
+                hint="Read from the teaser's subtitle unless you choose one."
                 error={e[F.sector(i)]}
               >
                 <Select
-                  {...describe(sectorId, undefined, e[F.sector(i)])}
+                  {...describe(sectorId, true, e[F.sector(i)])}
                   name={F.sector(i)}
                   defaultValue={v.sectors?.[i] ?? ""}
-                  required
                 >
-                  <option value="" disabled>
-                    Choose the sector
-                  </option>
+                  <option value="">Read from the teaser</option>
                   {SUBMISSION_SECTORS.map((s) => (
                     <option key={s} value={s}>
                       {s}

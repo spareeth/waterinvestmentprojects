@@ -447,4 +447,32 @@ describe("Add project from My projects", () => {
     expect(doc.filename).toBe("teaser v2.docx");
     expect(doc.blobKey.endsWith(".docx")).toBe(true);
   });
+
+  it("takes the sector from the teaser's subtitle when the form leaves it empty, and asks for it when it cannot be read (22 Nov)", async () => {
+    const bytes = buildPlaceholderPdf({
+      title: "IT Workspace A - SPRING CATCHMENT PROJECT",
+      subtitle: "IRRIGATION INFRASTRUCTURE | Upper Valley",
+      lines: ["PPP MODEL", "BOT"],
+    });
+    const receipt = await submitWorkspaceTeasers(
+      v.focalA,
+      input({ teasers: [{ sector: "", file: { name: "t.pdf", bytes } }] }),
+      opts,
+    );
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: receipt.projectIds[0] },
+    });
+    expect(project.sector).toBe("Irrigation infrastructure");
+    expect(project.region).toBe("Upper Valley");
+
+    // A file with no readable subtitle: the sector must be chosen.
+    const errors = await submitWorkspaceTeasers(
+      v.focalA,
+      input({ teasers: [{ sector: "", file: pdf("No subtitle here") }] }),
+      opts,
+    ).catch((e: unknown) => e);
+    expect((errors as SubmissionError).fieldErrors).toHaveProperty(
+      SUBMISSION_FIELDS.sector(0),
+    );
+  });
 });

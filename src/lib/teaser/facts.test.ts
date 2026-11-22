@@ -54,6 +54,15 @@ describe("readTeaserFacts", () => {
     ).toBe("Nairobi NRW Reduction");
   });
 
+  it("finds the sector in the subtitle even when the title line is not recognised (22 Nov)", () => {
+    const facts = readTeaserFacts(
+      "WATER FORWARD INVESTOR SUMMIT · UNWC 2026\nUNKNOWN PLACE — SOME PROJECT\nWATER SUPPLY · North District\nINVESTMENT TEASER",
+    );
+    expect(facts.title).toBeUndefined();
+    expect(facts.sector).toBe("Water supply");
+    expect(facts.region).toBe("North District");
+  });
+
   it("reads 'Label: value' lines too", () => {
     const facts = readTeaserFacts(
       "PPP model: Concession (30 years)\nProject size: USD 2.5 billion\nDevelopment stage: Pre-tender",

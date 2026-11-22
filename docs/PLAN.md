@@ -169,7 +169,7 @@ verify them, do not rebuild.
     exact slots; Jacob wants the widest window (conference hours roughly 09:00 to 19:00). The code currently uses Room A
     and Room B, 8 Dec 09:00 to 17:00, 9 Dec 09:00 to 13:00 and 10 Dec 09:00 to 17:00. Keep A/B until Smita confirms,
     then change names and hours in `src/lib/meetings/schedule.ts`. Note: no source shows rooms held on 10 Dec.
-    **Finalised 22 Nov (user):** Meeting room 1 is **Al Jimi** (22 people) and Meeting room 2 is **Shawka** (10 people),
+    **Finalised 22 Nov (user):** Meeting room 1 is **Al Jimi** (22 people) and Meeting room 2 is **Shawka** (10 people), shown in the portal as "Room 1 - Al Jimi" and "Room 2 - Shawka",
     both in use 09:00 to 19:00. Built: 09:00 to 19:00 on all three days, 9 Dec included (user decision, 22 Nov,
     although the Summit runs from 15:30 that day). Existing Room A and Room B rows are renamed in place on the next read, so held and booked
     slots stay. Open: which days the rooms are actually held (10 Dec still unconfirmed).

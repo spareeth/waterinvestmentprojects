@@ -415,8 +415,8 @@ describe("seed data: meeting requests and slots", () => {
 
   it("has two rooms with 30-minute slots on 8, 9 and 10 Dec, 09:00 to 19:00, only", () => {
     expect(rooms.map((r) => [r.name, r.capacity])).toEqual([
-      ["Al Jimi", 22],
-      ["Shawka", 10],
+      ["Room 1 - Al Jimi", 22],
+      ["Room 2 - Shawka", 10],
     ]);
     for (const s of slots) {
       expect(s.endsAt.getTime() - s.startsAt.getTime()).toBe(

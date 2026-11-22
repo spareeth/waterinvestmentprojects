@@ -8,9 +8,11 @@ import {
   TeaserViewer,
   teaserFileHref,
 } from "@/components/pipeline/teaser-viewer";
+import { PartnerStrip } from "@/components/brand/partner-logos";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { MeetingRequestPanel } from "@/components/requests/meeting-request-panel";
 import { Button } from "@/components/ui/button";
+import { appConfig } from "@/lib/config";
 import { requestMetaFrom } from "@/lib/audit";
 import { requirePortalUser } from "@/lib/authz";
 import { formatUsdRange, pipelineHref } from "@/lib/pipeline/filters";
@@ -176,6 +178,10 @@ export default async function PipelineProjectPage({
             </div>
           </div>
         </div>
+        <PartnerStrip
+          partners={appConfig.partners}
+          className="mt-4 border-t border-water-100 pt-6"
+        />
       </main>
     </>
   );

@@ -351,17 +351,22 @@ export function readTeaserFacts(
 
   const { title, index } = titleAndHeaderIndex(lines, countryNames);
   if (title) facts.title = title.slice(0, 200);
-  // The line under the title: "SECTOR · region".
-  const header = index >= 0 ? lines[index + 1] : undefined;
-  if (header && /[·•|]/.test(header)) {
-    const [left, ...rest] = header.split(/\s*[·•|]\s*/);
+  // The subtitle, "SECTOR · region": the line under the title, or else the first line near the top whose first
+  // part (before the dot) names a sector (user, 22 Nov: "usually in the subtitle, the first part before the dot").
+  const candidates =
+    index >= 0 ? [lines[index + 1], ...lines.slice(0, 10)] : lines.slice(0, 10);
+  for (const line of candidates) {
+    if (!line || !/[·•|]/.test(line)) continue;
+    const [left, ...rest] = line.split(/\s*[·•|]\s*/);
     const sector = matchSector(left);
-    if (sector) facts.sector = sector;
+    if (!sector) continue;
+    facts.sector = sector;
     const region = rest
       .join(", ")
       .replace(/\s*\/\s*/g, " / ")
       .trim();
     if (region) facts.region = region.slice(0, 120);
+    break;
   }
 
   const ppp = valueOf(lines, PPP_LABELS);
