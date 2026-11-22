@@ -36,6 +36,7 @@ import { db } from "@/lib/db";
 import { type Mailer, MemoryMailer } from "@/lib/mail";
 import { type BlobStore, LocalBlobStore } from "@/lib/storage";
 import {
+  createMissingUploadLinks,
   createUploadLink,
   getSubmissionCounts,
   getUploadLinkOverview,
@@ -1085,5 +1086,63 @@ describe("admin notification (counts)", () => {
         activeCountries: 0,
       });
     }
+  });
+});
+
+describe("links for every country at once (M12)", () => {
+  it("creates a link only for active countries without a working one, for admins only", async () => {
+    // Country A has a working link; country B's links are all switched off; X is inactive.
+    await createUploadLink(
+      v.admin,
+      { countryId: C.a, expiresAt: new Date(Date.now() + DAY) },
+      opts,
+    );
+    await db.uploadLink.updateMany({
+      where: { countryId: C.b, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    const links = () =>
+      db.uploadLink.count({ where: { countryId: { in: [C.a, C.b, C.x] } } });
+
+    for (const viewer of [v.focalA, v.investor]) {
+      expect(
+        await refusal(
+          createMissingUploadLinks(
+            viewer,
+            { expiresAt: new Date(Date.now() + DAY) },
+            opts,
+          ),
+        ),
+      ).toBe("forbidden");
+    }
+    const before = await links();
+    expect(
+      await refusal(
+        createMissingUploadLinks(
+          v.admin,
+          { expiresAt: new Date(Date.now() - DAY) },
+          opts,
+        ),
+      ),
+    ).toBe("invalid");
+    expect(await links()).toBe(before);
+
+    const created = await createMissingUploadLinks(
+      v.admin,
+      { expiresAt: new Date(Date.now() + DAY) },
+      opts,
+    );
+    const mine = created.filter((l) => l.countryId.startsWith("it-sub-"));
+    expect(mine.map((l) => l.countryId)).toEqual([C.b]);
+    const resolved = await resolveUploadLink(tokenOf(mine[0].url));
+    expect(resolved.state).toBe("valid");
+    expect(resolved.link?.countryId).toBe(C.b);
+    // Run again: every active country now has a working link, so nothing more is made.
+    const again = await createMissingUploadLinks(
+      v.admin,
+      { expiresAt: new Date(Date.now() + DAY) },
+      opts,
+    );
+    expect(again).toEqual([]);
   });
 });

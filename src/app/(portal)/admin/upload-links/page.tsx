@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PortalHeader } from "@/components/portal/portal-header";
 import {
+  CreateAllLinksForm,
   CreateLinkForm,
   RevokeLinkForm,
 } from "@/components/submission/upload-link-forms";
@@ -74,11 +75,11 @@ export default async function UploadLinksPage() {
             Upload links
           </h1>
           <p className="mt-1 max-w-3xl text-muted-foreground">
-            Send each Government its own link: the country is fixed by the link,
-            and no account is needed. A new link replaces the old one at once.
-            Links are shown only when created, so copy them straight into your
-            email. Use the generic link only if a country has no link of its
-            own; there the uploader chooses the country.
+            Send each Government its own link: the country is fixed by the link.
+            A new link replaces the old one at once. Links are shown only when
+            created, so copy them straight into your email. Use the generic link
+            only if a country has no link of its own; there the uploader chooses
+            the country.
           </p>
         </div>
 
@@ -103,6 +104,29 @@ export default async function UploadLinksPage() {
                 label="the generic link"
               />
             ) : null}
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="all-heading"
+          className="rounded-xl border bg-card p-6"
+        >
+          <h2 id="all-heading" className="text-lg font-semibold">
+            Links for every country at once
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            Creates a link for each active country that has no working link yet
+            and lets you download them as a CSV, to send with the account list.
+            Countries that already have a working link keep it.
+          </p>
+          <div className="mt-3">
+            <CreateAllLinksForm
+              defaultDate={defaultDate}
+              missing={
+                overview.countries.filter((c) => c.link?.state !== "valid")
+                  .length
+              }
+            />
           </div>
         </section>
 

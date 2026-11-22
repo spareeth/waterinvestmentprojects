@@ -13,10 +13,9 @@ describe("PortalHeader", () => {
     expect(
       screen.getByRole("link", { name: new RegExp(appConfig.name, "i") }),
     ).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Pipeline" })).toHaveAttribute(
-      "href",
-      "/pipeline",
-    );
+    expect(
+      screen.getByRole("link", { name: "Pipeline projects" }),
+    ).toHaveAttribute("href", "/pipeline");
   });
 
   it("shows who is signed in as a badge, not as a menu link", () => {

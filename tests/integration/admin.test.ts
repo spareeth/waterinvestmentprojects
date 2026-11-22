@@ -61,7 +61,7 @@ import {
   unpublishProject,
 } from "@/lib/admin/projects";
 import { TEMPORARY_PASSWORD_PATTERN } from "@/lib/auth/temporary-password";
-import { projectWhere } from "@/lib/authz";
+import { meetingRequestWhere, projectWhere } from "@/lib/authz";
 import type { Viewer } from "@/lib/authz/viewer";
 import { db } from "@/lib/db";
 import { LocalBlobStore } from "@/lib/storage";
@@ -623,10 +623,23 @@ describe("countries and contacts", () => {
         { meta },
       ),
     ).rejects.toSatisfy((e) => e instanceof AdminError && e.code === "exists");
-    // A contact gives no access: the focal point of A still sees no project of B.
+    // A contact gives no access: the focal point of A still sees nothing of B beyond the published pipeline (M12).
     expect(
       await db.project.count({
-        where: { AND: [projectWhere(focalA), { countryId: C.b }] },
+        where: {
+          AND: [
+            projectWhere(focalA),
+            { countryId: C.b },
+            { status: { not: ProjectStatus.PUBLISHED } },
+          ],
+        },
+      }),
+    ).toBe(0);
+    expect(
+      await db.meetingRequest.count({
+        where: {
+          AND: [meetingRequestWhere(focalA), { project: { countryId: C.b } }],
+        },
       }),
     ).toBe(0);
 
@@ -707,11 +720,15 @@ describe("bulk accounts and switching accounts off", () => {
       where: { email: { in: [a, b] } },
       select: {
         id: true,
+        email: true,
         mustChangePassword: true,
         memberships: { select: { countryId: true } },
       },
     });
-    expect(users.every((u) => u.mustChangePassword)).toBe(true);
+    // M12: the investor must choose their own password; the country focal point keeps the handed-out one.
+    expect(
+      Object.fromEntries(users.map((u) => [u.email, u.mustChangePassword])),
+    ).toEqual({ [a]: true, [b]: false });
     expect(users.flatMap((u) => u.memberships.map((m) => m.countryId))).toEqual(
       [C.b],
     );

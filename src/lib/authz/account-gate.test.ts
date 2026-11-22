@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { UserRole, UserStatus } from "@/generated/prisma/enums";
 import {
   accountStage,
+  mustChooseOwnPassword,
   type GateUser,
   needsInvestorAck,
   sessionProblem,
@@ -68,7 +69,8 @@ describe("accountStage", () => {
     );
   });
 
-  it("makes a temporary password the first thing to replace, for every role", () => {
+  it("makes a temporary password the first thing to replace for investors and admins only (M12)", () => {
+    const keeps: UserRole[] = [UserRole.COUNTRY, UserRole.WBG_COORDINATOR];
     for (const role of Object.values(UserRole)) {
       const user = {
         ...ready,
@@ -78,8 +80,15 @@ describe("accountStage", () => {
         termsAcceptedAt: null,
         investorAckTextVersion: null,
       };
-      expect(accountStage(user, passwordOnly), role).toBe("change-password");
-      expect(accountStage(user, totp), role).toBe("change-password");
+      expect(mustChooseOwnPassword(role), role).toBe(!keeps.includes(role));
+      if (keeps.includes(role)) {
+        // Country and WBG coordinator accounts keep the handed-out password (PLAN v0.4 0b.11).
+        expect(accountStage(user, passwordOnly), role).toBe("terms");
+        expect(accountStage(user, totp), role).toBe("enrol-2fa");
+      } else {
+        expect(accountStage(user, passwordOnly), role).toBe("change-password");
+        expect(accountStage(user, totp), role).toBe("change-password");
+      }
     }
   });
 

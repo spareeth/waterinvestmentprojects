@@ -73,6 +73,17 @@ export function sessionProblem(
   return null;
 }
 
+/**
+ * Whether a handed-out temporary password must be replaced at the first sign-in. M12 (PLAN v0.4 0b.11): not for
+ * COUNTRY and WBG_COORDINATOR accounts, which WBG relationship managers may co-manage with the government (a
+ * change by one would lock out the other). Investors and admins still choose their own. The compensating
+ * controls are long generated passwords (about 79 bits), sign-in rate limiting, the audit log, admin reset, and
+ * switching the accounts off after the Summit.
+ */
+export function mustChooseOwnPassword(role: UserRole): boolean {
+  return role !== UserRole.COUNTRY && role !== UserRole.WBG_COORDINATOR;
+}
+
 /** Investors accept the investor acknowledgement (CLAUDE.md: no pipeline before it); nobody else is asked. */
 export function needsInvestorAck(
   user: Pick<GateUser, "role" | "investorAckTextVersion">,
@@ -89,7 +100,9 @@ export function accountStage(
   config: Pick<GateConfig, "secondStep" | "investorAckVersion">,
 ): AccountStage {
   if (user.status !== UserStatus.ACTIVE) return "pending";
-  if (user.mustChangePassword) return "change-password";
+  if (user.mustChangePassword && mustChooseOwnPassword(user.role)) {
+    return "change-password";
+  }
   if (config.secondStep === "totp" && !user.mfaEnabled) return "enrol-2fa";
   if (user.role === UserRole.INVESTOR) {
     return needsInvestorAck(user, config) ? "investor-ack" : "active";

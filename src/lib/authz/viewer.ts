@@ -8,7 +8,9 @@
 //
 // Roles (PLAN v0.3 section 4):
 // - PLATFORM_ADMIN, SUMMIT_ADMIN: everything.
-// - COUNTRY: their own countries' projects (any status) and requests; accept or decline those requests.
+// - COUNTRY: their own countries' projects (any status) and requests; accept or decline those requests. Since M12
+//   (PLAN v0.4 0b.14) also the whole published pipeline, read-only, like investors (never other countries'
+//   drafts, older teaser versions or requests).
 // - WBG_COORDINATOR: every published teaser, and read-only the requests of their own countries.
 // - INVESTOR: every published teaser; their own requests.
 // A user's countries are their CountryMembership rows. The membership role (focal point or member) no longer
@@ -97,14 +99,16 @@ export function actsOnBehalf(viewer: Viewer | null, countryId: string) {
 }
 
 /**
- * Does the viewer see the pipeline (every published teaser)? Investors and WBG coordinators. Admins see
- * everything anyway; country users see only their own countries' projects (PLAN v0.3 section 4).
+ * Does the viewer see the pipeline (every published teaser)? Investors, WBG coordinators and, since M12
+ * (PLAN v0.4 0b.14), country users who belong to at least one country. Admins see everything anyway.
+ * A COUNTRY account without a country sees nothing (default deny).
  * PLAN v0.3 point 8: no per-project or per-country restriction for investors.
  */
 export function hasPipeline(viewer: Viewer | null): boolean {
   return (
     viewer?.role === UserRole.INVESTOR ||
-    viewer?.role === UserRole.WBG_COORDINATOR
+    viewer?.role === UserRole.WBG_COORDINATOR ||
+    ownCountryIds(viewer).length > 0
   );
 }
 

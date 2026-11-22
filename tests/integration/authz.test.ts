@@ -395,10 +395,17 @@ describe("projects", () => {
   const cases: [Who, string[]][] = [
     ["platformAdmin", ALL_PROJECT_IDS],
     ["summitAdmin", ALL_PROJECT_IDS],
-    // Own country in full (drafts and withdrawn), nothing of any other country, published or not.
-    ["focalA", [P.aPub, P.aDraft, P.aWithdrawn]],
-    ["memberA", [P.aPub, P.aDraft, P.aWithdrawn]],
-    ["focalB", [P.bPub, P.bDraft, "it-authz-p-b-view-only"]],
+    // M12: own country in full (drafts and withdrawn) plus the published pipeline of other active countries;
+    // never another country's draft or withdrawn project, never an inactive country.
+    [
+      "focalA",
+      [P.aPub, P.aDraft, P.aWithdrawn, P.bPub, "it-authz-p-b-view-only"],
+    ],
+    [
+      "memberA",
+      [P.aPub, P.aDraft, P.aWithdrawn, P.bPub, "it-authz-p-b-view-only"],
+    ],
+    ["focalB", [P.bPub, P.bDraft, "it-authz-p-b-view-only", P.aPub]],
     // Every published project of an active country; never a draft, withdrawn or inactive country.
     ["coordA", pipeline],
     ["coordAB", pipeline],
@@ -428,10 +435,13 @@ describe("projects", () => {
     }
   });
 
-  it("never returns another country's project or any draft to outsiders by id", async () => {
+  it("never returns another country's unpublished project or any draft to outsiders by id", async () => {
     expect(await findProjectFor(v.focalB, P.aDraft)).toBeNull();
-    expect(await findProjectFor(v.focalB, P.aPub)).toBeNull();
+    expect(await findProjectFor(v.focalB, P.aWithdrawn)).toBeNull();
     expect(await findProjectFor(v.focalA, P.bDraft)).toBeNull();
+    expect(await findProjectFor(v.focalA, P.xPub)).toBeNull();
+    // M12: another country's published project is in a country user's pipeline.
+    expect((await findProjectFor(v.focalB, P.aPub))?.id).toBe(P.aPub);
     expect(await findProjectFor(v.investor1, P.aDraft)).toBeNull();
     expect(await findProjectFor(v.investor1, P.aWithdrawn)).toBeNull();
     expect(await findProjectFor(v.coordA, P.aDraft)).toBeNull();
@@ -446,9 +456,30 @@ describe("documents", () => {
   const pipeline = [D.aTeaserV2, D.bTeaser, D.bViewOnly];
   const cases: [Who, string[]][] = [
     ["summitAdmin", ALL_DOCUMENTS],
-    ["focalA", [D.aTeaserV1, D.aTeaserV2, D.aDraftTeaser, D.aWithdrawnTeaser]],
-    ["memberA", [D.aTeaserV1, D.aTeaserV2, D.aDraftTeaser, D.aWithdrawnTeaser]],
-    ["focalB", [D.bTeaser, D.bViewOnly, D.bDraftTeaser]],
+    // M12: every document of the own country, plus other countries' current clean teasers of published projects.
+    [
+      "focalA",
+      [
+        D.aTeaserV1,
+        D.aTeaserV2,
+        D.aDraftTeaser,
+        D.aWithdrawnTeaser,
+        D.bTeaser,
+        D.bViewOnly,
+      ],
+    ],
+    [
+      "memberA",
+      [
+        D.aTeaserV1,
+        D.aTeaserV2,
+        D.aDraftTeaser,
+        D.aWithdrawnTeaser,
+        D.bTeaser,
+        D.bViewOnly,
+      ],
+    ],
+    ["focalB", [D.bTeaser, D.bViewOnly, D.bDraftTeaser, D.aTeaserV2]],
     // Current clean teasers of published projects only: no old version, no draft, no inactive country.
     ["coordA", pipeline],
     ["investor1", pipeline],
@@ -481,7 +512,12 @@ describe("documents", () => {
     expect(found?.id).toBe(D.aTeaserV2);
     expect(found).not.toHaveProperty("blobKey");
     expect(await findDocumentFor(v.investor1, D.aTeaserV1)).toBeNull();
-    expect(await findDocumentFor(v.focalB, D.aTeaserV2)).toBeNull();
+    // A country user gets another country's current teaser (M12), never its older version or its drafts.
+    const other = await findDocumentFor(v.focalB, D.aTeaserV2);
+    expect(other?.id).toBe(D.aTeaserV2);
+    expect(other).not.toHaveProperty("blobKey");
+    expect(await findDocumentFor(v.focalB, D.aTeaserV1)).toBeNull();
+    expect(await findDocumentFor(v.focalB, D.aDraftTeaser)).toBeNull();
   });
 });
 
@@ -537,6 +573,14 @@ describe("authorizeDocumentFile", () => {
       await audits(D.bViewOnly, "document.download", u.investor2),
     ).toHaveLength(0);
     await authorizeDocumentFile(v.investor2, D.bViewOnly, "view");
+    // M12: another country's user is treated like an investor: the switch applies, viewing stays possible.
+    await expect(
+      authorizeDocumentFile(v.focalA, D.bViewOnly, "download", { meta }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await authorizeDocumentFile(v.focalA, D.bViewOnly, "view");
+    expect(
+      (await authorizeDocumentFile(v.focalA, D.bTeaser, "download")).id,
+    ).toBe(D.bTeaser);
     // The owning country downloads its own teaser regardless of the switch.
     await authorizeDocumentFile(v.memberA, D.aTeaserV2, "download");
     expect(
@@ -551,10 +595,12 @@ describe("authorizeDocumentFile", () => {
       ["investor1", D.aTeaserV1],
       ["investor1", D.xTeaser],
       ["coordA", D.bDraftTeaser],
-      ["focalB", D.aTeaserV2],
+      // M12: country users see other countries' published teasers, but nothing else of them.
+      ["focalB", D.aTeaserV1],
       ["focalB", D.aDraftTeaser],
+      ["focalB", D.aWithdrawnTeaser],
       ["focalA", D.bDraftTeaser],
-      ["focalA", D.bTeaser],
+      ["focalA", D.xTeaser],
       ["investorStrayMembership", D.aDraftTeaser],
       ["investor1", "it-authz-does-not-exist"],
     ];
@@ -843,8 +889,9 @@ describe("people and countries", () => {
       );
     expect(await countries(v.investor1)).toEqual([C.a, C.b]);
     expect(await countries(v.coordA)).toEqual([C.a, C.b]);
-    expect(await countries(v.memberA)).toEqual([C.a]);
-    expect(await countries(v.focalB)).toEqual([C.b]);
+    // M12: country users name every active country (their pipeline), never an inactive one.
+    expect(await countries(v.memberA)).toEqual([C.a, C.b]);
+    expect(await countries(v.focalB)).toEqual([C.a, C.b]);
     expect(await countries(v.summitAdmin)).toEqual([C.a, C.b, C.x]);
     expect(await countries(v.pending)).toEqual([]);
   });

@@ -36,7 +36,7 @@ export function PortalHeader({
         Home
       </Link>
       <Link href="/pipeline" className={linkClass}>
-        Pipeline
+        Pipeline projects
       </Link>
       {showWorkspace ? (
         <Link href="/workspace" className={linkClass}>

@@ -2,12 +2,15 @@
 
 import { type FormEvent, useState, useTransition } from "react";
 import {
+  type AllLinksFormState,
+  createMissingUploadLinksAction,
   createUploadLinkAction,
   type LinkFormState,
   revokeUploadLinkAction,
 } from "@/app/(portal)/admin/upload-links/actions";
 import { Button } from "@/components/ui/button";
 import { Notice, TextInput } from "@/components/workspace/form-controls";
+import { toCsv } from "@/lib/requests/csv";
 
 // The link forms call their server actions from a submit handler instead of useActionState. With useActionState,
 // the production build failed to hydrate the revoke form (React error 418), React then rebuilt the page, and a
@@ -118,6 +121,104 @@ export function CreateLinkForm({
             </Button>
           </div>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function downloadLinks(rows: NonNullable<AllLinksFormState["created"]>) {
+  const csv = toCsv(
+    ["country", "iso3", "upload_link", "works_until"],
+    rows.map((r) => [r.countryName, r.iso3, r.url, r.expiresAt]),
+  );
+  const url = URL.createObjectURL(
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `upload-links-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * M12 (PLAN v0.4 0b.10): creates a link for every active country without a working one, then lists the new links
+ * once with a CSV download, to send to WBG with the account list.
+ */
+export function CreateAllLinksForm({
+  defaultDate,
+  missing,
+}: {
+  defaultDate: string;
+  /** Active countries without a working link. */
+  missing: number;
+}) {
+  const [state, setState] = useState<AllLinksFormState>({});
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex flex-col gap-3">
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          startTransition(async () => {
+            setState(await createMissingUploadLinksAction(state, formData));
+          });
+        }}
+      >
+        <div className="flex flex-col gap-1">
+          <label htmlFor="expires-all" className="text-xs font-semibold">
+            Works until (end of day, UAE time)
+          </label>
+          <TextInput
+            id="expires-all"
+            type="date"
+            name="expiresOn"
+            defaultValue={defaultDate}
+            required
+            className="w-44"
+          />
+        </div>
+        <Button type="submit" disabled={pending || missing === 0}>
+          {pending
+            ? "Creating…"
+            : `Create links for ${missing} ${missing === 1 ? "country" : "countries"}`}
+        </Button>
+      </form>
+      {state.error ? <Notice tone="error">{state.error}</Notice> : null}
+      {state.created ? (
+        state.created.length === 0 ? (
+          <Notice tone="info">Every active country already has a link.</Notice>
+        ) : (
+          <div className="flex flex-col gap-3 rounded-lg border border-ack-border bg-ack-surface p-3 text-sm">
+            <p className="font-semibold">
+              {state.created.length} new{" "}
+              {state.created.length === 1 ? "link" : "links"}. Download them
+              now: they are shown only once.
+            </p>
+            <div>
+              <Button
+                type="button"
+                onClick={() => state.created && downloadLinks(state.created)}
+              >
+                Download as CSV
+              </Button>
+            </div>
+            <ul className="flex flex-col gap-1">
+              {state.created.map((l) => (
+                <li key={l.iso3} className="flex flex-col">
+                  <span className="font-medium">
+                    {l.countryName}, until {l.expiresAt}
+                  </span>
+                  <span className="font-mono text-xs break-all">{l.url}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
       ) : null}
     </div>
   );

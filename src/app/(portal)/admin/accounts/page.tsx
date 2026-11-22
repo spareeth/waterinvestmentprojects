@@ -51,8 +51,11 @@ export default async function AccountsPage() {
           <p className="mt-1 max-w-3xl text-muted-foreground">
             Accounts are personal and handed out by the Summit team. Create the
             account here, then pass the email address and the temporary password
-            on yourself. The person chooses their own password at the first
-            sign-in; investors then accept the investor acknowledgement.
+            on yourself. Investors and admins choose their own password at the
+            first sign-in (investors then accept the investor acknowledgement).
+            Country and WBG coordinator accounts keep the password they are
+            given, because WBG colleagues may share the account with the
+            government; issue a new one if it is lost or passed on.
           </p>
         </div>
 

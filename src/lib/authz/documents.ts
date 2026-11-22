@@ -33,25 +33,29 @@ export const NO_DOCUMENT: Prisma.DocumentWhereInput = { id: { in: [] } };
 
 /**
  * Documents the viewer may see listed. Admins: all. Country users: every document of their own countries'
- * projects (any version or scan state). Pipeline (investors, coordinators): the current CLEAN teaser of each
- * pipeline project, never older versions, and only when it is a PDF (M11, PLAN v0.4 0b.4: other formats from the
- * upload link wait for an admin to attach the converted PDF).
+ * projects (any version or scan state) and, since M12, the pipeline documents of other countries. Pipeline
+ * (investors, coordinators, country users): the current CLEAN teaser of each pipeline project, never older
+ * versions, and only when it is a PDF (M11, PLAN v0.4 0b.4: other formats from the upload link wait for an admin
+ * to attach the converted PDF).
  */
 export function documentWhere(
   viewer: Viewer | null,
 ): Prisma.DocumentWhereInput {
   if (!viewer) return NO_DOCUMENT;
   if (isAdminViewer(viewer)) return {};
-  const own = ownCountryIds(viewer);
-  if (own.length > 0) return { project: { countryId: { in: own } } };
   if (!hasPipeline(viewer)) return NO_DOCUMENT;
-  return {
+  const pipeline: Prisma.DocumentWhereInput = {
     kind: DocumentKind.TEASER,
     supersededById: null,
     scanStatus: ScanStatus.CLEAN,
     filename: { endsWith: ".pdf", mode: "insensitive" },
     project: pipelineProjectWhere(viewer),
   };
+  const own = ownCountryIds(viewer);
+  if (own.length > 0) {
+    return { OR: [{ project: { countryId: { in: own } } }, pipeline] };
+  }
+  return pipeline;
 }
 
 export function canViewDocument(

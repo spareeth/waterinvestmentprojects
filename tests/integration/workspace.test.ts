@@ -375,10 +375,10 @@ describe("country workspace", () => {
         .submissionId,
       onBehalf: true,
     });
-    // Investors now see it; the other country still does not.
+    // Investors now see it, and so does the other country, in its pipeline (M12).
     for (const [who, seen] of [
       ["investor", true],
-      ["focalB", false],
+      ["focalB", true],
     ] as const) {
       const visible = await db.project.findFirst({
         where: { AND: [{ id: projectId }, projectWhere(v[who])] },
@@ -424,9 +424,16 @@ describe("country workspace", () => {
     await expect(
       authorizeDocumentFile(v.investor, v2, "download", { meta }),
     ).rejects.toBeInstanceOf(AuthzError);
+    // M12: the other country reads the published teaser like an investor: no old version, no download when off.
     await expect(
-      authorizeDocumentFile(v.focalB, v2, "view", { meta }),
+      authorizeDocumentFile(v.focalB, v1, "view", { meta }),
     ).rejects.toMatchObject({ code: "not_found" });
+    await expect(
+      authorizeDocumentFile(v.focalB, v2, "download", { meta }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      (await authorizeDocumentFile(v.focalB, v2, "view", { meta })).id,
+    ).toBe(v2);
   });
 
   it("lets only admins change the download switch", async () => {

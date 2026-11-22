@@ -200,10 +200,20 @@ describe("where builders deny by default", () => {
     expect(projectWhere(investorWithStrayMembership)).toEqual(pipeline);
   });
 
-  it("give country users their own countries only, every status", () => {
-    expect(projectWhere(focalA)).toEqual({ countryId: { in: ["a"] } });
-    expect(projectWhere(memberA)).toEqual({ countryId: { in: ["a"] } });
-    expect(projectWhere(focalB)).toEqual({ countryId: { in: ["b"] } });
+  it("give country users their own countries in every status, plus the pipeline (M12)", () => {
+    const pipeline = {
+      status: PUBLISHED,
+      country: { status: CountryStatus.ACTIVE },
+    };
+    expect(projectWhere(focalA)).toEqual({
+      OR: [{ countryId: { in: ["a"] } }, pipeline],
+    });
+    expect(projectWhere(memberA)).toEqual(projectWhere(focalA));
+    expect(projectWhere(focalB)).toEqual({
+      OR: [{ countryId: { in: ["b"] } }, pipeline],
+    });
+    // The workspace ("My projects") stays own countries only.
+    expect(workspaceProjectWhere(focalA)).toEqual({ countryId: { in: ["a"] } });
   });
 });
 
@@ -212,9 +222,10 @@ describe("projects", () => {
   const matrix: [Viewer, boolean[]][] = [
     [platformAdmin, [true, true, true, true, true, true]],
     [summitAdmin, [true, true, true, true, true, true]],
-    [focalA, [true, true, true, false, false, false]],
-    [memberA, [true, true, true, false, false, false]],
-    [focalB, [false, false, false, true, true, false]],
+    // M12: own country in full, plus other countries' published projects (never their drafts or inactive ones).
+    [focalA, [true, true, true, true, false, false]],
+    [memberA, [true, true, true, true, false, false]],
+    [focalB, [true, false, false, true, true, false]],
     [coordA, [true, false, false, true, false, false]],
     [coordNone, [true, false, false, true, false, false]],
     [investor, [true, false, false, true, false, false]],
@@ -238,23 +249,40 @@ describe("projects", () => {
   it("puts only published projects of active countries in the pipeline, for pipeline roles", () => {
     expect(hasPipeline(investor)).toBe(true);
     expect(hasPipeline(coordA)).toBe(true);
-    for (const v of [focalA, summitAdmin, countryWithoutMembership, null]) {
+    // M12: country users with a country have the pipeline; one without a country has nothing.
+    expect(hasPipeline(focalA)).toBe(true);
+    expect(hasPipeline(memberA)).toBe(true);
+    for (const v of [summitAdmin, countryWithoutMembership, null]) {
       expect(hasPipeline(v)).toBe(false);
     }
     expect(inPipeline(investor, aPub)).toBe(true);
-    for (const p of [aDraft, aWithdrawn, bDraft, xPubInactive]) {
-      expect(inPipeline(investor, p)).toBe(false);
+    for (const v of [investor, focalA, focalB]) {
+      for (const p of [aDraft, aWithdrawn, bDraft, xPubInactive]) {
+        expect(inPipeline(v, p), v.id).toBe(false);
+      }
     }
-    // Country users never see other countries' projects, published or not.
-    expect(inPipeline(focalA, bPub)).toBe(false);
-    expect(canViewProject(focalA, bPub)).toBe(false);
+    // Country users see other countries' published projects, never their drafts.
+    expect(inPipeline(focalA, bPub)).toBe(true);
+    expect(canViewProject(focalA, bPub)).toBe(true);
+    expect(canViewProject(focalA, bDraft)).toBe(false);
+    expect(canViewProject(focalB, aWithdrawn)).toBe(false);
   });
 
-  it("marks pipeline-only access for investors and coordinators, not for owners or admins", () => {
+  it("marks pipeline-only access for investors, coordinators and other countries, not for owners or admins", () => {
     expect(seesAsPipeline(investor, aPub)).toBe(true);
     expect(seesAsPipeline(coordA, aPub)).toBe(true);
+    expect(seesAsPipeline(focalB, aPub)).toBe(true);
     expect(seesAsPipeline(focalA, aPub)).toBe(false);
     expect(seesAsPipeline(summitAdmin, aPub)).toBe(false);
+  });
+
+  it("never lets a country user request a meeting, even on another country's published project (M12)", () => {
+    for (const v of [focalA, memberA, focalB, coordA, summitAdmin]) {
+      for (const p of allProjects) {
+        expect(canRequestMeeting(v, p), v.id).toBe(false);
+      }
+    }
+    expect(canRequestMeeting(investor, bPub)).toBe(true);
   });
 
   it("lets only admins create, edit, publish and withdraw (v0.3: countries only see)", () => {
@@ -366,13 +394,21 @@ describe("documents", () => {
     expect(canViewDocument(focalB, notPdf)).toBe(false);
   });
 
-  it("shows country users every document of their own countries and none of others", () => {
+  it("shows country users every document of their own countries, and of others only the published current PDF (M12)", () => {
     for (const d of [current, old, pending, infected, draftTeaser, notPdf]) {
       expect(canViewDocument(focalA, d)).toBe(true);
       expect(canViewDocument(memberA, d)).toBe(true);
+    }
+    for (const d of [old, pending, infected, draftTeaser, notPdf]) {
       expect(canViewDocument(focalB, d)).toBe(false);
     }
-    expect(canViewDocument(focalA, otherCountry)).toBe(false);
+    expect(canViewDocument(focalB, current)).toBe(true);
+    expect(canViewDocument(focalA, otherCountry)).toBe(true);
+    expect(canViewDocument(focalA, inactiveCountry)).toBe(false);
+    // The admin's download switch applies to other countries, never to the owner.
+    expect(canDownloadDocument(focalB, noDownload)).toBe(false);
+    expect(canOpenDocumentFile(focalB, noDownload)).toBe(true);
+    expect(canDownloadDocument(focalA, noDownload)).toBe(true);
   });
 
   it("never opens a file that is not scanned clean, for anyone", () => {
@@ -410,16 +446,18 @@ describe("documents", () => {
   });
 
   it("scopes document lists like projects, and pipeline lists to current clean teasers", () => {
-    expect(documentWhere(focalA)).toEqual({
-      project: { countryId: { in: ["a"] } },
-    });
-    expect(documentWhere(investor)).toEqual({
+    const pipeline = {
       kind: DocumentKind.TEASER,
       supersededById: null,
       scanStatus: ScanStatus.CLEAN,
       filename: { endsWith: ".pdf", mode: "insensitive" },
       project: { status: PUBLISHED, country: { status: CountryStatus.ACTIVE } },
+    };
+    // M12: own countries' documents in full, plus the pipeline documents.
+    expect(documentWhere(focalA)).toEqual({
+      OR: [{ project: { countryId: { in: ["a"] } } }, pipeline],
     });
+    expect(documentWhere(investor)).toEqual(pipeline);
     expect(documentWhere(investorWithStrayMembership)).toEqual(
       documentWhere(investor),
     );
@@ -644,7 +682,10 @@ describe("people and countries", () => {
   });
 
   it("names own countries for country users, and active countries for pipeline roles", () => {
-    expect(countryWhere(focalA)).toEqual({ id: { in: ["a"] } });
+    // M12: country users have the pipeline too, so every active country can be named.
+    expect(countryWhere(focalA)).toEqual({
+      OR: [{ id: { in: ["a"] } }, { status: CountryStatus.ACTIVE }],
+    });
     expect(countryWhere(investor)).toEqual({ status: CountryStatus.ACTIVE });
     expect(countryWhere(coordA)).toEqual({
       OR: [{ id: { in: ["a"] } }, { status: CountryStatus.ACTIVE }],

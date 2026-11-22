@@ -180,7 +180,8 @@ describe("creating an account (admin hand-out)", () => {
     expect(user).toMatchObject({
       name: "New Focal",
       status: "ACTIVE",
-      mustChangePassword: true,
+      // M12 (PLAN v0.4 0b.11): a country account keeps the handed-out password.
+      mustChangePassword: false,
       investorAckTextVersion: null,
     });
     expect(user.memberships).toEqual([
@@ -490,7 +491,10 @@ describe("cross-country isolation of handed-out accounts", () => {
       data: { mustChangePassword: false, termsAcceptedAt: new Date() },
     });
     const viewer = await activeViewer(created.userId);
-    expect(await visibleProjects(viewer)).toEqual([P.aDraft, P.aPub].sort());
+    // M12: own drafts plus the other country's published project; never the other country's draft.
+    expect(await visibleProjects(viewer)).toEqual(
+      [P.aDraft, P.aPub, P.bPub].sort(),
+    );
     expect(canManageAccounts(viewer)).toBe(false);
     expect(await listAccounts(viewer)).toEqual([]);
     await expect(

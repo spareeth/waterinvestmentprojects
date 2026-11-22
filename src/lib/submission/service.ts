@@ -698,6 +698,53 @@ export async function createUploadLink(
   };
 }
 
+export interface CreatedCountryLink {
+  countryId: string;
+  countryName: string;
+  iso3: string;
+  url: string;
+  expiresAt: Date;
+}
+
+/**
+ * M12 (PLAN v0.4 0b.10): a link for every ACTIVE country that has no working link yet (none, or only revoked or
+ * expired ones), so the Summit team can send all countries their links in one go. Countries with a working link
+ * are left alone. Each link is created (and audited) through createUploadLink; the URLs come back once, for the
+ * admin to download as a CSV, and are never stored. An invalid date refuses before anything is created.
+ */
+export async function createMissingUploadLinks(
+  viewer: Viewer,
+  input: { expiresAt: Date },
+  options: SubmissionOptions = {},
+): Promise<CreatedCountryLink[]> {
+  if (!canManageUploadLinks(viewer)) throw new SubmissionError("forbidden");
+  const now = options.now ?? new Date();
+  const countries = await db.country.findMany({
+    where: {
+      status: CountryStatus.ACTIVE,
+      uploadLinks: { none: { revokedAt: null, expiresAt: { gt: now } } },
+    },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, iso3: true },
+  });
+  const created: CreatedCountryLink[] = [];
+  for (const country of countries) {
+    const link = await createUploadLink(
+      viewer,
+      { countryId: country.id, expiresAt: input.expiresAt },
+      { ...options, now },
+    );
+    created.push({
+      countryId: country.id,
+      countryName: country.name,
+      iso3: country.iso3,
+      url: link.url,
+      expiresAt: link.expiresAt,
+    });
+  }
+  return created;
+}
+
 /** Switches a link off for good. Revoking an already revoked link changes nothing. */
 export async function revokeUploadLink(
   viewer: Viewer,

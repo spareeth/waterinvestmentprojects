@@ -137,8 +137,9 @@ export function BulkAccountsForm({ signInUrl }: { signInUrl: string }) {
           </table>
         </div>
         <p className="text-sm text-muted-foreground">
-          Sign-in address: {signInUrl}. Each person chooses their own password
-          at the first sign-in.
+          Sign-in address: {signInUrl}. Investors and admins choose their own
+          password at the first sign-in; country and WBG coordinator accounts
+          keep the password above.
         </p>
       </section>
     );

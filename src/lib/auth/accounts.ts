@@ -12,6 +12,7 @@ import {
   canManageAccounts,
   canResetPassword,
 } from "@/lib/authz/account-policies";
+import { mustChooseOwnPassword } from "@/lib/authz/account-gate";
 import { userWhere } from "@/lib/authz/people";
 import type { Viewer } from "@/lib/authz/viewer";
 import { appConfig } from "@/lib/config";
@@ -22,7 +23,7 @@ import { generateTemporaryPassword } from "./temporary-password";
 
 // M2 (PLAN 0a.4): accounts are handed out by admins. An admin creates the account with a generated temporary
 // password, passes the email and password on personally, and the person must choose their own password at first
-// sign-in. No invitation emails. Admins can also issue a new temporary password (forgotten password), because
+// sign-in (M12, PLAN v0.4 0b.11: investors and admins only; country and WBG coordinator accounts keep it). No invitation emails. Admins can also issue a new temporary password (forgotten password), because
 // there is no email reset yet. Every permission decision is in src/lib/authz/account-policies.ts.
 
 export type AccountErrorCode =
@@ -125,7 +126,8 @@ export async function createAccount(
         status: UserStatus.ACTIVE,
         // The admin knows the person and hands the details over personally.
         emailVerified: true,
-        mustChangePassword: true,
+        // M12: country and WBG coordinator accounts keep the handed-out password (PLAN v0.4 0b.11).
+        mustChangePassword: mustChooseOwnPassword(input.role),
       },
       select: { id: true, email: true },
     });
@@ -225,7 +227,10 @@ export async function resetTemporaryPassword(
     }
     await tx.user.update({
       where: { id: target.id },
-      data: { mustChangePassword: true, mfaEnabled: false },
+      data: {
+        mustChangePassword: mustChooseOwnPassword(target.role),
+        mfaEnabled: false,
+      },
     });
     await tx.twoFactor.deleteMany({ where: { userId: target.id } });
     await tx.session.deleteMany({ where: { userId: target.id } });

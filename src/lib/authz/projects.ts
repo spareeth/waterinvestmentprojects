@@ -2,8 +2,10 @@
 // access. Every project query must AND its own filters with projectWhere(viewer):
 //   db.project.findMany({ where: { AND: [projectWhere(viewer), filters] } })
 //
-// v0.3 (user decision, 18 Nov): countries only see their projects; admins create, edit, publish and withdraw
-// (the admin console, M7). Governments add teasers through the upload link (M0), not the portal.
+// v0.3 (user decision, 18 Nov): admins create, edit, publish and withdraw (the admin console, M7). Governments add
+// teasers through the upload link (M0), not the portal.
+// M12 (PLAN v0.4 0b.14): country users see their own countries' projects (any status) plus the published pipeline
+// of every country, read-only.
 
 import type { Prisma } from "@/generated/prisma/client";
 import { CountryStatus, ProjectStatus } from "@/generated/prisma/enums";
@@ -20,7 +22,7 @@ import {
 /** Matches no project. */
 export const NO_PROJECT: Prisma.ProjectWhereInput = { id: { in: [] } };
 
-/** The pipeline: PUBLISHED projects of ACTIVE countries, for investors and WBG coordinators. */
+/** The pipeline: PUBLISHED projects of ACTIVE countries, for investors, WBG coordinators and country users. */
 export function pipelineProjectWhere(
   viewer: Viewer | null,
 ): Prisma.ProjectWhereInput {
@@ -33,14 +35,16 @@ export function pipelineProjectWhere(
 
 /**
  * Projects the viewer may see. Admins: all. Country users: every project of their own countries (drafts and
- * withdrawn included), nothing of other countries. Investors and WBG coordinators: the pipeline.
- * Anyone else: nothing.
+ * withdrawn included) and the pipeline (other countries' PUBLISHED projects only). Investors and WBG
+ * coordinators: the pipeline. Anyone else: nothing.
  */
 export function projectWhere(viewer: Viewer | null): Prisma.ProjectWhereInput {
   if (!viewer) return NO_PROJECT;
   if (isAdminViewer(viewer)) return {};
   const own = ownCountryIds(viewer);
-  if (own.length > 0) return { countryId: { in: own } };
+  if (own.length > 0) {
+    return { OR: [{ countryId: { in: own } }, pipelineProjectWhere(viewer)] };
+  }
   return pipelineProjectWhere(viewer);
 }
 

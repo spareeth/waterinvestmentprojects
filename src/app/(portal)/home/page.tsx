@@ -103,8 +103,9 @@ export default async function HomePage() {
           <section className="rounded-xl border bg-card p-6">
             <h2 className="text-lg font-semibold">My projects</h2>
             <p className="mt-2 text-muted-foreground">
-              Add projects, upload their teasers and publish them to the
-              pipeline.
+              {admin
+                ? "Add projects, upload their teasers and publish them to the pipeline."
+                : "Your country's projects in any status, as the Summit team prepares and publishes them."}
             </p>
             <Button asChild size="lg" className="mt-4">
               <Link href="/workspace">Go to my projects</Link>
@@ -112,9 +113,10 @@ export default async function HomePage() {
           </section>
         ) : null}
         <section className="rounded-xl border bg-card p-6">
-          <h2 className="text-lg font-semibold">Project pipeline</h2>
+          <h2 className="text-lg font-semibold">Pipeline projects</h2>
           <p className="mt-2 text-muted-foreground">
-            See the published project teasers and download them.
+            See the published project teasers of every participating country and
+            download them.
           </p>
           <Button asChild size="lg" className="mt-4">
             <Link href="/pipeline">Go to the pipeline</Link>

@@ -7,7 +7,11 @@ import { requireViewer } from "@/lib/authz";
 import { formatUaeTime } from "@/lib/submission/format";
 import { SUBMISSION_MESSAGES, SubmissionError } from "@/lib/submission/errors";
 import { linkExpiryFromDate } from "@/lib/submission/input";
-import { createUploadLink, revokeUploadLink } from "@/lib/submission/service";
+import {
+  createMissingUploadLinks,
+  createUploadLink,
+  revokeUploadLink,
+} from "@/lib/submission/service";
 
 // Upload link admin actions (M0). Each one gets the Viewer itself and leaves the permission decision to the
 // submission service, which checks through src/lib/authz.
@@ -57,6 +61,44 @@ export async function createUploadLinkAction(
     };
   } catch (error) {
     return refused(error);
+  }
+}
+
+export interface AllLinksFormState {
+  error?: string;
+  /** The new links, shown once (only their hashes are stored). Empty when every country already had one. */
+  created?: {
+    countryName: string;
+    iso3: string;
+    url: string;
+    expiresAt: string;
+  }[];
+}
+
+/** M12: a link for every active country without a working one. */
+export async function createMissingUploadLinksAction(
+  _prev: AllLinksFormState,
+  formData: FormData,
+): Promise<AllLinksFormState> {
+  const viewer = await requireViewer();
+  const date = formData.get("expiresOn");
+  try {
+    const links = await createMissingUploadLinks(
+      viewer,
+      { expiresAt: linkExpiryFromDate(typeof date === "string" ? date : "") },
+      { meta: await meta() },
+    );
+    refresh();
+    return {
+      created: links.map((l) => ({
+        countryName: l.countryName,
+        iso3: l.iso3,
+        url: l.url,
+        expiresAt: formatUaeTime(l.expiresAt),
+      })),
+    };
+  } catch (error) {
+    return { error: refused(error).error };
   }
 }
 

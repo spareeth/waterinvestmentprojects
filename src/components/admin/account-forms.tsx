@@ -37,8 +37,8 @@ function HandOut({ handOut }: { handOut: AccountFormState["handOut"] }) {
       </p>
       <p className="text-muted-foreground">
         Pass the email address and this password on personally (not in the same
-        message as a link to the portal). The password must be changed at the
-        first sign-in.
+        message as a link to the portal). Investors and admins must change it at
+        the first sign-in; country and WBG coordinator accounts keep it.
       </p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <dt className="text-muted-foreground">Email</dt>

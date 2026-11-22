@@ -25,7 +25,7 @@ export default async function BulkAccountsPage() {
       showWorkspace={canUseWorkspace(viewer)}
       current="/admin/accounts"
       title="Create accounts from a CSV"
-      intro={`Each account gets its own temporary password, which the person changes at the first sign-in to ${appConfig.name}. No emails are sent: you pass the details on yourself.`}
+      intro={`Each account gets its own generated password. Investors and admins change it at the first sign-in to ${appConfig.name}; country and WBG coordinator accounts keep it. Several people may be named for the same country: give each their own row. No emails are sent: you pass the details on yourself.`}
     >
       <AdminSectionCard
         title="The file"

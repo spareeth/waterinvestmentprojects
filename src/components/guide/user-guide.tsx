@@ -164,8 +164,11 @@ export function UserGuide() {
             and enter your email address and the temporary password.
           </li>
           <li>
-            Choose your own password (at least {MIN_PASSWORD_LENGTH}{" "}
-            characters). The temporary password then stops working.
+            Investors, operators and the Summit team then choose their own
+            password (at least {MIN_PASSWORD_LENGTH} characters), and the
+            temporary password stops working. Country and WBG coordinator
+            accounts keep the password they were given, because WBG colleagues
+            may help a government manage its account.
           </li>
           <li>
             Investors and operators then read and accept a short acknowledgement
@@ -188,8 +191,9 @@ export function UserGuide() {
             gives you a new temporary password.
           </li>
           <li>
-            Your account is personal. Please do not share your password or let
-            others use your account.
+            Please do not pass your password on to anyone outside the people the
+            Summit team gave it to. Several people of one country can each have
+            their own account: ask <SupportContact />.
           </li>
         </ul>
       </Section>
@@ -238,10 +242,15 @@ export function UserGuide() {
 
       <Section id="focal-points" title="Country focal points: meeting requests">
         <p>
-          As a country focal point you sign in with your personal account (see
-          Signing in).
+          As a country user (focal point, colleague or WBG relationship manager
+          acting for the country) you sign in with the account the Summit team
+          gave you (see Signing in).
         </p>
         <ul>
+          <li>
+            <strong>Pipeline projects</strong> shows the published teasers of
+            every participating country, read-only, as investors see them.
+          </li>
           <li>
             <strong>My projects</strong> lists your country&apos;s projects and
             whether each one is published. Changes to projects are made by the
@@ -339,8 +348,9 @@ export function UserGuide() {
         <ul>
           <li>
             <strong>Upload links</strong>: create one link per country, with an
-            expiry date. The full link is shown only once; send it to the
-            country. Links can be revoked and replaced.
+            expiry date, or links for every country at once with a CSV download.
+            The full link is shown only once; send it to the country. Links can
+            be revoked and replaced.
           </li>
           <li>
             <strong>Submissions</strong>: see every upload, its sender and its
@@ -355,8 +365,10 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV
-            list, hand over temporary passwords personally, issue new ones, and
-            deactivate accounts.
+            list (several people per country are fine), hand over passwords
+            personally, issue new ones, and deactivate accounts. Country and WBG
+            coordinator accounts keep the password they are given; switch them
+            off after the Summit.
           </li>
           <li>
             <strong>Meeting schedule</strong>: the grid of Room A and Room B,
