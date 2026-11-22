@@ -81,6 +81,7 @@ describe("parseRequestInput", () => {
         role: "Investment director",
         note: "",
         slotStartsAt: null,
+        slotRoom: null,
       },
     });
   });
@@ -209,5 +210,22 @@ describe("request messages", () => {
     for (const message of Object.values(REQUEST_MESSAGES)) {
       expect(message).not.toMatch(/—/);
     }
+  });
+});
+
+describe("room slot values (22 Nov)", () => {
+  it("reads a start time with its room, and a bare start time", async () => {
+    const { parseRoomSlotValue, roomSlotValue } =
+      await import("@/lib/meetings/schedule");
+    const start = new Date("2026-12-08T05:00:00.000Z");
+    expect(parseRoomSlotValue(roomSlotValue(start, "Room B"))).toEqual({
+      startsAt: start,
+      room: "Room B",
+    });
+    expect(parseRoomSlotValue(start.toISOString())).toEqual({
+      startsAt: start,
+      room: null,
+    });
+    expect(parseRoomSlotValue("not a time|Room A")).toBeNull();
   });
 });

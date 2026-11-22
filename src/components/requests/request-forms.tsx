@@ -15,8 +15,9 @@ import {
   Textarea,
   TextInput,
 } from "@/components/workspace/form-controls";
-import type { MeetingDayTimes } from "@/lib/meetings/schedule";
+import type { MeetingDayTimes, RoomTimes } from "@/lib/meetings/schedule";
 import { REQUEST_LIMITS, type RequestFormValues } from "@/lib/requests/input";
+import { RoomCalendar } from "./room-calendar";
 
 const initial: RequestFormState = {};
 
@@ -25,10 +26,13 @@ export function MeetingRequestForm({
   projectId,
   defaults,
   times,
+  rooms,
 }: {
   projectId: string;
   defaults: RequestFormValues;
   times: MeetingDayTimes[];
+  /** The calendar per room (22 Nov). */
+  rooms: RoomTimes[];
 }) {
   const [state, formAction, pending] = useActionState(
     createMeetingRequestAction.bind(null, projectId),
@@ -95,11 +99,14 @@ export function MeetingRequestForm({
           />
         </FieldShell>
       </div>
-      <MeetingTimePicker
-        times={times}
-        selected={values.slot}
-        error={errors.slot}
-      />
+      {times.length > 0 &&
+      !times.some((d) => d.times.some((t) => t.available)) ? (
+        <Notice tone="info">
+          Every meeting time is taken. You can still send the request: the
+          Summit team will contact you about a time.
+        </Notice>
+      ) : null}
+      <RoomCalendar rooms={rooms} selected={values.slot} error={errors.slot} />
       <FieldShell
         id="request-note"
         label="Short note (optional)"
@@ -125,88 +132,6 @@ export function MeetingRequestForm({
         meet. The Summit team is told of every request.
       </p>
     </form>
-  );
-}
-
-/**
- * The meeting time as a calendar: one row of 30-minute times per day. A time is greyed out when both rooms are
- * taken or when the investor or the country already has a meeting then. Plain radio buttons, so it works
- * without JavaScript and with a keyboard (arrow keys move within a day).
- */
-function MeetingTimePicker({
-  times,
-  selected,
-  error,
-}: {
-  times: MeetingDayTimes[];
-  selected: string;
-  error?: string;
-}) {
-  if (times.length === 0) return null;
-  const anyFree = times.some((d) => d.times.some((t) => t.available));
-  return (
-    <fieldset
-      className="flex flex-col gap-3 rounded-xl border border-water-100 bg-water-50 p-4"
-      aria-describedby={error ? "request-slot-error" : "request-slot-hint"}
-    >
-      <legend className="float-left mb-1 w-full text-sm font-semibold text-brand-navy">
-        Meeting time
-      </legend>
-      <p id="request-slot-hint" className="text-xs text-muted-foreground">
-        30-minute bilateral meetings in Room A or Room B, UAE time. The time is
-        held for you until the country answers.
-      </p>
-      {error ? (
-        <p
-          id="request-slot-error"
-          className="text-sm font-medium text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
-      {!anyFree ? (
-        <Notice tone="info">
-          Every meeting time is taken. You can still send the request: the
-          Summit team will contact you about a time.
-        </Notice>
-      ) : null}
-      {times.map((day) => (
-        <div
-          key={day.key}
-          role="radiogroup"
-          aria-label={day.label}
-          className="flex flex-col gap-2"
-        >
-          <p className="text-sm font-medium">{day.label}</p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(4.75rem,1fr))] gap-2">
-            {day.times.map((t) => (
-              <label
-                key={t.value}
-                className={
-                  t.available
-                    ? "cursor-pointer rounded-lg border border-water-200 bg-card px-2 py-1.5 text-center text-sm font-medium text-water-800 hover:border-water-500 has-checked:border-water-700 has-checked:bg-water-700 has-checked:text-white has-focus-visible:ring-3 has-focus-visible:ring-brand-aqua/60"
-                    : "cursor-not-allowed rounded-lg border border-dashed border-water-100 px-2 py-1.5 text-center text-sm text-muted-foreground line-through"
-                }
-                title={t.available ? undefined : "Not available"}
-              >
-                <input
-                  type="radio"
-                  name="slot"
-                  value={t.value}
-                  defaultChecked={t.available && t.value === selected}
-                  disabled={!t.available}
-                  className="sr-only"
-                />
-                {t.label}
-                {t.available ? null : (
-                  <span className="sr-only"> (not available)</span>
-                )}
-              </label>
-            ))}
-          </div>
-        </div>
-      ))}
-    </fieldset>
   );
 }
 

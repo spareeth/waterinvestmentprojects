@@ -21,6 +21,7 @@ import { formatMeetingSlot } from "@/lib/meetings/schedule";
 import {
   bookHeldSlot,
   holdSlot,
+  listRoomTimes,
   listMeetingTimes,
   releaseSlot,
   SLOT_DISPLAY_SELECT,
@@ -29,9 +30,13 @@ import { toCsv } from "./csv";
 import { type ProjectDemand, summariseDemand } from "./demand";
 import {
   type DecisionOutcome,
+  countryMeetingConfirmedEmail,
+  countryWithdrawnEmail,
   focalPointRequestEmail,
   investorDecisionEmail,
+  investorWithdrawnEmail,
   type RequestMailFacts,
+  summitRequestChangeNotice,
   summitRequestNotice,
 } from "./emails";
 import { RequestError } from "./errors";
@@ -196,13 +201,16 @@ export async function getRequestPanel(
       select: { name: true, email: true, organisation: true, jobTitle: true },
     }),
   ]);
-  const times = open
-    ? []
-    : await listMeetingTimes(viewer.id, project.countryId, now);
+  const [times, rooms] = await Promise.all([
+    open ? [] : listMeetingTimes(viewer.id, project.countryId, now),
+    // The room calendar shows with an open request too (read-only), so the investor sees their slot.
+    listRoomTimes(viewer.id, project.countryId, now),
+  ]);
   return {
     projectId,
     open,
     times,
+    rooms,
     defaults: {
       contactName: user?.name ?? "",
       contactEmail: user?.email ?? "",
@@ -282,6 +290,7 @@ export async function createMeetingRequest(
         },
         input.slotStartsAt,
         now,
+        input.slotRoom ?? null,
       );
     }
     const row = await tx.meetingRequest.findUniqueOrThrow({
@@ -330,8 +339,22 @@ async function notifyNewRequest(row: MailRow, options: RequestOptions) {
     recipients: options.summitRecipients,
   });
   if (!notify.focalPoints) return;
+  const { to, cc } = await countryRecipients(row.project.countryId);
+  // No focal point yet: the Summit mailbox already has the notice; never send the coordinator alone.
+  if (to.length === 0) return;
+  await sendMail(
+    "meeting_request.focal_point",
+    { to, cc, ...focalPointRequestEmail(facts) },
+    target,
+  );
+}
+
+/** The country's focal points (to) and WBG coordinators (copy), from the country's contacts. */
+async function countryRecipients(
+  countryId: string,
+): Promise<{ to: string[]; cc: string[] }> {
   const contacts = await db.countryContact.findMany({
-    where: { countryId: row.project.countryId },
+    where: { countryId },
     select: { email: true, role: true },
     orderBy: { email: "asc" },
   });
@@ -342,22 +365,20 @@ async function notifyNewRequest(row: MailRow, options: RequestOptions) {
     .filter((c) => c.role === "WBG_COORDINATOR")
     .map((c) => c.email)
     .filter((email) => !to.includes(email));
-  // No focal point yet: the Summit mailbox already has the notice; never send the coordinator alone.
-  if (to.length === 0) return;
-  await sendMail(
-    "meeting_request.focal_point",
-    { to, cc, ...focalPointRequestEmail(facts) },
-    target,
-  );
+  return { to, cc };
 }
 
-/** The investor withdraws their own request while it is pending or accepted. */
+/**
+ * The investor withdraws their own request while it is pending or accepted. Always emails the investor, the
+ * country's focal points (coordinators in copy) and the Summit team mailbox (user decision, 22 Nov).
+ */
 export async function withdrawMeetingRequest(
   viewer: Viewer,
   requestId: string,
-  { meta, now = new Date() }: RequestOptions = {},
+  options: RequestOptions = {},
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
+  const { meta, now = new Date() } = options;
+  const withdrawn = await db.$transaction(async (tx) => {
     const request = await tx.meetingRequest.findFirst({
       where: { AND: [{ id: requestId }, meetingRequestWhere(viewer)] },
       select: POLICY_SELECT,
@@ -372,6 +393,11 @@ export async function withdrawMeetingRequest(
       data: { status: MeetingRequestStatus.WITHDRAWN, updatedAt: now },
     });
     if (count !== 1) throw new RequestError("not_open");
+    // Read the meeting time for the emails before the slot is released.
+    const row = await tx.meetingRequest.findUniqueOrThrow({
+      where: { id: request.id },
+      select: MAIL_SELECT,
+    });
     await releaseSlot(tx, request.id);
     await writeAudit(
       {
@@ -387,7 +413,43 @@ export async function withdrawMeetingRequest(
       },
       tx,
     );
+    return {
+      row,
+      wasAccepted: request.status === MeetingRequestStatus.ACCEPTED,
+    };
   });
+
+  const facts = mailFacts(withdrawn.row);
+  const target = {
+    entityType: "MeetingRequest",
+    entityId: withdrawn.row.id,
+    meta,
+    mailer: options.mailer,
+  };
+  await sendMail(
+    "meeting_request.withdrawn_investor",
+    {
+      to: [facts.investorEmail],
+      ...investorWithdrawnEmail(facts, withdrawn.wasAccepted),
+    },
+    target,
+  );
+  const { to, cc } = await countryRecipients(withdrawn.row.project.countryId);
+  if (to.length > 0) {
+    await sendMail(
+      "meeting_request.withdrawn_country",
+      { to, cc, ...countryWithdrawnEmail(facts, withdrawn.wasAccepted) },
+      target,
+    );
+  }
+  await notifySummitTeam(
+    "meeting_request.summit_change",
+    summitRequestChangeNotice(
+      facts,
+      withdrawn.wasAccepted ? "cancelled" : "withdrawn",
+    ),
+    { ...target, recipients: options.summitRecipients },
+  );
 }
 
 const MINE_SELECT = {
@@ -603,7 +665,8 @@ export async function listInboxCountries(viewer: Viewer) {
 /**
  * The focal point (or an admin for the country) accepts or declines a PENDING request. Decisions are final for
  * now (user decision, 18 Nov). "not_found" when the viewer cannot see the request at all, "forbidden" when they
- * see it but may not decide (a WBG coordinator). Emails the investor when REQUEST_NOTIFY_INVESTOR is on.
+ * see it but may not decide (a WBG coordinator). On acceptance, always emails the investor, the country's focal
+ * points (coordinators in copy) and the Summit mailbox; a decline is emailed only when REQUEST_NOTIFY_INVESTOR is on.
  */
 export async function decideMeetingRequest(
   viewer: Viewer,
@@ -664,14 +727,37 @@ export async function decideMeetingRequest(
     });
   });
 
-  if (notify.investor) {
-    const facts = mailFacts(decided);
+  const facts = mailFacts(decided);
+  const target = {
+    entityType: "MeetingRequest",
+    entityId: decided.id,
+    meta,
+    mailer,
+  };
+  const accepted = outcome === MeetingRequestStatus.ACCEPTED;
+  // A confirmed meeting is always announced to both sides (user decision, 22 Nov); a decline only when the
+  // investor switch is on.
+  if (accepted || notify.investor) {
     await sendMail(
       "meeting_request.decision",
       { to: [facts.investorEmail], ...investorDecisionEmail(facts, outcome) },
-      { entityType: "MeetingRequest", entityId: decided.id, meta, mailer },
+      target,
     );
   }
+  if (!accepted) return;
+  const { to, cc } = await countryRecipients(decided.project.countryId);
+  if (to.length > 0) {
+    await sendMail(
+      "meeting_request.confirmed_country",
+      { to, cc, ...countryMeetingConfirmedEmail(facts) },
+      target,
+    );
+  }
+  await notifySummitTeam(
+    "meeting_request.summit_change",
+    summitRequestChangeNotice(facts, "confirmed"),
+    { ...target, recipients: options.summitRecipients },
+  );
 }
 
 const UAE_CSV_TIME = new Intl.DateTimeFormat("sv-SE", {

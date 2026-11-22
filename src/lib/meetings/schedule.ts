@@ -20,6 +20,48 @@ export interface MeetingTime {
   available: boolean;
 }
 
+/**
+ * One slot of one room on the request calendar (22 Nov: a tab per room, with a legend). Who holds a slot is never
+ * shown, only its state: free; pending (held by a request awaiting an answer); booked (confirmed); yours (held by
+ * this investor); unavailable (the room is free but this investor or the country already meets then).
+ */
+export type RoomSlotState =
+  "free" | "pending" | "booked" | "yours" | "unavailable";
+
+export interface RoomSlotTime {
+  /** The form value: roomSlotValue(start, room). */
+  value: string;
+  /** "09:30" */
+  label: string;
+  state: RoomSlotState;
+}
+
+export interface RoomDayTimes {
+  key: string;
+  label: string;
+  times: RoomSlotTime[];
+}
+
+export interface RoomTimes {
+  room: string;
+  days: RoomDayTimes[];
+}
+
+/** "2026-12-08T05:00:00.000Z|Room A": a start time in one room. */
+export function roomSlotValue(startsAt: Date, room: string): string {
+  return `${startsAt.toISOString()}|${room}`;
+}
+
+/** Reads a slot value: "ISO|Room" (one room) or a bare ISO time (any free room, as before 22 Nov). */
+export function parseRoomSlotValue(
+  value: string,
+): { startsAt: Date; room: string | null } | null {
+  const [time, ...rest] = value.trim().split("|");
+  if (!time || Number.isNaN(Date.parse(time))) return null;
+  const room = rest.join("|").trim();
+  return { startsAt: new Date(time), room: room || null };
+}
+
 export interface MeetingDayTimes {
   key: string;
   /** "Tuesday 8 December" */

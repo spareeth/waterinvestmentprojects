@@ -14,11 +14,12 @@ import {
 import type { Viewer } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { MemoryMailer } from "@/lib/mail";
-import { uaeTime } from "@/lib/meetings/schedule";
+import { roomSlotValue, uaeTime } from "@/lib/meetings/schedule";
 import {
   ensureSchedule,
   getMeetingSchedule,
   listMeetingTimes,
+  listRoomTimes,
 } from "@/lib/meetings/slots";
 import {
   createMeetingRequest,
@@ -302,5 +303,71 @@ describe("showing the meetings", () => {
     expect(nine.cells[1]?.meetingRequest).toBeNull();
     expect(await getMeetingSchedule(v.focalA)).toEqual([]);
     expect(await getMeetingSchedule(v.i1)).toEqual([]);
+  });
+});
+
+describe("room calendar (22 Nov)", () => {
+  const T3 = uaeTime("2026-12-10", "16:00");
+
+  async function stateOf(
+    viewer: Viewer,
+    countryId: string,
+    room: string,
+    at: Date,
+  ) {
+    const rooms = await listRoomTimes(viewer.id, countryId, NOW);
+    return rooms
+      .find((r) => r.room === room)
+      ?.days.flatMap((d) => d.times)
+      .find((t) => t.value === roomSlotValue(at, room))?.state;
+  }
+
+  beforeAll(async () => {
+    await db.slot.updateMany({
+      where: { startsAt: T3 },
+      data: { status: SlotStatus.OPEN, meetingRequestId: null },
+    });
+  });
+
+  it("holds the room the investor chose, and shows each room's slots by state without naming anyone", async () => {
+    const rooms = await listRoomTimes(v.i3.id, C.c, NOW);
+    expect(rooms.map((r) => r.room)).toEqual(["Room A", "Room B"]);
+    expect(await stateOf(v.i3, C.c, "Room B", T3)).toBe("free");
+
+    const { id } = await createMeetingRequest(
+      v.i3,
+      P.c1,
+      { ...input(T3, "Rae Roomchooser"), slotRoom: "Room B" },
+      opts(),
+    );
+    expect((await slotOf(id))?.room.name).toBe("Room B");
+    // The investor sees their own slot; Room A at that time is not available to them (one meeting at a time).
+    expect(await stateOf(v.i3, C.c, "Room B", T3)).toBe("yours");
+    expect(await stateOf(v.i3, C.c, "Room A", T3)).toBe("unavailable");
+    // Another investor on another country's project: Room B is awaiting an answer, Room A is free.
+    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("pending");
+    expect(await stateOf(v.i2, C.b, "Room A", T3)).toBe("free");
+    const json = JSON.stringify(await listRoomTimes(v.i2.id, C.b, NOW));
+    expect(json).not.toContain(v.i3.id);
+    expect(json).not.toContain("Rae");
+
+    // Once accepted, it shows as booked to others.
+    await decideMeetingRequest(v.admin, id, "ACCEPTED", opts());
+    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("booked");
+
+    // A chosen room that is taken is refused, even when the other room is free.
+    expect(
+      await refusal(
+        createMeetingRequest(
+          v.i2,
+          P.b1,
+          { ...input(T3, "Bo Second"), slotRoom: "Room B" },
+          opts(),
+        ),
+      ),
+    ).toBe("slot_taken");
+
+    await withdrawMeetingRequest(v.i3, id, opts());
+    expect(await stateOf(v.i2, C.b, "Room B", T3)).toBe("free");
   });
 });

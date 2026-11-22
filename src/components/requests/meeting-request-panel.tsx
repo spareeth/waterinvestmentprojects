@@ -4,6 +4,7 @@ import { getRequestPanel } from "@/lib/requests/service";
 import { formatMeetingSlot } from "@/lib/meetings/schedule";
 import { formatUaeTime } from "@/lib/submission/format";
 import { MeetingRequestForm, WithdrawRequestForm } from "./request-forms";
+import { RoomCalendar } from "./room-calendar";
 import { RequestStatusBadge } from "./request-status-badge";
 
 /**
@@ -50,6 +51,7 @@ export async function MeetingRequestPanel({
                 : ""}
             </p>
           ) : null}
+          <RoomCalendar rooms={panel.rooms} readOnly />
           <WithdrawRequestForm requestId={panel.open.id} />
           <p className="text-sm">
             <Link
@@ -65,6 +67,7 @@ export async function MeetingRequestPanel({
           projectId={projectId}
           defaults={panel.defaults}
           times={panel.times}
+          rooms={panel.rooms}
         />
       )}
     </section>

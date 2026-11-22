@@ -2,6 +2,7 @@
 // from the account), organisation, role, a short note and, when meeting times are open (F9), the time.
 // Pure. No ranking and no limit on the number of requests (PLAN 0.9).
 
+import { parseRoomSlotValue } from "@/lib/meetings/schedule";
 import { z } from "zod";
 
 export const REQUEST_LIMITS = {
@@ -18,7 +19,7 @@ export interface RequestFormValues {
   organisation: string;
   role: string;
   note: string;
-  /** ISO start time of the chosen meeting slot, or "" when none was chosen. */
+  /** The chosen meeting slot ("ISO|Room", or a bare ISO time), or "" when none was chosen. */
   slot: string;
 }
 
@@ -30,6 +31,8 @@ export interface RequestInput {
   note: string;
   /** Start of the chosen meeting time; null when no time was chosen. */
   slotStartsAt?: Date | null;
+  /** The chosen room (22 Nov); null lets the portal take the first free room at that time. */
+  slotRoom?: string | null;
 }
 
 /** Collapses runs of spaces and tabs (not line breaks, which the note may use) and trims. */
@@ -94,8 +97,8 @@ const schema = z.object({
   slot: z
     .string()
     .trim()
-    .refine((v) => v === "" || !Number.isNaN(Date.parse(v)), SLOT_MESSAGE)
-    .transform((v) => (v === "" ? null : new Date(v))),
+    .refine((v) => v === "" || parseRoomSlotValue(v) !== null, SLOT_MESSAGE)
+    .transform((v) => (v === "" ? null : parseRoomSlotValue(v))),
 });
 
 export type ParsedRequestInput =
@@ -122,7 +125,14 @@ export function parseRequestInput(
     return { ok: false, fieldErrors };
   }
   const { slot, ...rest } = result.data;
-  return { ok: true, input: { ...rest, slotStartsAt: slot } };
+  return {
+    ok: true,
+    input: {
+      ...rest,
+      slotStartsAt: slot?.startsAt ?? null,
+      slotRoom: slot?.room ?? null,
+    },
+  };
 }
 
 export function requestValuesFrom(formData: FormData): RequestFormValues {

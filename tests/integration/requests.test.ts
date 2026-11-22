@@ -359,7 +359,17 @@ describe("deciding", () => {
     expect(row.decidedById).toBe(v.focalA.id);
     expect(row.decidedAt).toBeInstanceOf(Date);
     expect(await auditActions(R.i1a)).toContain(REQUEST_AUDIT.ACCEPT);
-    expect(mailer.sent).toHaveLength(0);
+    // A confirmed meeting is always emailed, even with the switches off (user decision, 22 Nov): the investor,
+    // the focal point (WBG coordinator in copy) and the Summit mailbox.
+    expect(mailer.sent).toHaveLength(3);
+    const investorMail = mailer.sent.find((m) =>
+      m.subject.includes("accepted"),
+    );
+    expect(investorMail?.to).toEqual([email.investor1]);
+    const countryMail = mailer.sent.find((m) => m.to.includes(FOCAL_A_CONTACT));
+    expect(countryMail?.cc).toEqual([WBG_A_CONTACT]);
+    expect(countryMail?.subject).toContain("meeting confirmed");
+    expect(mailer.sent.some((m) => m.to.includes(SUMMIT[0]))).toBe(true);
     expect(
       await refusal(decideMeetingRequest(v.focalA, R.i1a, "DECLINED", opts())),
     ).toBe("not_pending");
@@ -404,7 +414,18 @@ describe("withdrawing", () => {
   });
 
   it("lets the investor withdraw an accepted request, once", async () => {
-    await withdrawMeetingRequest(v.investor1, R.i1a, opts());
+    const mailer = new MemoryMailer();
+    await withdrawMeetingRequest(v.investor1, R.i1a, opts({ mailer }));
+    // Always emailed (user decision, 22 Nov): the investor, the country and the Summit mailbox.
+    expect(mailer.sent).toHaveLength(3);
+    expect(
+      mailer.sent.find((m) => m.to.includes(email.investor1))?.subject,
+    ).toContain("you withdrew");
+    const countryMail = mailer.sent.find((m) => m.to.includes(FOCAL_A_CONTACT));
+    expect(countryMail?.cc).toEqual([WBG_A_CONTACT]);
+    expect(countryMail?.text).toContain(
+      "cancelled the confirmed bilateral meeting",
+    );
     const row = await db.meetingRequest.findUniqueOrThrow({
       where: { id: R.i1a },
     });

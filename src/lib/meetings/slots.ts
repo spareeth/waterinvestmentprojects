@@ -10,6 +10,9 @@ import {
   MEETING_SCHEDULE,
   type MeetingDayTimes,
   plannedSlots,
+  type RoomSlotState,
+  type RoomTimes,
+  roomSlotValue,
   uaeDateKey,
 } from "./schedule";
 
@@ -62,7 +65,71 @@ const TAKEN = {
   meetingRequestId: { not: null },
 } satisfies Prisma.SlotWhereInput;
 
-export type { MeetingDayTimes, MeetingTime } from "./schedule";
+export type { MeetingDayTimes, MeetingTime, RoomTimes } from "./schedule";
+
+/**
+ * The request calendar, room by room (22 Nov): every future slot of each room with its state for this investor
+ * and this project's country. Never says who holds a slot.
+ */
+export async function listRoomTimes(
+  requesterId: string,
+  countryId: string,
+  now: Date = new Date(),
+): Promise<RoomTimes[]> {
+  await ensureSchedule();
+  const slots = await db.slot.findMany({
+    where: { startsAt: { gt: now } },
+    orderBy: [{ room: { name: "asc" } }, { startsAt: "asc" }],
+    select: {
+      startsAt: true,
+      status: true,
+      meetingRequestId: true,
+      room: { select: { name: true } },
+      meetingRequest: {
+        select: { requesterId: true, project: { select: { countryId: true } } },
+      },
+    },
+  });
+  // Times at which this investor or this country already has a meeting, in any room.
+  const busy = new Set(
+    slots
+      .filter(
+        (s) =>
+          s.meetingRequest &&
+          (s.meetingRequest.requesterId === requesterId ||
+            s.meetingRequest.project.countryId === countryId),
+      )
+      .map((s) => s.startsAt.getTime()),
+  );
+  const rooms = new Map<string, RoomTimes>();
+  for (const s of slots) {
+    let room = rooms.get(s.room.name);
+    if (!room) {
+      room = { room: s.room.name, days: [] };
+      rooms.set(s.room.name, room);
+    }
+    const key = uaeDateKey(s.startsAt);
+    let day = room.days.find((d) => d.key === key);
+    if (!day) {
+      day = { key, label: formatMeetingDay(s.startsAt), times: [] };
+      room.days.push(day);
+    }
+    let state: RoomSlotState;
+    if (!s.meetingRequestId) {
+      state = busy.has(s.startsAt.getTime()) ? "unavailable" : "free";
+    } else if (s.meetingRequest?.requesterId === requesterId) {
+      state = "yours";
+    } else {
+      state = s.status === SlotStatus.BOOKED ? "booked" : "pending";
+    }
+    day.times.push({
+      value: roomSlotValue(s.startsAt, s.room.name),
+      label: formatClock(s.startsAt),
+      state,
+    });
+  }
+  return [...rooms.values()];
+}
 
 /**
  * The times an investor can choose for a meeting on a project of this country: every future start time, marked
@@ -124,7 +191,8 @@ export async function listMeetingTimes(
 }
 
 /**
- * Holds the first free room at `startsAt` for a new request. Refuses with "slot_taken" when no room is free then,
+ * Holds the chosen room (or the first free room) at `startsAt` for a new request. Refuses with "slot_taken" when
+ * that room (or every room) is taken then,
  * or when the investor or the country already has a meeting at that time. Call inside the request transaction.
  */
 export async function holdSlot(
@@ -132,6 +200,8 @@ export async function holdSlot(
   request: { id: string; requesterId: string; countryId: string },
   startsAt: Date,
   now: Date,
+  /** The room chosen on the calendar (22 Nov); null takes the first free room. */
+  room: string | null = null,
 ): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${SLOT_LOCK}))`;
   if (startsAt.getTime() <= now.getTime()) throw new RequestError("slot_taken");
@@ -150,7 +220,11 @@ export async function holdSlot(
   if (clash > 0) throw new RequestError("slot_taken");
   // A slot is free when no request holds it (its status then is OPEN; the id is what counts).
   const free = await tx.slot.findFirst({
-    where: { startsAt, meetingRequestId: null },
+    where: {
+      startsAt,
+      meetingRequestId: null,
+      ...(room ? { room: { name: room } } : {}),
+    },
     orderBy: { room: { name: "asc" } },
     select: { id: true },
   });
