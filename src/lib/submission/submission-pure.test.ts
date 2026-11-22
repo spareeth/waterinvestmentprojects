@@ -225,7 +225,7 @@ describe("teaser files", () => {
     expect(detectTeaserType({ name: "a.exe", bytes: enc("MZ") })).toBeNull();
   });
 
-  it("checks size and type for the upload link, and keeps the workspace PDF only", () => {
+  it("checks size and type the same way on every upload route (22 Nov)", () => {
     expect(submissionFileProblem({ name: "a.pptx", bytes: pptxBytes })).toBe(
       null,
     );
@@ -240,9 +240,7 @@ describe("teaser files", () => {
     expect(submissionFileProblem({ name: "a.doc", bytes: pdfBytes })).toBe(
       "file_wrong_type",
     );
-    expect(teaserFileProblem({ name: "a.pptx", bytes: pptxBytes })).toBe(
-      "file_not_pdf",
-    );
+    expect(teaserFileProblem({ name: "a.pptx", bytes: pptxBytes })).toBe(null);
   });
 
   it("cleans names and keeps the right extension, within 200 characters", () => {

@@ -33,7 +33,7 @@ import { type BlobStore, getBlobStore, submissionBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import { requestScanSweep } from "@/lib/storage/scanner";
 import { factFields, type TeaserFacts } from "@/lib/teaser/facts";
-import { teaserFactsFromFile } from "@/lib/teaser/pdf-text";
+import { teaserFactsFromFile } from "@/lib/teaser/file-text";
 import { millionToUsd } from "@/lib/workspace/project-input";
 import {
   cleanFilename,

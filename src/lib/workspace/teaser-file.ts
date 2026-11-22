@@ -210,17 +210,18 @@ export function detectTeaserType(file: {
 }
 
 /** Workspace uploads: PDF only. */
+/**
+ * Every upload route (the upload link, My projects and the Summit team's teaser upload) accepts the same formats
+ * (user decision, 22 Nov). Kept as its own name for the workspace upload; it is the same check.
+ */
 export function teaserFileProblem(file: {
   name: string;
   bytes: Uint8Array;
-}): Exclude<TeaserFileProblem, "file_wrong_type"> | null {
-  if (file.bytes.byteLength === 0) return "file_missing";
-  if (file.bytes.byteLength > MAX_TEASER_BYTES) return "file_too_large";
-  if (detectTeaserType(file) !== "pdf") return "file_not_pdf";
-  return null;
+}): Exclude<TeaserFileProblem, "file_not_pdf"> | null {
+  return submissionFileProblem(file);
 }
 
-/** Upload link files: any accepted document or image format. */
+/** Any accepted document or image format (the upload link, My projects and the Summit team's upload). */
 export function submissionFileProblem(file: {
   name: string;
   bytes: Uint8Array;

@@ -27,6 +27,7 @@ import {
 } from "@/lib/submission/service";
 import { SUBMISSION_FIELDS } from "@/lib/submission/input";
 import { readProjectTeaserFacts, uploadTeaser } from "@/lib/workspace/service";
+import { createZip } from "@/lib/admin/zip";
 import { buildPlaceholderPdf } from "../../prisma/seed/pdf";
 import { cleanUp, createUser, viewerFor } from "./helpers";
 
@@ -378,5 +379,72 @@ describe("Add project from My projects", () => {
     await expect(
       readProjectTeaserFacts(v.focalA, projectId, { store: opts.store }),
     ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("takes a Word teaser on every route and fills the project from it (22 Nov: same formats everywhere)", async () => {
+    const word = (lines: string[]) =>
+      createZip([
+        {
+          name: "[Content_Types].xml",
+          data: new TextEncoder().encode("<Types/>"),
+        },
+        {
+          name: "word/document.xml",
+          data: new TextEncoder().encode(
+            `<w:document><w:body>${lines.map((l) => `<w:p><w:r><w:t>${l}</w:t></w:r></w:p>`).join("")}</w:body></w:document>`,
+          ),
+        },
+      ]);
+    const receipt = await submitWorkspaceTeasers(
+      v.focalA,
+      input({
+        teasers: [
+          {
+            sector: "Water supply",
+            file: {
+              name: "teaser.docx",
+              bytes: word([
+                "IT Workspace A - CITY NETWORK RENEWAL",
+                "PPP MODEL",
+                "Affermage",
+              ]),
+            },
+          },
+        ],
+      }),
+      opts,
+    );
+    const projectId = receipt.projectIds[0];
+    let project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+    });
+    expect(project.title).toBe("City Network Renewal");
+    expect(project.pppModel).toBe("Affermage");
+
+    // The Summit team's upload on the project page takes a Word file too, and fills the empty fields.
+    await uploadTeaser(
+      v.admin,
+      projectId,
+      {
+        name: "teaser v2.docx",
+        bytes: word([
+          "PPP MODEL",
+          "Concession",
+          "DEVELOPMENT STAGE",
+          "Pre-tender",
+        ]),
+      },
+      { allowDownload: true },
+      { acknowledged: true },
+      opts,
+    );
+    project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
+    expect(project.pppModel).toBe("Affermage");
+    expect(project.developmentStage).toBe("Pre-tender");
+    const doc = await db.document.findFirstOrThrow({
+      where: { projectId, version: 2 },
+    });
+    expect(doc.filename).toBe("teaser v2.docx");
+    expect(doc.blobKey.endsWith(".docx")).toBe(true);
   });
 });

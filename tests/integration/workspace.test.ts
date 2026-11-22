@@ -264,6 +264,7 @@ describe("country workspace", () => {
         ),
       ).toBe("ack_required");
     }
+    // Every route takes the same formats (22 Nov); a file whose content does not match its name is still refused.
     const file = pdf("bad");
     for (const bad of [
       { name: "deck.pptx", bytes: file.bytes },
@@ -273,7 +274,7 @@ describe("country workspace", () => {
         await refusal(
           uploadTeaser(v.admin, projectId, bad, view, consent, opts),
         ),
-      ).toBe("file_not_pdf");
+      ).toBe("file_wrong_type");
     }
     expect(await blobCount()).toBe(blobs);
     expect(await submissionCount()).toBe(submissions);

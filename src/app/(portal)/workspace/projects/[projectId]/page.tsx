@@ -172,7 +172,8 @@ export default async function WorkspaceProjectPage({
                 projectId={project.id}
                 readOnly={!permissions.edit}
                 canFillFromTeaser={Boolean(
-                  currentTeaser?.filename.toLowerCase().endsWith(".pdf"),
+                  currentTeaser &&
+                  !/\.(jpe?g|png)$/i.test(currentTeaser.filename),
                 )}
                 defaults={{
                   title: project.title,

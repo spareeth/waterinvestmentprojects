@@ -4,8 +4,15 @@
 const SAFE_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
 
 /** Key for a teaser version: projects/<projectId>/teaser/<documentId>.pdf */
-export function teaserBlobKey(projectId: string, documentId: string): string {
-  return assertSafeKey(`projects/${projectId}/teaser/${documentId}.pdf`);
+export function teaserBlobKey(
+  projectId: string,
+  documentId: string,
+  extension = "pdf",
+): string {
+  if (!/^[a-z0-9]{2,5}$/.test(extension)) throw new Error("Unsafe extension");
+  return assertSafeKey(
+    `projects/${projectId}/teaser/${documentId}.${extension}`,
+  );
 }
 
 /**

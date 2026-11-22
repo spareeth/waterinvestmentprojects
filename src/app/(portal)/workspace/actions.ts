@@ -44,6 +44,7 @@ const FIELD_FOR: Partial<Record<WorkspaceErrorCode, string>> = {
   file_missing: "teaser",
   file_too_large: "teaser",
   file_not_pdf: "teaser",
+  file_wrong_type: "teaser",
   ack_required: "acknowledge",
 };
 

@@ -8,6 +8,7 @@ export type WorkspaceErrorCode =
   | "file_missing"
   | "file_too_large"
   | "file_not_pdf"
+  | "file_wrong_type"
   | "ack_required"
   | "no_clean_teaser"
   | "teaser_not_pdf"
@@ -30,6 +31,8 @@ export const WORKSPACE_MESSAGES: Record<WorkspaceErrorCode, string> = {
   file_too_large: "The teaser must be 25 MB or smaller.",
   file_not_pdf:
     "The teaser must be a PDF file. If you have a PowerPoint, Word, Excel or image file, save it as PDF first.",
+  file_wrong_type:
+    "Upload a PDF (preferred), PowerPoint, Word, Excel, OpenDocument, RTF, JPG or PNG file. Other formats, macro-enabled files, and files whose content does not match their name, are not accepted.",
   ack_required:
     "Tick the consent box. A teaser can only be stored with the Government's consent to share it.",
   no_clean_teaser:

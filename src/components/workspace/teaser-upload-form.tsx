@@ -6,7 +6,11 @@ import {
   type WorkspaceFormState,
 } from "@/app/(portal)/workspace/actions";
 import { Button } from "@/components/ui/button";
-import { formatBytes, MAX_TEASER_BYTES } from "@/lib/workspace/teaser-file";
+import {
+  formatBytes,
+  MAX_TEASER_BYTES,
+  SUBMISSION_ACCEPT,
+} from "@/lib/workspace/teaser-file";
 import { AcknowledgementFields } from "./acknowledgement-fields";
 import { DownloadSelect } from "./download-select";
 import { describe, FieldShell, Notice } from "./form-controls";
@@ -33,7 +37,7 @@ export function TeaserUploadForm({
     initial,
   );
   const e = state.fieldErrors ?? {};
-  const hint = `PDF only, up to ${formatBytes(MAX_TEASER_BYTES)}. Checked for viruses on upload. PowerPoint files: save as PDF first.`;
+  const hint = `PDF preferred; PowerPoint, Word, Excel, OpenDocument, RTF and images are also accepted. Up to ${formatBytes(MAX_TEASER_BYTES)}, checked for viruses on upload. Investors only see PDFs: add a PDF version before publishing.`;
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
@@ -52,7 +56,7 @@ export function TeaserUploadForm({
           {...describe("teaser-file", hint, e.teaser)}
           type="file"
           name="teaser"
-          accept="application/pdf,.pdf"
+          accept={SUBMISSION_ACCEPT}
           required
           className="rounded-lg border-2 border-dashed border-brand-aqua/70 bg-secondary/40 p-6 text-sm file:me-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:font-medium file:text-primary-foreground"
         />

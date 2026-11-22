@@ -47,13 +47,17 @@ describe("teaser file checks", () => {
     expect(teaserFileProblem({ name: "a.pdf", bytes: exact })).toBeNull();
   });
 
-  it("refuses a PowerPoint, and a non-PDF renamed to .pdf", () => {
+  it("accepts the same formats as the upload link, and refuses a file whose content does not match its name (22 Nov)", () => {
+    const pptx = new TextEncoder().encode(
+      "PK\u0003\u0004 [Content_Types].xml ppt/presentation.xml",
+    );
+    expect(teaserFileProblem({ name: "deck.pptx", bytes: pptx })).toBeNull();
     expect(teaserFileProblem({ name: "deck.pptx", bytes: pdf() })).toBe(
-      "file_not_pdf",
+      "file_wrong_type",
     );
     const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
     expect(teaserFileProblem({ name: "deck.pdf", bytes: zip })).toBe(
-      "file_not_pdf",
+      "file_wrong_type",
     );
   });
 

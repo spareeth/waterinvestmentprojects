@@ -42,7 +42,7 @@ export function ProjectForm({
   defaults: ProjectFormValues;
   countries?: { id: string; name: string }[];
   readOnly?: boolean;
-  /** Edit mode with a current PDF teaser: offer "Fill from teaser" (22 Nov). */
+  /** Edit mode with a current teaser that is not an image: offer "Fill from teaser" (22 Nov). */
   canFillFromTeaser?: boolean;
 }) {
   const action =
@@ -167,7 +167,7 @@ export function ProjectForm({
           </Button>
           <span className="text-xs text-muted-foreground">
             Reads the title, size, PPP model, stage and region from the current
-            PDF teaser. Nothing is saved until you save.
+            teaser (any format except images). Nothing is saved until you save.
           </span>
         </div>
       ) : null}

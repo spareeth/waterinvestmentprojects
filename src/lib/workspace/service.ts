@@ -30,11 +30,17 @@ import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import { requestScanSweep } from "@/lib/storage/scanner";
 import { projectNameFromFilename } from "@/lib/submission/input";
 import { factFields, type TeaserFacts } from "@/lib/teaser/facts";
-import { teaserFactsFromFile } from "@/lib/teaser/pdf-text";
+import { teaserFactsFromFile } from "@/lib/teaser/file-text";
 import { workspaceUploadAcknowledgement } from "./acknowledgement";
 import { WorkspaceError } from "./errors";
 import { millionToUsd, type ProjectInput } from "./project-input";
-import { cleanFilename, isPdfFilename, teaserFileProblem } from "./teaser-file";
+import {
+  cleanFilename,
+  detectTeaserType,
+  isPdfFilename,
+  teaserFileProblem,
+  teaserTypeOf,
+} from "./teaser-file";
 
 // Country workspace (M5, PLAN F3/F4; v0.3 since M1): create and edit projects, upload teaser versions, publish
 // and withdraw. Every function takes the Viewer from requireViewer() and checks it through src/lib/authz; every
@@ -292,7 +298,8 @@ export interface TeaserFields {
 }
 
 /**
- * Stores a new teaser version: PDF only, max 25 MB, sha256, version = latest + 1, and the previous current
+ * Stores a new teaser version: any accepted format (22 Nov; publishing still needs a PDF version), max 25 MB,
+ * sha256, version = latest + 1, and the previous current
  * version is superseded (linear supersededById chain). Scan status starts as UPLOAD_SCAN says. The consent tick
  * is required on every upload: in the same transaction a Submission is created (no link; uploader = the signed-in
  * user; wording version and time from config) and the new Document points at it. Returns the new document id.
@@ -313,16 +320,18 @@ export async function uploadTeaser(
   }
   const problem = teaserFileProblem(file);
   if (problem) throw new WorkspaceError(problem);
+  // Checked above: the type is known. Non-PDF versions stay drafts until a PDF version is added (publishing).
+  const type = detectTeaserType(file) ?? "pdf";
   if (!ack?.acknowledged) throw new WorkspaceError("ack_required");
 
   const blobs = store ?? getBlobStore();
   const mode = scanMode ?? getEnv().UPLOAD_SCAN;
   const scan = initialScan(mode);
   const sha256 = createHash("sha256").update(file.bytes).digest("hex");
-  const filename = cleanFilename(file.name);
-  const blobKey = teaserBlobKey(projectId, randomUUID());
+  const filename = cleanFilename(file.name, type);
+  const blobKey = teaserBlobKey(projectId, randomUUID(), type);
   // 22 Nov: key facts from the teaser fill the project's empty fields (an admin reviews them before publishing).
-  const facts = await teaserFactsFromFile(file.bytes, "pdf", [
+  const facts = await teaserFactsFromFile(file.bytes, type, [
     before.country.name,
   ]);
   await blobs.put(blobKey, file.bytes);
@@ -719,9 +728,9 @@ async function fillProjectFromTeaser(
 }
 
 /**
- * "Fill from teaser" on the project page (22 Nov): the key facts read from the project's current PDF teaser, for
- * an admin to review in the form before saving. Nothing is written. Admins only (canEditProject); null when the
- * project has no PDF teaser or nothing could be read.
+ * "Fill from teaser" on the project page (22 Nov): the key facts read from the project's current teaser (any
+ * format but images), for an admin to review in the form before saving. Nothing is written. Admins only
+ * (canEditProject); null when the project has no teaser or nothing could be read.
  */
 export async function readProjectTeaserFacts(
   viewer: Viewer,
@@ -732,19 +741,18 @@ export async function readProjectTeaserFacts(
   if (!project) throw new WorkspaceError("not_found");
   if (!canEditProject(viewer)) throw new WorkspaceError("forbidden");
   const teaser = await db.document.findFirst({
-    where: {
-      projectId,
-      kind: DocumentKind.TEASER,
-      supersededById: null,
-      filename: { endsWith: ".pdf", mode: "insensitive" },
-    },
+    where: { projectId, kind: DocumentKind.TEASER, supersededById: null },
     orderBy: { version: "desc" },
-    select: { blobKey: true },
+    select: { blobKey: true, filename: true },
   });
   if (!teaser) return null;
   const file = await (store ?? getBlobStore()).get(teaser.blobKey);
   if (!file) return null;
   const bytes = new Uint8Array(await new Response(file.stream).arrayBuffer());
-  const facts = await teaserFactsFromFile(bytes, "pdf", [project.country.name]);
+  const facts = await teaserFactsFromFile(
+    bytes,
+    teaserTypeOf(teaser.filename),
+    [project.country.name],
+  );
   return factFields(facts).length > 0 ? facts : null;
 }
