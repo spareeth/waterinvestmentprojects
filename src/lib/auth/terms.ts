@@ -1,10 +1,10 @@
-// Terms of use shown before first use. DRAFT: the data controller and final wording are open questions with the
-// Summit partners (PLAN section 8). Change TERMS_VERSION whenever the text changes; the version accepted is
-// recorded in the audit trail (user.terms_accept).
+// Terms of use shown before first use. Wording set by the Summit team on 22 Nov 2026 (no hosting location named).
+// Change TERMS_VERSION whenever the text changes; the version accepted is recorded in the audit trail
+// (user.terms_accept).
 
-export const TERMS_VERSION = "terms-draft-2026-11-17";
+export const TERMS_VERSION = "terms-2026-11-22";
 
-export const TERMS_IS_DRAFT = true;
+export const TERMS_IS_DRAFT = false;
 
 export const TERMS_SECTIONS: readonly { heading: string; body: string }[] = [
   {
@@ -25,7 +25,7 @@ export const TERMS_SECTIONS: readonly { heading: string; body: string }[] = [
   },
   {
     heading: "Hosting and personal data",
-    body: "The portal is operated by Terra, Expo City Dubai, and hosted in Germany. We hold your name, organisation, job title, email address and activity in the portal to run the Summit programme, and remove access after the Summit as agreed with the partners.",
+    body: "The portal stores your name, organisation, job title, email address and activity in the portal to run the Summit programme, and remove access after the Summit as agreed with the partners.",
   },
   {
     heading: "Access can be removed",

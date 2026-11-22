@@ -130,7 +130,7 @@ export default async function AdminCountriesPage() {
         title="Add a country"
         description="New countries start switched on. Use clearly fictional names outside production."
       >
-        <CreateCountryForm />
+        <CreateCountryForm existing={countries.map((c) => c.iso3)} />
       </AdminSectionCard>
     </AdminShell>
   );
