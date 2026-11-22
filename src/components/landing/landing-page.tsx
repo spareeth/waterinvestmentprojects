@@ -87,25 +87,37 @@ export function LandingPage({
               invited investors and operators ahead of the {summit.name}, so
               that bilateral meetings start from the same information.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                asChild
-                size="lg"
-                className="h-11 bg-white px-5 text-brand-navy hover:bg-white/90"
-              >
-                <Link href={entry.href}>
-                  {entry.label}
-                  <ArrowRight aria-hidden="true" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-11 border-white/40 bg-white/10 px-5 text-white hover:bg-white/20 hover:text-white"
-              >
-                <a href="#how-access-works">How access works</a>
-              </Button>
+            {/* Buttons on the left, partner logos bottom right on the same row; on narrow screens the logos wrap
+                below the buttons. */}
+            <div className="flex w-full flex-wrap items-end justify-between gap-x-6 gap-y-8">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-11 bg-white px-5 text-brand-navy hover:bg-white/90"
+                >
+                  <Link href={entry.href}>
+                    {entry.label}
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-11 border-white/40 bg-white/10 px-5 text-white hover:bg-white/20 hover:text-white"
+                >
+                  <a href="#how-access-works">How access works</a>
+                </Button>
+              </div>
+              {appConfig.partners.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium tracking-wide text-white/80 uppercase">
+                    In partnership with
+                  </span>
+                  <PartnerLogos partners={appConfig.partners} />
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -167,13 +179,8 @@ export function LandingPage({
           </section>
         ) : null}
 
-        <footer className="mx-auto mt-auto flex w-full max-w-page flex-col gap-6 border-t px-4 py-8 text-sm text-foreground/75 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          {appConfig.partners.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-4">
-              <span>In partnership with</span>
-              <PartnerLogos partners={appConfig.partners} />
-            </div>
-          ) : null}
+        {/* The partner logos moved to the hero (22 Nov); the footer keeps the copyright only. */}
+        <footer className="mx-auto mt-auto flex w-full max-w-page border-t px-4 py-8 text-sm text-foreground/75 sm:px-8">
           <span>{appConfig.copyright}</span>
         </footer>
       </main>

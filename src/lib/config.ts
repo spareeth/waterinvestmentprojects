@@ -8,8 +8,8 @@ export const appConfig = {
   supportEmail: process.env.SUPPORT_EMAIL || undefined,
   /** Footer line on the landing page, sign-in pages, upload link and guide. */
   copyright: "© 2026 Terra, Expo City Dubai",
-  /** M6: the event the portal serves, shown on the landing page. The conference is named in text only: no UN
-   * Water Conference logo or branding without MoFA approval (PLAN v0.3 0.16). */
+  /** M6: the event the portal serves, shown on the landing page. The 2026 UN Water Conference logo appears only
+   * as a partner mark (PLAN v0.4 0b.27), once its file arrives. */
   summit: {
     name: "Water Investment Summit",
     date: "9 December 2026",
@@ -17,16 +17,46 @@ export const appConfig = {
     city: "Abu Dhabi",
   },
   /**
-   * M6: partner marks in the landing page footer (PLAN v0.3 0.16: MoFA, a single World Bank Group mark, GCFC,
-   * Expo City Dubai/Terra). To swap in a real logo, put the file under public/partners/ and set `logo` to its
-   * path and pixel size; until then the page shows a dashed placeholder with the partner's name. Order and
-   * entries can change here without touching components.
+   * Partner marks in the landing page hero, "In partnership with" (PLAN v0.4 0b.27: 2026 UN Water Conference,
+   * Expo City Dubai / Terra, GCFC, a single World Bank Group mark; no MoFA logo). Order as Sajid set it on
+   * 22 Nov. To add a logo, put the file under public/partners/ and set `logo` to its path, pixel size and
+   * artwork ("light" for white artwork, "dark" for dark artwork, which gets a white tile on the dark hero);
+   * until then the page shows a dashed placeholder with the partner's name. Order and entries can change here
+   * without touching components.
    */
   partners: [
-    { id: "mofa", name: "MoFA" },
-    { id: "wbg", name: "World Bank Group" },
-    { id: "gcfc", name: "GCFC" },
-    { id: "expo-city-dubai", name: "Expo City Dubai" },
+    // Logo still to come from the organisers.
+    { id: "unwc", name: "2026 UN Water Conference" },
+    {
+      id: "ecd-terra",
+      name: "Terra, Expo City Dubai",
+      logo: {
+        src: "/partners/ecd-terra.png",
+        width: 1160,
+        height: 205,
+        artwork: "light",
+      },
+    },
+    {
+      id: "gcfc",
+      name: "GCFC",
+      logo: {
+        src: "/partners/gcfc.png",
+        width: 260,
+        height: 69,
+        artwork: "dark",
+      },
+    },
+    {
+      id: "wbg",
+      name: "World Bank Group",
+      logo: {
+        src: "/partners/world-bank-group.png",
+        width: 2013,
+        height: 395,
+        artwork: "dark",
+      },
+    },
   ] as readonly PartnerConfig[],
   /**
    * The government uploader's acknowledgement, given once per submission through the upload link (PLAN v0.3
@@ -63,7 +93,13 @@ export type PartnerConfig = {
   id: string;
   /** Visible name of the placeholder, and the logo's alt text. */
   name: string;
-  logo?: { src: string; width: number; height: number };
+  logo?: {
+    src: string;
+    width: number;
+    height: number;
+    /** "light": white artwork, shown as it is on the dark hero. "dark": dark artwork, shown on a white tile. */
+    artwork: "light" | "dark";
+  };
 };
 
 function investorAcknowledgement(): {

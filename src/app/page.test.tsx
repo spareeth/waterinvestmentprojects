@@ -101,17 +101,35 @@ describe("Landing page", () => {
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
   });
 
-  it("shows the copyright in the footer and Expo City Dubai as a partner placeholder, not a logo", async () => {
+  it("shows the partner logos in the hero in the agreed order, and only the copyright in the footer", async () => {
     const { container } = await renderLanding();
-    const list = screen.getByRole("list", { name: "Partners" });
-    expect(within(list).getByText("Expo City Dubai")).toHaveAttribute(
+    const hero = screen.getByRole("region", {
+      name: /Investment-ready water projects/,
+    });
+    const list = within(hero).getByRole("list", { name: "Partners" });
+    // Order set by Sajid, 22 Nov: UNWC (logo to follow), ECD|Terra, GCFC, WBG. No MoFA logo (PLAN v0.4 0b.27).
+    const items = within(list).getAllByRole("listitem");
+    expect(
+      items.map((li) => li.textContent || li.querySelector("img")?.alt),
+    ).toEqual([
+      "2026 UN Water Conference",
+      "Terra, Expo City Dubai",
+      "GCFC",
+      "World Bank Group",
+    ]);
+    expect(within(list).getByText("2026 UN Water Conference")).toHaveAttribute(
       "data-placeholder",
       "partner-logo",
     );
-    expect(within(list).queryByText(/Terra/)).toBeNull();
-    expect(within(list).queryByRole("img")).toBeNull();
+    expect(within(list).getAllByRole("img")).toHaveLength(3);
+    expect(within(list).queryByText(/MoFA/)).toBeNull();
+    // The partner logos sit next to the hero buttons, not in the footer.
+    expect(
+      within(hero).getByRole("link", { name: "How access works" }),
+    ).toBeInTheDocument();
     const footer = container.querySelector("footer");
     expect(footer).toHaveTextContent("© 2026 Terra, Expo City Dubai");
+    expect(footer?.querySelector('[aria-label="Partners"]')).toBeNull();
     expect(container).not.toHaveTextContent(/developed by/i);
   });
 
@@ -141,7 +159,7 @@ describe("Landing page", () => {
     const text = container.textContent ?? "";
     expect(text).not.toMatch(/tier/i);
     expect(text).not.toContain("—");
-    // PLAN 0.16: no UN Water Conference branding without MoFA approval; the conference is named in text only.
+    // The only images on the landing page are the partner logos from config.
     expect(container.querySelectorAll("img")).toHaveLength(
       container.querySelectorAll('[aria-label="Partners"] img').length,
     );
