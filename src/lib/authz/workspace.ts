@@ -6,6 +6,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { CountryStatus } from "@/generated/prisma/enums";
 import { NO_COUNTRY } from "./people";
 import {
+  canDeleteProject,
   canEditProject,
   canPublishProject,
   canWithdrawProject,
@@ -56,6 +57,8 @@ export interface WorkspacePermissions {
   uploadTeaser: boolean;
   publish: boolean;
   withdraw: boolean;
+  /** 23 Nov: delete the project for good (canDeleteProject). */
+  delete: boolean;
   /** An admin acting for the country: the upload consent records the government's written consent. */
   onBehalf: boolean;
 }
@@ -69,6 +72,7 @@ export function workspacePermissions(
     uploadTeaser: canUploadDocument(viewer),
     publish: canPublishProject(viewer, project),
     withdraw: canWithdrawProject(viewer, project),
+    delete: canDeleteProject(viewer, project),
     onBehalf: actsOnBehalf(viewer, project.countryId),
   };
 }

@@ -184,6 +184,9 @@ model User {
   emailVerified          Boolean           @default(false)
   /// Required by Better Auth; not used by the portal.
   image                  String?
+  /// 23 Nov: set when an admin removes the account. Name and email are erased, sign-in is impossible and the
+  /// account is left out of the admin lists; the row stays so the audit trail and meeting records hold.
+  removedAt              DateTime?
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 

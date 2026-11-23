@@ -7,6 +7,7 @@ import {
   createAccountAction,
   resetPasswordAction,
 } from "@/app/(portal)/admin/accounts/actions";
+import { removeUserAction } from "@/app/(portal)/admin/accounts/status-actions";
 import { createCountryAction } from "@/app/(portal)/admin/countries/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -320,6 +321,48 @@ export function ResetPasswordForm({
       </form>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
       <HandOut handOut={state.handOut} />
+    </div>
+  );
+}
+
+/**
+ * Remove an account (23 Nov): erase and disable, after a confirmation. The server checks the permission again
+ * (canRemoveUser).
+ */
+export function RemoveUserForm({
+  userId,
+  name,
+}: {
+  userId: string;
+  name: string;
+}) {
+  const [state, setState] = useState<{ error?: string; message?: string }>({});
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          disabled={pending}
+          onClick={() => {
+            if (
+              !window.confirm(
+                `Remove the account of ${name}? They are signed out at once and can no longer sign in. Their name and email are erased from the account, their open meeting requests are cancelled (the countries are told), and their country access is removed. This cannot be undone; the email address can be used for a new account.`,
+              )
+            ) {
+              return;
+            }
+            startTransition(async () => {
+              setState(await removeUserAction(userId));
+            });
+          }}
+        >
+          {pending ? "Removing…" : "Remove user"}
+        </Button>
+      </div>
+      {state.error ? <Notice tone="error">{state.error}</Notice> : null}
     </div>
   );
 }

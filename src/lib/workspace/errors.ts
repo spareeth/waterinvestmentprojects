@@ -13,7 +13,8 @@ export type WorkspaceErrorCode =
   | "no_clean_teaser"
   | "teaser_not_pdf"
   | "already_published"
-  | "not_published";
+  | "not_published"
+  | "delete_published";
 
 export class WorkspaceError extends Error {
   constructor(public readonly code: WorkspaceErrorCode) {
@@ -24,6 +25,8 @@ export class WorkspaceError extends Error {
 
 export const WORKSPACE_MESSAGES: Record<WorkspaceErrorCode, string> = {
   not_found: "This project could not be found in your workspace.",
+  delete_published:
+    "This project is in the pipeline, so the Summit team deletes it. Contact them to have it taken out or deleted.",
   forbidden: "You do not have permission to do this.",
   conflict:
     "The project changed while you were working on it. Reload the page and try again.",

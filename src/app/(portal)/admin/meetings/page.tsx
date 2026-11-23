@@ -6,6 +6,7 @@ import {
   BlockTimesForm,
   SlotActions,
 } from "@/components/admin/meeting-calendar";
+import { MeetingViewsNav } from "@/components/admin/meeting-views-nav";
 import {
   tableFrameClass,
   tableHeadClass,
@@ -61,8 +62,9 @@ export default async function MeetingSchedulePage({
       viewer={viewer}
       current="/admin/meetings"
       title="Meeting calendar"
-      intro={`Bilateral meetings in ${describeMeetingRooms()}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers. Block times that must not be offered, and cancel meetings when needed.`}
+      intro={`Bilateral meetings in ${describeMeetingRooms()}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers. Block times that must not be offered, and cancel meetings when needed. All requests, including those without a time, are under All requests.`}
     >
+      <MeetingViewsNav current="calendar" />
       {!day ? (
         <p className="rounded-xl border bg-card p-6 text-muted-foreground">
           No meeting times are set up.

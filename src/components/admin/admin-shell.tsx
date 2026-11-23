@@ -14,7 +14,7 @@ export const ADMIN_SECTIONS = [
   { href: "/admin/accounts", label: "Accounts" },
   { href: "/admin/submissions", label: "Submissions" },
   { href: "/admin/upload-links", label: "Upload links" },
-  { href: "/inbox", label: "Meeting requests" },
+  // 23 Nov: meeting requests and the calendar are one section; "All requests" is a view inside it.
   { href: "/admin/meetings", label: "Meeting calendar" },
   { href: "/admin/exports", label: "Exports" },
 ] as const;

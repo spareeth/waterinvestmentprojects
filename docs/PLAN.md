@@ -292,6 +292,22 @@ or load them on local or staging (the "no real country data" rule stands).
     lead WBG contacts as `COUNTRY` accounts), Summit admin logins for Jacob Kim, Dan Vardi, Jason Lee and Benjamin
     Bartle (GCFC), sign-in URLs and the pre-approved list. Built on the server by the deploy session from production
     data; it holds passwords, so it is never committed and is shared only with the people named.
+13. **Delete project and remove user** (Sajid, 23 Nov):
+    - **Delete project** on the project page. Admins: any project. Country users (not WBG coordinators): their own
+      country's projects that are not published (drafts and withdrawn ones); a published one is deleted by the
+      Summit team. The project, its teaser documents and files and its meeting requests go for good; open requests
+      are cancelled first (slot freed, investor, country and Summit mailbox emailed). The consent submission stays.
+      Audited as `project.delete` (`canDeleteProject` in `src/lib/authz/projects.ts`).
+    - **Remove user** on Admin, Accounts (erase and disable). Admins only, never their own account, Summit admins
+      not platform admins (`canRemoveUser` in `src/lib/authz/admin.ts`). Sessions, sign-in credentials, country
+      memberships, country contacts and pending invitations are deleted; name and email are erased (the address
+      becomes `removed-<id>@removed.invalid`, so the real one can be reused); status DEACTIVATED and `removedAt`
+      set; open meeting requests cancelled (countries and the Summit mailbox told). The row stays for the audit
+      trail; past requests keep the attendee details the investor typed. Audited as `user.remove`.
+14. **One "Meeting calendar" section for the Summit team** (Sajid, 23 Nov): the portal header and the admin row show
+    "Meeting calendar" instead of "Meeting requests" for admins, with two views: **Calendar** (`/admin/meetings`)
+    and **All requests** (`/inbox`, every request with or without a time, decisions on behalf, CSV). Country users
+    and coordinators keep their own "Meeting requests".
 
 ---
 
@@ -405,7 +421,8 @@ Project(id, countryId, submissionId?, title, sector, pppModel?, sizeMinUsd?, siz
 Document(id, projectId, submissionId, kind[TEASER], filename, version, allowDownload default true, blobKey, sha256,
          sizeBytes, scanStatus, uploadedById?, uploadedAt, supersededById)
 User(id, email, name, organisation, jobTitle, role[PLATFORM_ADMIN|SUMMIT_ADMIN|COUNTRY|WBG_COORDINATOR|INVESTOR],
-     countryIds[], status, investorAckTextVersion?, investorAckAcceptedAt?)
+     countryIds[], status, investorAckTextVersion?, investorAckAcceptedAt?, removedAt?)
+     // removedAt added 23 Nov: the account was removed (name and email erased), 0c.13
 Invitation(id, email, role, countryId?, tokenHash, expiresAt, acceptedAt, invitedById)
 MeetingRequest(id, projectId, requesterId, organisation, role, note,
                status[PENDING|ACCEPTED|DECLINED|WITHDRAWN|CANCELLED], decidedById, decidedAt, createdAt)

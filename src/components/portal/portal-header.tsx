@@ -6,6 +6,7 @@ import {
   canListOwnMeetingRequests,
   canViewRequestInbox,
 } from "@/lib/authz/requests";
+import { canManageMeetingSchedule } from "@/lib/authz/slots";
 import { canListSubmissions } from "@/lib/authz/submissions";
 import type { Viewer } from "@/lib/authz/viewer";
 import { canUseWorkspace } from "@/lib/authz/workspace";
@@ -30,6 +31,7 @@ export function PortalHeader({
   const showAdmin = canListSubmissions(viewer);
   const showRequests = canListOwnMeetingRequests(viewer);
   const showInbox = canViewRequestInbox(viewer);
+  const showCalendar = canManageMeetingSchedule(viewer);
   return (
     <SiteHeader menuFrom={showAdmin ? "wide" : "xl"}>
       <Link href="/home" className={linkClass}>
@@ -48,7 +50,12 @@ export function PortalHeader({
           My requests
         </Link>
       ) : null}
-      {showInbox ? (
+      {showCalendar ? (
+        // 23 Nov: the Summit team's requests and room calendar are one section.
+        <Link href="/admin/meetings" className={linkClass}>
+          Meeting calendar
+        </Link>
+      ) : showInbox ? (
         <Link href="/inbox" className={linkClass}>
           Meeting requests
         </Link>

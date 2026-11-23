@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminNav } from "@/components/admin/admin-shell";
+import { MeetingViewsNav } from "@/components/admin/meeting-views-nav";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { DecisionForm } from "@/components/requests/request-forms";
 import {
@@ -101,17 +103,24 @@ export default async function InboxPage({
   return (
     <>
       <PortalHeader name={user.name} viewer={viewer} />
+      {/* 23 Nov: for the Summit team this list is the "All requests" view of the Meeting calendar section. */}
+      {admin ? <AdminNav current="/admin/meetings" /> : null}
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
-              Meeting requests
+              {admin ? "Meeting calendar" : "Meeting requests"}
             </h1>
             <p className="mt-1 max-w-3xl text-muted-foreground">
               {admin
-                ? "Requests from investors and operators for every country. Accept or decline on behalf of a country when its focal point asks you to."
+                ? "Every request from investors and operators, for every country, including requests without a meeting time. Accept or decline on behalf of a country when its focal point asks you to."
                 : "Requests from investors and operators to meet about your country's projects. Choose whom to meet: accept or decline each request."}
             </p>
+            {admin ? (
+              <div className="mt-4">
+                <MeetingViewsNav current="requests" />
+              </div>
+            ) : null}
           </div>
           {canExportMeetingRequests(viewer) ? (
             <Button asChild variant="outline" size="lg">

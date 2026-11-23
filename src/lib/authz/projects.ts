@@ -100,3 +100,19 @@ export function canWithdrawProject(
 ): boolean {
   return isAdminViewer(viewer) && project.status === ProjectStatus.PUBLISHED;
 }
+
+/**
+ * Deleting a project for good, with its teaser files and meeting requests (23 Nov, Sajid): admins any project;
+ * a country user (focal point or member, not a WBG coordinator) only their own country's projects that are not
+ * in the pipeline (drafts and withdrawn ones). A published project is deleted by the Summit team.
+ */
+export function canDeleteProject(
+  viewer: Viewer | null,
+  project: Pick<ProjectRef, "countryId" | "status">,
+): boolean {
+  if (isAdminViewer(viewer)) return true;
+  return (
+    isOwnCountry(viewer, project.countryId) &&
+    project.status !== ProjectStatus.PUBLISHED
+  );
+}

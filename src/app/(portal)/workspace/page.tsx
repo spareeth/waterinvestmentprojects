@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/workspace/form-controls";
 import {
   ScanBadge,
   StatusBadge,
@@ -35,8 +36,13 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 /** "My projects" (PLAN F3): the country's projects, or every country's for the Summit team. */
-export default async function WorkspacePage() {
+export default async function WorkspacePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { user, viewer } = await requirePortalUser();
+  const deleted = (await searchParams).deleted === "1";
   if (!canUseWorkspace(viewer)) notFound();
   const [projects, countries] = await Promise.all([
     listWorkspaceProjects(viewer),
@@ -65,6 +71,11 @@ export default async function WorkspacePage() {
               My projects
             </h1>
             <p className="mt-1 max-w-3xl text-muted-foreground">{intro}</p>
+            {deleted ? (
+              <div className="mt-3">
+                <Notice tone="success">Project deleted.</Notice>
+              </div>
+            ) : null}
           </div>
           {canAdd ? (
             <Button asChild size="lg">

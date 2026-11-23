@@ -4,7 +4,11 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requestMetaFrom } from "@/lib/audit";
-import { requireViewer } from "@/lib/authz";
+import {
+  findWorkspaceProjectFor,
+  isAdminViewer,
+  requireViewer,
+} from "@/lib/authz";
 import { describeFacts } from "@/lib/teaser/facts";
 import { MAX_TEASER_BYTES } from "@/lib/workspace/teaser-file";
 import {
@@ -19,6 +23,7 @@ import {
 } from "@/lib/workspace/project-input";
 import {
   createProject,
+  deleteProject,
   publishProject,
   readProjectTeaserFacts,
   setTeaserDownload,
@@ -255,4 +260,36 @@ export async function teaserFactsAction(projectId: string): Promise<{
     }
     throw error;
   }
+}
+
+/**
+ * Deletes a project for good (23 Nov). The workspace service decides who may (canDeleteProject: admins any
+ * project, country users their own unpublished ones). On success the admin goes back to the project list and a
+ * country user to My projects.
+ */
+export async function deleteProjectAction(
+  projectId: string,
+  confirmTitle: string,
+): Promise<WorkspaceFormState> {
+  const viewer = await requireViewer();
+  try {
+    // Read through the policy module: someone who may not see the project gets "not found" from the service.
+    const project = await findWorkspaceProjectFor(viewer, projectId);
+    if (
+      project &&
+      confirmTitle.trim().toLowerCase() !== project.title.trim().toLowerCase()
+    ) {
+      return {
+        error: "Type the project's title exactly as shown to confirm.",
+      };
+    }
+    await deleteProject(viewer, projectId, { meta: await meta() });
+  } catch (error) {
+    return refused(error);
+  }
+  redirect(
+    isAdminViewer(viewer)
+      ? "/admin/projects?deleted=1"
+      : "/workspace?deleted=1",
+  );
 }

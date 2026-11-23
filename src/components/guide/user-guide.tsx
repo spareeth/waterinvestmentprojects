@@ -282,7 +282,10 @@ export function UserGuide() {
             received by type of organisation (declined requests included).{" "}
             <strong>Add project</strong> uploads new teasers for your country.
             The Summit team reviews and publishes them; contact them if an
-            existing project needs correcting.
+            existing project needs correcting. A project that is not yet
+            published (or was taken out of the pipeline) can be deleted with{" "}
+            <strong>Delete project</strong> on its page; ask the Summit team to
+            delete a published one.
           </li>
           <li>
             <strong>Meeting requests</strong> lists the requests from investors
@@ -399,14 +402,20 @@ export function UserGuide() {
             page to read them again. A project marked <strong>Needs PDF</strong>{" "}
             was sent in another format: convert it, upload the PDF as a new
             version on the project page, then publish. Investors only ever see
-            PDFs.
+            PDFs. <strong>Delete project</strong> at the bottom of a project
+            page removes it for good, with its teaser files and meeting
+            requests; open requests are cancelled and everyone is told. Country
+            users can delete their own projects that are not published.
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV
             list (several people per country are fine), hand over passwords
             personally, issue new ones, and deactivate accounts. Country and WBG
             coordinator accounts keep the password they are given; switch them
-            off after the Summit.
+            off after the Summit. <strong>Remove user</strong> erases and
+            disables an account: the person can no longer sign in, their name
+            and email are erased (the email can be used for a new account) and
+            their open meeting requests are cancelled.
           </li>
           <li>
             <strong>Registrations</strong>: investor and operator registrations
@@ -419,16 +428,20 @@ export function UserGuide() {
             accounts regularly and deactivate any that should not be there.
           </li>
           <li>
-            <strong>Meeting calendar</strong>: one day at a time, every
-            30-minute time in {MEETING_SCHEDULE.rooms.join(" and ")}, showing
-            which times are free, blocked, awaiting the country or booked, with
-            the project, the attendee, their organisation and email. Use{" "}
-            <strong>Block these times</strong> (or <strong>Block</strong> on one
-            time) to stop times being offered to investors, for example during
-            the Summit plenary, and <strong>Unblock</strong> to offer them
-            again. <strong>Cancel meeting</strong> cancels a request or a
-            confirmed meeting and frees its time; the investor, the country and
-            the Summit mailbox are told, with your reason if you give one.
+            <strong>Meeting calendar</strong> has two views.{" "}
+            <strong>All requests</strong> lists every request (with or without a
+            meeting time), with Accept and Decline on behalf of a country and a
+            CSV download. <strong>Calendar</strong> shows one day at a time,
+            every 30-minute time in {MEETING_SCHEDULE.rooms.join(" and ")},
+            showing which times are free, blocked, awaiting the country or
+            booked, with the project, the attendee, their organisation and
+            email. Use <strong>Block these times</strong> (or{" "}
+            <strong>Block</strong> on one time) to stop times being offered to
+            investors, for example during the Summit plenary, and{" "}
+            <strong>Unblock</strong> to offer them again.{" "}
+            <strong>Cancel meeting</strong> cancels a request or a confirmed
+            meeting and frees its time; the investor, the country and the Summit
+            mailbox are told, with your reason if you give one.
           </li>
           <li>
             <strong>Countries and contacts</strong>, <strong>Exports</strong>:

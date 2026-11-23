@@ -7,8 +7,17 @@ import { AccountError, createAccount } from "@/lib/auth/accounts";
 import type { Auth } from "@/lib/auth/auth";
 import type { Viewer } from "@/lib/authz";
 import { assignableRoles } from "@/lib/authz/account-policies";
-import { canBulkCreateAccounts, canSetAccountStatus } from "@/lib/authz/admin";
+import {
+  canBulkCreateAccounts,
+  canRemoveUser,
+  canSetAccountStatus,
+} from "@/lib/authz/admin";
 import { db } from "@/lib/db";
+import type { Mailer } from "@/lib/mail";
+import {
+  cancelOpenRequestsWhere,
+  notifyCancelledRequests,
+} from "@/lib/requests/service";
 import {
   BULK_ACCOUNTS_MAX_ROWS,
   type BulkAccountPlan,
@@ -231,5 +240,115 @@ export async function setAccountStatus(
       },
       tx,
     );
+  });
+}
+
+/** Told to the country when a removed investor's open requests are cancelled. */
+export const USER_REMOVED_REASON =
+  "The requester's account was removed from the portal.";
+
+/** The erased address of a removed account: unique, never deliverable, and frees the real address. */
+export function removedEmail(userId: string): string {
+  return `removed-${userId}@removed.invalid`;
+}
+
+/**
+ * Removes an account (23 Nov, Sajid: erase and disable). In one transaction: the person's open meeting requests
+ * are cancelled (slots freed, each audited); their sessions, sign-in credentials, two-factor settings, country
+ * memberships, country contact entries and pending invitations are deleted; the account keeps its row (so the
+ * audit trail, past requests and uploads stay intact) but its name and email are erased, its status is
+ * DEACTIVATED and removedAt is set. The real email address can then be used for a new account. A user.remove
+ * AuditEvent records the change. Afterwards the countries and the Summit mailbox are told of cancelled requests
+ * (not the removed person). Past requests keep the attendee details the investor typed: they are the country's
+ * record of the request.
+ */
+export async function removeUser(
+  viewer: Viewer,
+  userId: string,
+  {
+    meta,
+    now = new Date(),
+    mailer,
+    summitRecipients,
+  }: Options & {
+    now?: Date;
+    mailer?: Mailer;
+    summitRecipients?: string[];
+  } = {},
+): Promise<void> {
+  const cancelled = await db.$transaction(async (tx) => {
+    const target = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        email: true,
+        removedAt: true,
+      },
+    });
+    if (!target || target.removedAt) throw new AdminError("not_found");
+    if (!canRemoveUser(viewer, target)) throw new AdminError("forbidden");
+
+    const requests = await cancelOpenRequestsWhere(
+      tx,
+      { requesterId: userId },
+      viewer.id,
+      USER_REMOVED_REASON,
+      { meta, now },
+    );
+    const sessions = await tx.session.deleteMany({ where: { userId } });
+    await tx.account.deleteMany({ where: { userId } });
+    await tx.twoFactor.deleteMany({ where: { userId } });
+    const memberships = await tx.countryMembership.deleteMany({
+      where: { userId },
+    });
+    const contacts = await tx.countryContact.deleteMany({
+      where: { OR: [{ userId }, { email: target.email.toLowerCase() }] },
+    });
+    await tx.invitation.deleteMany({
+      where: { email: target.email, acceptedAt: null },
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        name: "Removed user",
+        email: removedEmail(userId),
+        organisation: null,
+        organisationType: null,
+        jobTitle: null,
+        image: null,
+        status: UserStatus.DEACTIVATED,
+        mustChangePassword: false,
+        emailVerified: false,
+        mfaEnabled: false,
+        removedAt: now,
+      },
+    });
+    await writeAudit(
+      {
+        actorId: viewer.id,
+        action: ADMIN_AUDIT.USER_REMOVE,
+        entityType: "User",
+        entityId: userId,
+        meta,
+        metadata: {
+          role: target.role,
+          previousStatus: target.status,
+          sessionsEnded: sessions.count,
+          membershipsRemoved: memberships.count,
+          contactsRemoved: contacts.count,
+          openRequestsCancelled: requests.length,
+        },
+      },
+      tx,
+    );
+    return requests;
+  });
+  await notifyCancelledRequests(cancelled, USER_REMOVED_REASON, {
+    meta,
+    mailer,
+    summitRecipients,
+    notifyInvestor: false,
   });
 }

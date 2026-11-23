@@ -34,6 +34,7 @@ import {
 } from "./people";
 import {
   canCreateProject,
+  canDeleteProject,
   canEditProject,
   canPublishProject,
   canViewProject,
@@ -309,6 +310,33 @@ describe("projects", () => {
     expect(canPublishProject(null, aDraft)).toBe(false);
   });
 
+  it("lets admins delete any project and country users only their own unpublished ones (23 Nov)", () => {
+    for (const v of everyone) {
+      const admin = admins.includes(v);
+      const ownA = v === focalA || v === memberA;
+      for (const p of [aDraft, aWithdrawn]) {
+        expect(canDeleteProject(v, p), v.id).toBe(admin || ownA);
+      }
+      // Published: the Summit team only.
+      expect(canDeleteProject(v, aPub), v.id).toBe(admin);
+      // Another country's projects: never for a country user, whatever the status.
+      for (const p of [bDraft, bPub]) {
+        expect(canDeleteProject(v, p), v.id).toBe(
+          admin || (v === focalB && p === bDraft),
+        );
+      }
+    }
+    // Coordinators, investors (even with a stray membership) and a country user without membership: never.
+    for (const v of [
+      coordA,
+      investorWithStrayMembership,
+      countryWithoutMembership,
+    ]) {
+      expect(canDeleteProject(v, aDraft), v.id).toBe(false);
+    }
+    expect(canDeleteProject(null, aDraft)).toBe(false);
+  });
+
   it("calls an admin's action for a country 'on behalf'", () => {
     expect(actsOnBehalf(summitAdmin, "a")).toBe(true);
     expect(actsOnBehalf(focalA, "a")).toBe(false);
@@ -335,19 +363,22 @@ describe("country workspace", () => {
     expect(workspaceCountryWhere(coordA)).toEqual(NO_COUNTRY);
   });
 
-  it("is read only for country users", () => {
+  it("is read only for country users, apart from deleting their own drafts", () => {
     expect(workspacePermissions(focalA, aDraft)).toEqual({
       edit: false,
       uploadTeaser: false,
       publish: false,
       withdraw: false,
+      delete: true,
       onBehalf: false,
     });
+    expect(workspacePermissions(focalA, aPub).delete).toBe(false);
     expect(workspacePermissions(summitAdmin, aDraft)).toEqual({
       edit: true,
       uploadTeaser: true,
       publish: true,
       withdraw: false,
+      delete: true,
       onBehalf: true,
     });
   });

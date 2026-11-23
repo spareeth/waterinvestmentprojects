@@ -55,7 +55,12 @@ describe("PortalHeader tabs", () => {
     ]) {
       expect(screen.getByRole("link", { name })).toBeInTheDocument();
     }
-    expect(tabs()).toContain("Meeting requests");
+    // 23 Nov: requests and the room calendar are one section for the Summit team.
+    expect(tabs()).toContain("Meeting calendar");
+    expect(tabs()).not.toContain("Meeting requests");
+    expect(
+      screen.getByRole("link", { name: "Meeting calendar" }),
+    ).toHaveAttribute("href", "/admin/meetings");
   });
 
   it("gives a country focal point My projects and the request inbox, but no admin tabs", () => {

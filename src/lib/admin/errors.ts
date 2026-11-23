@@ -46,6 +46,8 @@ export const ADMIN_AUDIT = {
   ACCOUNTS_BULK_CREATE: "user.bulk_create",
   USER_DEACTIVATE: "user.deactivate",
   USER_REACTIVATE: "user.reactivate",
+  /** 23 Nov: an account removed (name and email erased, sign-in impossible). */
+  USER_REMOVE: "user.remove",
 } as const;
 
 export type ExportKind =

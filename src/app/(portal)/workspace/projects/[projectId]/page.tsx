@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { Notice } from "@/components/workspace/form-controls";
+import { DeleteProjectForm } from "@/components/workspace/delete-project-form";
 import { ProjectForm } from "@/components/workspace/project-form";
 import {
   DownloadForm,
@@ -49,7 +50,8 @@ export default async function WorkspaceProjectPage({
     meta: requestMetaFrom(await headers()),
   });
   if (!data) notFound();
-  const { project, teasers, currentTeaser, permissions } = data;
+  const { project, teasers, currentTeaser, permissions, meetingRequestCount } =
+    data;
   const countryName = project.country.name;
   const ackText = workspaceUploadAcknowledgement(permissions.onBehalf).text;
   const cleanCurrent =
@@ -246,6 +248,30 @@ export default async function WorkspaceProjectPage({
                 </>
               )}
             </section>
+
+            {permissions.delete ? (
+              <section
+                aria-labelledby="delete-heading"
+                className="rounded-xl border border-destructive/30 bg-card p-6 sm:p-8"
+              >
+                <h2
+                  id="delete-heading"
+                  className="mb-3 text-lg font-semibold text-destructive"
+                >
+                  Delete project
+                </h2>
+                <DeleteProjectForm
+                  projectId={project.id}
+                  title={project.title}
+                  hasRequests={meetingRequestCount > 0}
+                />
+              </section>
+            ) : published && !permissions.withdraw ? (
+              <Notice tone="info">
+                To delete a project that is in the pipeline, contact the Summit
+                team.
+              </Notice>
+            ) : null}
           </aside>
         </div>
       </main>

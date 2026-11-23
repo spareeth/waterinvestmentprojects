@@ -68,6 +68,17 @@ export function canSetAccountStatus(
   return assignableRoles(viewer).includes(target.role);
 }
 
+/**
+ * Removing an account (23 Nov, Sajid: erase and disable): the same reach as switching it off. Admins, never their
+ * own account, Summit admins not for platform admins, and not an account that is already removed.
+ */
+export function canRemoveUser(
+  viewer: Viewer | null,
+  target: { id: string; role: UserRole; removedAt: Date | null },
+): boolean {
+  return target.removedAt === null && canSetAccountStatus(viewer, target);
+}
+
 export type AdminExportKind =
   "projects" | "submissions" | "accounts" | "contacts" | "audit" | "country";
 

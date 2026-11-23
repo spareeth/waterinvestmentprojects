@@ -547,6 +547,97 @@ export async function cancelMeetingRequest(
   );
 }
 
+/**
+ * Cancels every open request (awaiting the country or accepted) that matches `where`, inside the caller's
+ * transaction: status CANCELLED, slot freed, one audited meeting_request.cancel each. Used when a project is
+ * deleted or an account removed (23 Nov). The caller has already checked its own permission. Returns the rows
+ * for the emails, to send with notifyCancelledRequests after the commit.
+ */
+export async function cancelOpenRequestsWhere(
+  tx: Prisma.TransactionClient,
+  where: { projectId: string } | { requesterId: string },
+  actorId: string,
+  reason: string,
+  { meta, now = new Date() }: Pick<RequestOptions, "meta" | "now"> = {},
+): Promise<{ row: MailRow; wasAccepted: boolean }[]> {
+  const open = await tx.meetingRequest.findMany({
+    where: { ...where, status: { in: OPEN_STATUSES } },
+    select: { ...MAIL_SELECT, status: true },
+  });
+  const cancelled: { row: MailRow; wasAccepted: boolean }[] = [];
+  for (const { status, ...row } of open) {
+    const { count } = await tx.meetingRequest.updateMany({
+      where: { id: row.id, status },
+      data: { status: MeetingRequestStatus.CANCELLED, updatedAt: now },
+    });
+    if (count !== 1) continue;
+    await releaseSlot(tx, row.id);
+    await writeAudit(
+      {
+        actorId,
+        action: REQUEST_AUDIT.CANCEL,
+        entityType: "MeetingRequest",
+        entityId: row.id,
+        meta,
+        metadata: {
+          countryId: row.project.countryId,
+          previousStatus: status,
+          reason,
+        },
+      },
+      tx,
+    );
+    cancelled.push({
+      row,
+      wasAccepted: status === MeetingRequestStatus.ACCEPTED,
+    });
+  }
+  return cancelled;
+}
+
+/** The emails for requests cancelled by cancelOpenRequestsWhere. Never throws (src/lib/mail). */
+export async function notifyCancelledRequests(
+  cancelled: { row: MailRow; wasAccepted: boolean }[],
+  reason: string,
+  {
+    notifyInvestor = true,
+    ...options
+  }: RequestOptions & { notifyInvestor?: boolean } = {},
+): Promise<void> {
+  for (const { row, wasAccepted } of cancelled) {
+    const facts = mailFacts(row);
+    const target = {
+      entityType: "MeetingRequest",
+      entityId: row.id,
+      meta: options.meta,
+      mailer: options.mailer,
+    };
+    if (notifyInvestor) {
+      await sendMail(
+        "meeting_request.cancelled_investor",
+        {
+          to: [facts.investorEmail],
+          ...investorCancelledEmail(facts, wasAccepted, reason),
+        },
+        target,
+      );
+    }
+    const { to, cc } = await countryRecipients(row.project.countryId);
+    if (to.length > 0) {
+      await sendMail(
+        "meeting_request.cancelled_country",
+        { to, cc, ...countryCancelledEmail(facts, wasAccepted, reason) },
+        target,
+      );
+    }
+    await notifySummitTeam(
+      "meeting_request.summit_change",
+      summitRequestChangeNotice(facts, "cancelled_by_summit", reason),
+      { ...target, recipients: options.summitRecipients },
+    );
+  }
+}
+
 const MINE_SELECT = {
   id: true,
   organisation: true,

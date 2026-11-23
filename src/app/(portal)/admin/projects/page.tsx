@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProjectTable } from "@/components/admin/project-table";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/workspace/form-controls";
+import { Notice, Select } from "@/components/workspace/form-controls";
 import { CountryStatus, ProjectStatus } from "@/generated/prisma/enums";
 import { requirePortalUser } from "@/lib/authz";
 import { canUseAdminConsole } from "@/lib/authz/admin";
@@ -57,8 +57,11 @@ export default async function AdminProjectsPage({
       viewer={viewer}
       current="/admin/projects"
       title="Projects"
-      intro="All projects of all countries. Fill in PPP model, size and development stage (here through Edit, or many at once by CSV import), then publish. A project can be published once its teaser has passed the virus check."
+      intro="All projects of all countries. Fill in PPP model, size and development stage (here through Edit, or many at once by CSV import), then publish. A project can be published once its teaser has passed the virus check. To delete a project, open it with Edit."
     >
+      {first(params.deleted) === "1" ? (
+        <Notice tone="success">Project deleted.</Notice>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <form method="get" className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">

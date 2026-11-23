@@ -12,6 +12,7 @@ import {
   actsOnBehalf,
   auditAccess,
   canCreateProject,
+  canDeleteProject,
   canEditProject,
   canPublishProject,
   canUploadDocument,
@@ -25,6 +26,11 @@ import {
 } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import type { Mailer } from "@/lib/mail";
+import {
+  cancelOpenRequestsWhere,
+  notifyCancelledRequests,
+} from "@/lib/requests/service";
 import { type BlobStore, getBlobStore, teaserBlobKey } from "@/lib/storage";
 import { initialScan, type ScanMode } from "@/lib/storage/scan";
 import { requestScanSweep } from "@/lib/storage/scanner";
@@ -56,6 +62,8 @@ export const WORKSPACE_AUDIT = {
   PROJECT_UPDATE: "project.update",
   PROJECT_PUBLISH: "project.publish",
   PROJECT_WITHDRAW: "project.withdraw",
+  /** 23 Nov: a project deleted for good, with its teaser files and meeting requests. */
+  PROJECT_DELETE: "project.delete",
   DOCUMENT_UPLOAD: "document.upload",
   DOCUMENT_SCAN: "document.scan",
   DOCUMENT_UPDATE: "document.update",
@@ -167,13 +175,18 @@ export async function getWorkspaceProject(
   });
   const current = teasers.find((t) => t.supersededById === null) ?? null;
   const blocker = await publishBlocker(viewer, projectId);
+  const permissions = workspacePermissions(viewer, project);
   return {
     project,
     teasers,
     currentTeaser: current,
-    permissions: workspacePermissions(viewer, project),
+    permissions,
     /** Why publishing would fail right now, or null. */
     publishBlocker: blocker,
+    /** For the delete warning (23 Nov): only counted for someone who may delete. */
+    meetingRequestCount: permissions.delete
+      ? await db.meetingRequest.count({ where: { projectId } })
+      : 0,
   };
 }
 
@@ -651,6 +664,111 @@ export async function withdrawProject(
       tx,
     );
   });
+}
+
+/** Told to the investor and the country when a project with open requests is deleted. */
+export const PROJECT_DELETED_REASON =
+  "The project was removed from the Water Investment Summit portal.";
+
+/**
+ * Deletes a project for good (23 Nov, Sajid): admins any project, country users their own country's projects
+ * that are not published (canDeleteProject). In one transaction: open meeting requests are cancelled (slot freed,
+ * each audited), then the project's requests, teaser documents and the project itself are deleted, and a
+ * project.delete AuditEvent keeps what was removed. The submissions stay: they are the record of the consent
+ * given. After the commit the teaser files are deleted from storage and the cancelled requests are emailed.
+ */
+export async function deleteProject(
+  viewer: Viewer,
+  projectId: string,
+  {
+    meta,
+    store,
+    mailer,
+    summitRecipients,
+  }: WorkspaceOptions & { mailer?: Mailer; summitRecipients?: string[] } = {},
+): Promise<{ countryId: string; title: string }> {
+  const result = await db.$transaction(async (tx) => {
+    const project = await findWorkspaceProjectFor(viewer, projectId, {
+      client: tx,
+    });
+    if (!project) throw new WorkspaceError("not_found");
+    if (!canDeleteProject(viewer, project)) {
+      throw new WorkspaceError(
+        project.status === ProjectStatus.PUBLISHED
+          ? "delete_published"
+          : "forbidden",
+      );
+    }
+    const details = await tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { title: true, status: true, submissionId: true },
+    });
+    const cancelled = await cancelOpenRequestsWhere(
+      tx,
+      { projectId },
+      viewer.id,
+      PROJECT_DELETED_REASON,
+      { meta },
+    );
+    const requests = await tx.meetingRequest.deleteMany({
+      where: { projectId },
+    });
+    const documents = await tx.document.findMany({
+      where: { projectId },
+      select: { id: true, blobKey: true },
+    });
+    await tx.document.updateMany({
+      where: { projectId },
+      data: { supersededById: null },
+    });
+    await tx.document.deleteMany({ where: { projectId } });
+    const { count } = await tx.project.deleteMany({
+      where: { id: projectId, status: details.status },
+    });
+    if (count !== 1) throw new WorkspaceError("conflict");
+    await writeAudit(
+      {
+        actorId: viewer.id,
+        action: WORKSPACE_AUDIT.PROJECT_DELETE,
+        entityType: "Project",
+        entityId: projectId,
+        meta,
+        metadata: {
+          title: details.title,
+          countryId: project.countryId,
+          status: details.status,
+          submissionId: details.submissionId,
+          documentsDeleted: documents.length,
+          meetingRequestsDeleted: requests.count,
+          openRequestsCancelled: cancelled.length,
+          onBehalf: actsOnBehalf(viewer, project.countryId),
+        },
+      },
+      tx,
+    );
+    return {
+      countryId: project.countryId,
+      title: details.title,
+      blobKeys: documents.map((d) => d.blobKey),
+      cancelled,
+    };
+  });
+
+  // Files after the commit: a failure leaves an orphan file (never public), not a broken project.
+  const blobs = store ?? getBlobStore();
+  for (const key of result.blobKeys) {
+    try {
+      await blobs.delete(key);
+    } catch (error) {
+      console.error(`[workspace] Could not delete the file ${key}:`, error);
+    }
+  }
+  await notifyCancelledRequests(result.cancelled, PROJECT_DELETED_REASON, {
+    meta,
+    mailer,
+    summitRecipients,
+  });
+  return { countryId: result.countryId, title: result.title };
 }
 
 /**

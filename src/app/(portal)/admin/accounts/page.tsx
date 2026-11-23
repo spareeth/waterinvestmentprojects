@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   CreateAccountForm,
+  RemoveUserForm,
   ResetPasswordForm,
 } from "@/components/admin/account-forms";
 import { RegistrationDecision } from "@/components/admin/registration-forms";
@@ -163,12 +164,17 @@ export default async function AccountsPage() {
                     </span>
                   ) : null}
                 </div>
-                {account.canReset ? (
-                  <div className="sm:max-w-sm">
-                    <ResetPasswordForm
-                      userId={account.id}
-                      name={account.name}
-                    />
+                {account.canReset || account.canRemove ? (
+                  <div className="flex flex-col gap-2 sm:max-w-sm sm:items-end">
+                    {account.canReset ? (
+                      <ResetPasswordForm
+                        userId={account.id}
+                        name={account.name}
+                      />
+                    ) : null}
+                    {account.canRemove ? (
+                      <RemoveUserForm userId={account.id} name={account.name} />
+                    ) : null}
                   </div>
                 ) : null}
               </li>

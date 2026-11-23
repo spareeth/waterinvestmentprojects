@@ -6,6 +6,9 @@ vi.mock("@/app/(portal)/admin/accounts/actions", () => ({
   createAccountAction: vi.fn(),
   resetPasswordAction: vi.fn(),
 }));
+vi.mock("@/app/(portal)/admin/accounts/status-actions", () => ({
+  removeUserAction: vi.fn(),
+}));
 const createCountryAction = vi.fn();
 vi.mock("@/app/(portal)/admin/countries/actions", () => ({
   createCountryAction: (...args: unknown[]) => createCountryAction(...args),

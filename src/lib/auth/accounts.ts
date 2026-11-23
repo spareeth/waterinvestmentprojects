@@ -13,6 +13,7 @@ import {
   canResetPassword,
 } from "@/lib/authz/account-policies";
 import { mustChooseOwnPassword } from "@/lib/authz/account-gate";
+import { canRemoveUser } from "@/lib/authz/admin";
 import { userWhere } from "@/lib/authz/people";
 import type { Viewer } from "@/lib/authz/viewer";
 import { appConfig } from "@/lib/config";
@@ -346,15 +347,20 @@ export interface AccountSummary {
   countries: { id: string; name: string }[];
   createdAt: Date;
   canReset: boolean;
+  /** 23 Nov: the admin may remove this account (canRemoveUser). */
+  canRemove: boolean;
 }
 
-/** Every account, for the admin accounts page. Empty for anyone who may not manage accounts. */
+/**
+ * Every account that is not removed, for the admin accounts page. Empty for anyone who may not manage accounts.
+ * Removed accounts (23 Nov) stay in the database for the audit trail but are not listed.
+ */
 export async function listAccounts(
   viewer: Viewer | null,
 ): Promise<AccountSummary[]> {
   if (!canManageAccounts(viewer)) return [];
   const users = await db.user.findMany({
-    where: userWhere(viewer),
+    where: { AND: [userWhere(viewer), { removedAt: null }] },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
       id: true,
@@ -376,6 +382,7 @@ export async function listAccounts(
     ...user,
     countries: memberships.map((m) => m.country),
     canReset: canResetPassword(viewer, user),
+    canRemove: canRemoveUser(viewer, { ...user, removedAt: null }),
   }));
 }
 

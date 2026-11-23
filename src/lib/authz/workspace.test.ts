@@ -44,6 +44,7 @@ const NONE = {
   uploadTeaser: false,
   publish: false,
   withdraw: false,
+  delete: false,
   onBehalf: false,
 };
 
@@ -80,10 +81,13 @@ describe("workspace access", () => {
 });
 
 describe("workspace permissions", () => {
-  it("country users only read their projects, whatever the status or membership role", () => {
+  it("country users only read their projects, and may delete their own unpublished ones (23 Nov)", () => {
     for (const v of [focalA, memberA]) {
       for (const status of Object.values(ProjectStatus)) {
-        expect(workspacePermissions(v, project("A", status))).toEqual(NONE);
+        expect(workspacePermissions(v, project("A", status))).toEqual({
+          ...NONE,
+          delete: status !== ProjectStatus.PUBLISHED,
+        });
       }
     }
   });
@@ -96,11 +100,12 @@ describe("workspace permissions", () => {
       uploadTeaser: true,
       publish: true,
       withdraw: false,
+      delete: true,
       onBehalf: true,
     });
     expect(
       workspacePermissions(platform, project("A", ProjectStatus.PUBLISHED)),
-    ).toMatchObject({ publish: false, withdraw: true });
+    ).toMatchObject({ publish: false, withdraw: true, delete: true });
   });
 
   it("gives no rights to anyone else", () => {
