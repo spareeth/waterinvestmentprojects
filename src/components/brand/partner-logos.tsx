@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 
 /**
  * Partner marks from config (`appConfig.partners`), drawn on a dark background (the landing hero and footer).
- * One treatment for every mark (22 Nov styling pass): white artwork at one height; on light pages (upload,
- * teaser) the same marks in a quiet grey (`tone="muted"`). White artwork
- * (`artwork: "light"`) is shown as it is; dark artwork is turned white with a CSS filter, so no tile is needed.
+ * Marks share one height (22 Nov styling pass, a size larger on 23 Nov). On the dark hero and footer, white artwork
+ * (`artwork: "light"`) is shown as it is and dark artwork is turned white with a CSS filter, so no tile is needed;
+ * on light pages (upload, teaser) they are a quiet grey (`tone="muted"`). A colour mark (`onDarkSrc`, 23 Nov: WBG
+ * and Water Forward) keeps its colours everywhere: its on-dark version on dark backgrounds, its original on light. A `tall` mark gets a larger height.
  * A partner without a logo file is left out until the file is added (config keeps its place in the order).
  * The name is the logo's alt text. Logos are served as they are (`unoptimized`), so SVG files work too.
  */
@@ -30,30 +31,44 @@ export function PartnerLogos({
       aria-label="Partners"
       className={cn("flex flex-wrap items-center gap-x-7 gap-y-4", className)}
     >
-      {shown.map((partner) =>
-        partner.logo ? (
+      {shown.map((partner) => {
+        if (!partner.logo) return null;
+        const colour = Boolean(partner.logo.onDarkSrc);
+        const src =
+          colour && tone === "onDark"
+            ? (partner.logo.onDarkSrc as string)
+            : partner.logo.src;
+        return (
           <li key={partner.id} className="flex items-center">
             <Image
-              src={partner.logo.src}
+              src={src}
               width={partner.logo.width}
               height={partner.logo.height}
               alt={partner.name}
               unoptimized
               className={cn(
                 "w-auto object-contain",
-                size === "md"
-                  ? "h-8 max-w-44"
-                  : size === "sm"
-                    ? "h-6 max-w-36"
-                    : "h-5 max-w-28",
-                tone === "muted"
-                  ? "opacity-55 brightness-0"
-                  : partner.logo.artwork === "dark" && "brightness-0 invert",
+                partner.logo.tall
+                  ? size === "md"
+                    ? "h-14 max-w-56"
+                    : size === "sm"
+                      ? "h-11 max-w-44"
+                      : "h-8 max-w-32"
+                  : size === "md"
+                    ? "h-10 max-w-56"
+                    : size === "sm"
+                      ? "h-8 max-w-44"
+                      : "h-6 max-w-32",
+                colour
+                  ? tone === "muted" && "opacity-80"
+                  : tone === "muted"
+                    ? "opacity-55 brightness-0"
+                    : partner.logo.artwork === "dark" && "brightness-0 invert",
               )}
             />
           </li>
-        ) : null,
-      )}
+        );
+      })}
     </ul>
   );
 }

@@ -120,13 +120,24 @@ describe("Landing page", () => {
     expect(
       container.querySelector('[data-placeholder="partner-logo"]'),
     ).toBeNull();
-    // One height for every mark.
-    const heights = new Set(
-      within(list)
-        .getAllByRole("img")
-        .map((img) => img.className.match(/\bh-\d+\b/)?.[0]),
+    // One height for every mark, except a tall mark with a tagline (Water Forward, 23 Nov), which is drawn taller.
+    const heightOf = (img: HTMLElement) =>
+      img.className.match(/\bh-\d+\b/)?.[0];
+    const imgs = within(list).getAllByRole("img");
+    const regular = imgs.filter(
+      (img) => img.getAttribute("alt") !== "Water Forward",
     );
-    expect(heights.size).toBe(1);
+    expect(new Set(regular.map(heightOf)).size).toBe(1);
+    const tall = within(list).getByRole("img", { name: "Water Forward" });
+    expect(Number(heightOf(tall)?.slice(2))).toBeGreaterThan(
+      Number(heightOf(regular[0])?.slice(2)),
+    );
+    // WBG and Water Forward keep their colours: the on-dark versions on the dark hero, without the white filter.
+    for (const name of ["World Bank Group", "Water Forward"]) {
+      const img = within(list).getByRole("img", { name });
+      expect(img.getAttribute("src")).toMatch(/-on-dark\.png$/);
+      expect(img.className).not.toMatch(/brightness-0/);
+    }
     expect(within(list).queryByText(/MoFA/)).toBeNull();
     expect(
       within(hero).getByRole("link", { name: "How access works" }),
