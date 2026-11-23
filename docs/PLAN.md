@@ -1,7 +1,7 @@
 # Water Investment Summit Project Portal: Build Plan
 
 Version 0.4 | 22 November 2026 | Owner: Dr Sajid Pareeth, Terra, Expo City Dubai
-Status: PROPOSED. **Read section 0b first** (20 Nov test run and emails). Previous versions: `docs/PLAN_v0.3.md`, `docs/PLAN_v0.2.md`, `docs/PLAN_v0.1.md`.
+Status: PROPOSED. **Read section 0b first** (20 Nov test run and emails), then **0c** (WBG replies of 23 Nov). Previous versions: `docs/PLAN_v0.3.md`, `docs/PLAN_v0.2.md`, `docs/PLAN_v0.1.md`.
 
 Sources: GCFC note and wireframe (6 Nov); calls on 6, 11 and 12 Nov (`docs/sources/`); email thread
 "Investment Summit -Project Portal!!", in particular Sajid's outline (16 Nov), Dan Vardi (17 Nov), Smita Rawoot (17 Nov),
@@ -137,7 +137,7 @@ verify them, do not rebuild.
     requests). Create individual accounts where the list names people. WBG staff who only monitor stay
     `WBG_COORDINATOR` (read and export only).
 13. Sajid sends Jacob the country links and the list of roles (admin, WBG contact, country contact, investor); Jacob
-    returns the people per role. Nothing received yet (22 Nov).
+    returns the people per role. Received 23 Nov: see 0c.
 14. **Country users now see the whole published pipeline** ("Pipeline projects": all countries' published teasers,
     read-only), plus **My projects** (own country, any status) and **Meeting requests**. This replaces the M3 rule
     "country users see only their own countries' projects". Update `src/lib/authz` and its isolation tests:
@@ -195,7 +195,8 @@ verify them, do not rebuild.
 **Timeline (updated)**
 30. Sat 21 Nov: country links and role list to Jacob (promised in the meeting; **not yet sent as of 22 Nov**).
     Mon 23 Nov (Asia morning): Jacob sends links to countries. **Mon 23 Nov, 17:30 to 18:00 UAE:** check-in call
-    (Ben to send invite). **Tue 24 Nov:** all teasers in the system, portal shared with the wider audience. 24 Nov to
+    (Ben to send invite). **Tue 24 Nov:** all teasers in the system, portal shared with the wider audience (investor link
+    now likely Wed 25 Nov, see 0c.9). 24 Nov to
     about 1 Dec: investors review and request meetings. 30 Nov to 4 Dec: matchmaking and slots. Summit 9 Dec (time
     given as 15:30 to 18:30 earlier and as 15:30 to 17:00 in a 20 Nov email; to confirm).
 
@@ -203,6 +204,65 @@ verify them, do not rebuild.
 31. Hosting stays on Terra's Hetzner server in Germany (0a.1). `docs/DEPLOYMENT.md` says the 16 Nov email told the
     group the data location; the email as sent did not mention hosting. Data location has not been stated to WBG or
     the countries since Benjamin raised jurisdiction concerns on 6 Nov. Sajid to decide whether to state it.
+
+### 0c. WBG replies of 23 Nov (these override 0b where they differ)
+
+Source: Jacob Kim, "RE: Water Investment Portal test run" (23 Nov, 06:26 UTC), answering Sajid's request of 22 Nov
+(people per role, pre-approved list, registration approver, investor texts). **The names, email addresses and company
+list stay in that email.** Enter them on production through the admin console only; do not commit them to the repo
+or load them on local or staging (the "no real country data" rule stands).
+
+**People per country (answers 0b.13)**
+1. Ten rows, "to the extent available at this time; the Lead WB person is fixed": Angola, DRC, Egypt, Jordan, Morocco,
+   Pakistan (Kasur), Pakistan (Chakwal), Saint Lucia, Sierra Leone, Tanzania. Each row names a government contact and
+   a **lead WBG contact** (name and email).
+2. Gaps to chase with Jacob:
+   - no government contact yet for **Sierra Leone** and **Tanzania**;
+   - no government email for **Jordan** and **Morocco**;
+   - **Azerbaijan** and **Sri Lanka** (in the 20 Nov dev list, 0b.8) are not in the table: ask whether they still take
+     part.
+3. Accounts on production, following 0b.11 and 0b.12:
+   - the government contact gets a `COUNTRY` account on their country;
+   - the lead WBG contact also gets a `COUNTRY` account on that country (a relationship manager who acts for the
+     country and may decide requests, as asked in Sajid's email). Where no government contact exists yet, the lead
+     WBG contact covers the country alone;
+   - passwords are handed over personally (0b.26).
+4. **Pakistan has two sub-national entries** (Kasur and Chakwal), each with its own government contact and the same
+   lead WBG contact. Proposed: one country "Pakistan" with both focal points, and the place in the project's Region
+   field. Both focal points then see each other's projects and requests. Separate entries ("Pakistan (Kasur)" and
+   "Pakistan (Chakwal)") would keep them apart. **Sajid to decide.**
+5. Both Pakistan government contacts use personal webmail addresses. This is acceptable for admin-created `COUNTRY`
+   accounts (the public-domain rule in 0b.18 applies to investor self-registration only), but confirm with Jacob that
+   these are the addresses to use.
+
+**Pre-approved investors and operators (answers 0b.18)**
+6. **23 organisations** with their website domains, no named people yet. Jacob: "not complete and will be updated".
+   - Enter them under Admin, Pre-approved organisations and people.
+   - A website domain is not always the email domain (for example a group brand and its operating company). Check
+     each one, and add the right email domain when a registration from that organisation lands in the pending queue.
+   - With `REGISTRATION_AUTO_APPROVE` off (the default, since email ownership is not verified), a match only marks
+     the registrant as pre-approved for the approver; it does not give immediate access. Sajid to decide whether to
+     switch it on.
+   - No named contacts, so no logins are pre-created.
+
+**Registration approvers (answers 0b.19 and 0b.29)**
+7. **Jacob Kim, Dan Vardi and Jason Lee** (WBG) approve new investor registrations.
+   - Only admins can approve today (`canManagePreApproval`, `canManageAccounts`). Give each of them an individual
+     Summit admin account, so every approval is attributable in the audit log.
+   - New registrations keep notifying the Summit mailbox, and Sajid forwards them until external email passes the
+     deliverability check (0b.26).
+
+**Investor texts and timeline**
+8. The investor consent and acknowledgement texts are **not received yet**. Jacob is chasing the WBG team on Mon 23
+   Nov; the texts are needed only before investors get the link. Until then, the current investor acknowledgement
+   stays the working text.
+9. **Investor link: now likely Wed 25 Nov** (was Tue 24 Nov in 0b.30). Country links are unaffected.
+
+**Logos**
+10. Jacob attached the **World Bank Group logo** and a **Water Forward logo**.
+    - Replace `public/partners/world-bank-group.png` with the WBG file if it differs.
+    - Water Forward is not in the agreed partner set (0b.27). **Sajid to decide** whether and where to show it.
+    - The rooms (Smita's part of the 22 Nov email) were settled separately (0b.24).
 
 ---
 
