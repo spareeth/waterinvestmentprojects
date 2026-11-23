@@ -101,7 +101,7 @@ describe("Landing page", () => {
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
   });
 
-  it("shows the partner logos in the hero in the agreed order, in one treatment, and again in the dark footer", async () => {
+  it("shows the partner logos in the hero in the agreed order, in one treatment, and not in the dark footer", async () => {
     const { container } = await renderLanding();
     const hero = screen.getByRole("region", {
       name: /A pipeline of water project opportunities/,
@@ -148,10 +148,10 @@ describe("Landing page", () => {
     expect(
       within(hero).getByRole("link", { name: "How access works" }),
     ).toBeInTheDocument();
-    // The footer is a dark band with the logos, the contact and the copyright.
+    // The footer is a dark band with the contact and the copyright; the logos are only in the hero (23 Nov).
     const footer = container.querySelector("footer");
     expect(footer).toHaveTextContent("© 2026 Terra, Expo City Dubai");
-    expect(footer?.querySelector('[aria-label="Partners"]')).not.toBeNull();
+    expect(footer?.querySelector('[aria-label="Partners"]')).toBeNull();
     expect(footer?.className).toContain("bg-brand-navy");
     expect(container).not.toHaveTextContent(/developed by/i);
   });

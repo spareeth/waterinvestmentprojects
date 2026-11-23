@@ -181,19 +181,10 @@ export function LandingPage({
           </div>
         </section>
 
-        {/* Dark band like the header (22 Nov styling pass): partner logos, contact and copyright. */}
+        {/* Dark band like the header (22 Nov styling pass): contact and copyright. The partner logos are only in
+            the hero (23 Nov). */}
         <footer className="mt-auto bg-brand-navy text-white">
-          <div className="mx-auto grid w-full max-w-page gap-8 px-4 py-10 sm:px-8 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:items-start">
-            {appConfig.partners.some((p) => p.logo) ? (
-              <div className="flex flex-col gap-3">
-                <span className="text-xs font-medium tracking-wide text-white/80 uppercase">
-                  In partnership with
-                </span>
-                <PartnerLogos partners={appConfig.partners} size="sm" />
-              </div>
-            ) : (
-              <div />
-            )}
+          <div className="mx-auto w-full max-w-page px-4 py-10 sm:px-8">
             {supportEmail ? (
               <section
                 id="contact"
