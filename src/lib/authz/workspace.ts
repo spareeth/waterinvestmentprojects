@@ -66,7 +66,7 @@ export interface WorkspacePermissions {
 export function workspacePermissions(
   viewer: Viewer | null,
   project: Pick<ProjectRef, "countryId" | "status">,
-  /** 23 Nov: the viewer uploaded this project (isProjectUploader), so may edit its key facts while unpublished. */
+  /** 23 Nov: the viewer uploaded this project (isProjectUploader): may edit and delete it while unpublished. */
   isUploader = false,
 ): WorkspacePermissions {
   return {
@@ -74,7 +74,7 @@ export function workspacePermissions(
     uploadTeaser: canUploadDocument(viewer),
     publish: canPublishProject(viewer, project),
     withdraw: canWithdrawProject(viewer, project),
-    delete: canDeleteProject(viewer, project),
+    delete: canDeleteProject(viewer, project, isUploader),
     onBehalf: actsOnBehalf(viewer, project.countryId),
   };
 }

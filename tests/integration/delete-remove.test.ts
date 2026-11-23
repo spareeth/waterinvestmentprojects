@@ -1,5 +1,5 @@
 // 23 Nov, against real PostgreSQL: deleting a project and removing an account.
-// - Projects: admins delete any project, country users only their own country's unpublished projects. A delete
+// - Projects: admins delete any project, the uploader only their own unpublished project. A delete
 //   removes the project, its teaser documents and files and its meeting requests (open ones are cancelled first,
 //   slots freed, everyone told), keeps the consent submission, and is audited. Other countries, coordinators and
 //   investors are refused, and nothing changes for them.
@@ -33,6 +33,7 @@ import {
   type RequestOptions,
 } from "@/lib/requests/service";
 import { LocalBlobStore } from "@/lib/storage";
+import { submitWorkspaceTeasers } from "@/lib/submission/service";
 import type { ProjectInput } from "@/lib/workspace/project-input";
 import {
   createProject,
@@ -209,12 +210,32 @@ afterAll(async () => {
 });
 
 describe("deleting projects", () => {
-  it("lets a country user delete their own draft: project, documents and files go, the consent stays", async () => {
-    const id = await projectWithTeaser("IT delete draft");
+  it("lets the uploader delete their own draft: project, documents and files go, the consent stays", async () => {
+    // memberA uploads the draft from My projects; focalA (same country, not the uploader) may not delete it.
+    const receipt = await submitWorkspaceTeasers(
+      v.memberA,
+      {
+        uploaderName: "Mo Member",
+        uploaderEmail: "mo.member@it.example",
+        uploaderJobTitle: "Engineer",
+        governmentOrganisation: "Ministry of Fictional Water",
+        acknowledged: true,
+        teasers: [{ sector: "Water supply", file: pdf("IT delete draft") }],
+      },
+      { ...opts, mailer: new MemoryMailer() },
+    );
+    const id = receipt.projectIds[0];
+    await db.project.update({
+      where: { id },
+      data: { title: "IT delete draft" },
+    });
     const submissionId = (
       await db.document.findFirstOrThrow({ where: { projectId: id } })
     ).submissionId;
     const blobsBefore = await blobCount();
+
+    expect(await refusal(deleteProject(v.focalA, id, opts))).toBe("forbidden");
+    expect(await db.project.findUnique({ where: { id } })).not.toBeNull();
 
     await deleteProject(v.memberA, id, opts);
 

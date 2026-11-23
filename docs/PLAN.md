@@ -293,9 +293,9 @@ or load them on local or staging (the "no real country data" rule stands).
     Bartle (GCFC), sign-in URLs and the pre-approved list. Built on the server by the deploy session from production
     data; it holds passwords, so it is never committed and is shared only with the people named.
 13. **Delete project and remove user** (Sajid, 23 Nov):
-    - **Delete project** on the project page. Admins: any project. Country users (not WBG coordinators): their own
-      country's projects that are not published (drafts and withdrawn ones); a published one is deleted by the
-      Summit team. The project, its teaser documents and files and its meeting requests go for good; open requests
+    - **Delete project** on the project page. Admins: any project. Otherwise only the person who uploaded it
+      (same rule as editing key facts, 0c.15; Sajid, 23 Nov), while it is not published (drafts and withdrawn
+      ones); a published one is deleted by the Summit team. The project, its teaser documents and files and its meeting requests go for good; open requests
       are cancelled first (slot freed, investor, country and Summit mailbox emailed). The consent submission stays.
       Audited as `project.delete` (`canDeleteProject` in `src/lib/authz/projects.ts`).
     - **Remove user** on Admin, Accounts (erase and disable). Admins only, never their own account, Summit admins

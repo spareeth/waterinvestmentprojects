@@ -699,7 +699,8 @@ export async function deleteProject(
       client: tx,
     });
     if (!project) throw new WorkspaceError("not_found");
-    if (!canDeleteProject(viewer, project)) {
+    const uploader = await isProjectUploader(viewer, projectId, { client: tx });
+    if (!canDeleteProject(viewer, project, uploader)) {
       throw new WorkspaceError(
         project.status === ProjectStatus.PUBLISHED
           ? "delete_published"

@@ -190,8 +190,8 @@ describe("country workspace", () => {
         uploadTeaser: false,
         publish: false,
         withdraw: false,
-        // 23 Nov: a country user may delete their own country's draft.
-        delete: true,
+        // 23 Nov: only the uploader may delete (here an admin uploaded the draft).
+        delete: false,
         onBehalf: false,
       });
     }

@@ -81,12 +81,15 @@ describe("workspace access", () => {
 });
 
 describe("workspace permissions", () => {
-  it("country users only read their projects, and may delete their own unpublished ones (23 Nov)", () => {
+  it("country users only read their projects; the uploader edits and deletes it while unpublished (23 Nov)", () => {
     for (const v of [focalA, memberA]) {
       for (const status of Object.values(ProjectStatus)) {
-        expect(workspacePermissions(v, project("A", status))).toEqual({
+        expect(workspacePermissions(v, project("A", status))).toEqual(NONE);
+        const unpublished = status !== ProjectStatus.PUBLISHED;
+        expect(workspacePermissions(v, project("A", status), true)).toEqual({
           ...NONE,
-          delete: status !== ProjectStatus.PUBLISHED,
+          edit: unpublished,
+          delete: unpublished,
         });
       }
     }

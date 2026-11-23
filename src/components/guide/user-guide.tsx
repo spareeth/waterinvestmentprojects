@@ -286,10 +286,10 @@ export function UserGuide() {
             sector, region, PPP model, size, stage) on its page until it is
             published; use <strong>Fill from teaser</strong> to read them from
             the file again. After that, or for projects others uploaded, contact
-            the Summit team. A project that is not yet published (or was taken
-            out of the pipeline) can be deleted with{" "}
-            <strong>Delete project</strong> on its page; ask the Summit team to
-            delete a published one.
+            the Summit team. Until it is published (or after it was taken out of
+            the pipeline), the person who uploaded a project can also delete it
+            with <strong>Delete project</strong> on its page; ask the Summit
+            team to delete a published one.
           </li>
           <li>
             <strong>Meeting requests</strong> lists the requests from investors
@@ -408,8 +408,9 @@ export function UserGuide() {
             version on the project page, then publish. Investors only ever see
             PDFs. <strong>Delete project</strong> at the bottom of a project
             page removes it for good, with its teaser files and meeting
-            requests; open requests are cancelled and everyone is told. Country
-            users can delete their own projects that are not published.
+            requests; open requests are cancelled and everyone is told. The
+            person who uploaded a project can delete it too, until it is
+            published.
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV

@@ -331,20 +331,22 @@ describe("projects", () => {
     expect(canPublishProject(null, aDraft)).toBe(false);
   });
 
-  it("lets admins delete any project and country users only their own unpublished ones (23 Nov)", () => {
+  it("lets admins delete any project and the uploader only their own unpublished one (23 Nov)", () => {
     for (const v of everyone) {
       const admin = admins.includes(v);
-      const ownA = v === focalA || v === memberA;
-      for (const p of [aDraft, aWithdrawn]) {
-        expect(canDeleteProject(v, p), v.id).toBe(admin || ownA);
-      }
-      // Published: the Summit team only.
-      expect(canDeleteProject(v, aPub), v.id).toBe(admin);
-      // Another country's projects: never for a country user, whatever the status.
-      for (const p of [bDraft, bPub]) {
-        expect(canDeleteProject(v, p), v.id).toBe(
-          admin || (v === focalB && p === bDraft),
-        );
+      for (const uploader of [false, true]) {
+        const ownA = (v === focalA || v === memberA) && uploader;
+        for (const p of [aDraft, aWithdrawn]) {
+          expect(canDeleteProject(v, p, uploader), v.id).toBe(admin || ownA);
+        }
+        // Published: the Summit team only.
+        expect(canDeleteProject(v, aPub, uploader), v.id).toBe(admin);
+        // Another country's projects: never for a country user, whatever the status.
+        for (const p of [bDraft, bPub]) {
+          expect(canDeleteProject(v, p, uploader), v.id).toBe(
+            admin || (v === focalB && p === bDraft && uploader),
+          );
+        }
       }
     }
     // Coordinators, investors (even with a stray membership) and a country user without membership: never.
@@ -353,9 +355,9 @@ describe("projects", () => {
       investorWithStrayMembership,
       countryWithoutMembership,
     ]) {
-      expect(canDeleteProject(v, aDraft), v.id).toBe(false);
+      expect(canDeleteProject(v, aDraft, true), v.id).toBe(false);
     }
-    expect(canDeleteProject(null, aDraft)).toBe(false);
+    expect(canDeleteProject(null, aDraft, true)).toBe(false);
   });
 
   it("calls an admin's action for a country 'on behalf'", () => {
@@ -384,14 +386,18 @@ describe("country workspace", () => {
     expect(workspaceCountryWhere(coordA)).toEqual(NO_COUNTRY);
   });
 
-  it("is read only for country users, apart from deleting their own drafts", () => {
+  it("is read only for country users, apart from editing and deleting the drafts they uploaded", () => {
     expect(workspacePermissions(focalA, aDraft)).toEqual({
       edit: false,
       uploadTeaser: false,
       publish: false,
       withdraw: false,
-      delete: true,
+      delete: false,
       onBehalf: false,
+    });
+    expect(workspacePermissions(focalA, aDraft, true)).toMatchObject({
+      edit: true,
+      delete: true,
     });
     expect(workspacePermissions(focalA, aPub).delete).toBe(false);
     expect(workspacePermissions(summitAdmin, aDraft)).toEqual({
