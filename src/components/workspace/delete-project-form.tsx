@@ -38,9 +38,11 @@ export function DeleteProjectForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
       <p className="text-sm text-muted-foreground">
-        Deleting removes the project, its teaser files
-        {hasRequests ? " and its meeting requests" : ""} for good. This cannot
-        be undone.
+        Deleting removes the project
+        {hasRequests
+          ? ", its teaser files and its meeting requests"
+          : " and its teaser files"}{" "}
+        for good. This cannot be undone.
         {hasRequests
           ? " Open meeting requests are cancelled first, and the investors, the country and the Summit mailbox are told."
           : ""}{" "}
