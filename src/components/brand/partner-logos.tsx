@@ -3,11 +3,12 @@ import type { PartnerConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 /**
- * Partner marks from config (`appConfig.partners`), drawn on a dark background (the landing hero and footer).
- * Marks share one height (22 Nov styling pass, a size larger on 23 Nov). On the dark hero and footer, white artwork
- * (`artwork: "light"`) is shown as it is and dark artwork is turned white with a CSS filter, so no tile is needed;
- * on light pages (upload, teaser) they are a quiet grey (`tone="muted"`). A colour mark (`onDarkSrc`, 23 Nov: WBG
- * and Water Forward) keeps its colours everywhere: its on-dark version on dark backgrounds, its original on light. A `tall` mark gets a larger height.
+ * Partner marks from config (`appConfig.partners`). Marks share one height (22 Nov styling pass, a size larger on
+ * 23 Nov); a `tall` mark (Water Forward, with icons and a tagline around its name) is drawn taller.
+ * On the dark landing hero and footer (`tone="band"`, 23 Nov, Sajid's choice "one white band") the marks sit on one
+ * white band in their original colours: dark artwork as it is, white artwork (`artwork: "light"`) turned dark.
+ * On light pages (upload, teaser, `tone="muted"`) the marks are a quiet grey, except colour marks (`colour`: WBG
+ * and Water Forward), which keep their original colours.
  * A partner without a logo file is left out until the file is added (config keeps its place in the order).
  * The name is the logo's alt text. Logos are served as they are (`unoptimized`), so SVG files work too.
  */
@@ -15,33 +16,32 @@ export function PartnerLogos({
   partners,
   className,
   size = "md",
-  tone = "onDark",
+  tone = "band",
 }: {
   partners: readonly PartnerConfig[];
   className?: string;
   /** "md" in the hero, "sm" in the footer, "xs" for the quiet strip on light pages. */
   size?: "md" | "sm" | "xs";
-  /** "onDark": white marks (hero, footer). "muted": quiet grey marks for light pages (upload, teaser). */
-  tone?: "onDark" | "muted";
+  /** "band": original colours on a white band (hero, footer). "muted": quiet marks for light pages (upload, teaser). */
+  tone?: "band" | "muted";
 }) {
   const shown = partners.filter((p) => p.logo);
   if (shown.length === 0) return null;
   return (
     <ul
       aria-label="Partners"
-      className={cn("flex flex-wrap items-center gap-x-7 gap-y-4", className)}
+      className={cn(
+        "flex flex-wrap items-center gap-x-7 gap-y-4",
+        tone === "band" && "w-fit max-w-full rounded-xl bg-white shadow-sm",
+        tone === "band" && (size === "md" ? "px-6 py-4" : "px-5 py-3"),
+        className,
+      )}
     >
-      {shown.map((partner) => {
-        if (!partner.logo) return null;
-        const colour = Boolean(partner.logo.onDarkSrc);
-        const src =
-          colour && tone === "onDark"
-            ? (partner.logo.onDarkSrc as string)
-            : partner.logo.src;
-        return (
+      {shown.map((partner) =>
+        partner.logo ? (
           <li key={partner.id} className="flex items-center">
             <Image
-              src={src}
+              src={partner.logo.src}
               width={partner.logo.width}
               height={partner.logo.height}
               alt={partner.name}
@@ -59,16 +59,16 @@ export function PartnerLogos({
                     : size === "sm"
                       ? "h-8 max-w-44"
                       : "h-6 max-w-32",
-                colour
-                  ? tone === "muted" && "opacity-80"
-                  : tone === "muted"
-                    ? "opacity-55 brightness-0"
-                    : partner.logo.artwork === "dark" && "brightness-0 invert",
+                tone === "band"
+                  ? partner.logo.artwork === "light" && "brightness-0"
+                  : partner.logo.colour
+                    ? "opacity-80"
+                    : "opacity-55 brightness-0",
               )}
             />
           </li>
-        );
-      })}
+        ) : null,
+      )}
     </ul>
   );
 }

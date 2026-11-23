@@ -19,10 +19,10 @@ export const appConfig = {
   /**
    * Partner marks in the landing page hero, "In partnership with" (PLAN v0.4 0b.27: 2026 UN Water Conference,
    * Expo City Dubai / Terra, GCFC, a single World Bank Group mark; no MoFA logo). Order as Sajid set it on
-   * 22 Nov; Water Forward (WBG, sent by Jacob Kim) added after the WBG mark on 23 Nov (PLAN 0c.10). The WBG and Water Forward marks keep their colours
-   * (`onDarkSrc`, 23 Nov). The UN Water
+   * 22 Nov; Water Forward (WBG, sent by Jacob Kim) added after the WBG mark on 23 Nov (PLAN 0c.10). On the hero and footer the marks sit on one white
+   * band in their original colours (23 Nov); WBG and Water Forward (`colour`) also keep them on light pages. The UN Water
    * Conference mark ("2026 UN Water Conference, Abu Dhabi", dark artwork) was supplied by Sajid on 23 Nov. To add a logo, put the file under public/partners/ and set `logo` to its path, pixel size and
-   * artwork ("light" for white artwork, "dark" for dark artwork, which is turned white on the dark hero);
+   * artwork ("light" for white artwork, which is turned dark on the white band; "dark" for dark artwork);
    * until then the page shows a dashed placeholder with the partner's name. Order and entries can change here
    * without touching components.
    */
@@ -65,7 +65,7 @@ export const appConfig = {
         width: 2013,
         height: 395,
         artwork: "dark",
-        onDarkSrc: "/partners/world-bank-group-on-dark.png",
+        colour: true,
       },
     },
     {
@@ -76,7 +76,7 @@ export const appConfig = {
         width: 756,
         height: 240,
         artwork: "dark",
-        onDarkSrc: "/partners/water-forward-on-dark.png",
+        colour: true,
         tall: true,
       },
     },
@@ -120,13 +120,10 @@ export type PartnerConfig = {
     src: string;
     width: number;
     height: number;
-    /** "light": white artwork, shown as it is on the dark hero. "dark": dark artwork, turned white there. */
+    /** "light": white artwork, turned dark on the white band and grey on light pages. "dark": dark artwork, shown as it is. */
     artwork: "light" | "dark";
-    /**
-     * A colour mark kept in its own colours (23 Nov): this transparent version, made for dark backgrounds (the
-     * navy parts white, the teal a little lighter so it reads on the teal hero), is shown on the hero and footer, and `src` in its original colours on light pages.
-     */
-    onDarkSrc?: string;
+    /** A colour mark (WBG, Water Forward): kept in its own colours on light pages, not turned grey. */
+    colour?: boolean;
     /** A mark with icons and a tagline above and below its name (Water Forward) is drawn taller, so the name reads at the size of the others. */
     tall?: boolean;
   };

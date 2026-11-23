@@ -132,12 +132,18 @@ describe("Landing page", () => {
     expect(Number(heightOf(tall)?.slice(2))).toBeGreaterThan(
       Number(heightOf(regular[0])?.slice(2)),
     );
-    // WBG and Water Forward keep their colours: the on-dark versions on the dark hero, without the white filter.
-    for (const name of ["World Bank Group", "Water Forward"]) {
+    // The marks sit on one white band in their original colours (23 Nov): dark artwork unfiltered, white artwork
+    // (Terra, Expo City Dubai) turned dark.
+    expect(list.className).toMatch(/\bbg-white\b/);
+    for (const name of ["World Bank Group", "Water Forward", "GCFC"]) {
       const img = within(list).getByRole("img", { name });
-      expect(img.getAttribute("src")).toMatch(/-on-dark\.png$/);
-      expect(img.className).not.toMatch(/brightness-0/);
+      expect(img.getAttribute("src")).not.toMatch(/on-dark/);
+      expect(img.className).not.toMatch(/brightness-0|invert/);
     }
+    expect(
+      within(list).getByRole("img", { name: "Terra, Expo City Dubai" })
+        .className,
+    ).toMatch(/\bbrightness-0\b/);
     expect(within(list).queryByText(/MoFA/)).toBeNull();
     expect(
       within(hero).getByRole("link", { name: "How access works" }),
