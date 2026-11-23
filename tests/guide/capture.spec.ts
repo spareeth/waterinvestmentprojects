@@ -71,4 +71,10 @@ test("summit admin submissions", async ({ page }) => {
   await signIn(page, "summit.admin@demo.example");
   await page.goto("/admin/submissions");
   await shot(page, "admin-submissions");
+  // The master calendar (23 Nov) on the Summit day: booked and blocked times in the demo data.
+  await page.goto("/admin/meetings?day=2026-12-09");
+  await expect(
+    page.getByRole("heading", { name: "Wednesday 9 December" }),
+  ).toBeVisible();
+  await shot(page, "admin-meetings");
 });

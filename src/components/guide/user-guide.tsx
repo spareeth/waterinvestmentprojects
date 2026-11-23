@@ -28,6 +28,7 @@ export const GUIDE_SCREENSHOTS = [
   "project",
   "my-requests",
   "admin-submissions",
+  "admin-meetings",
 ] as const;
 
 type ScreenshotName = (typeof GUIDE_SCREENSHOTS)[number];
@@ -155,9 +156,11 @@ export function UserGuide() {
             register
           </Link>{" "}
           with their name, work email, organisation, organisation type, job
-          title and a password of their choice; the Summit team checks each
-          registration, and the projects become visible once it is approved. The
-          Summit team can also create an investor account directly.
+          title and a password of their choice. If your organisation is on the
+          Summit&apos;s pre-approved list, access is usually immediate;
+          otherwise the Summit team checks your registration first, and the
+          projects become visible once it is approved. The Summit team can also
+          create an investor account directly.
         </p>
         <ol>
           <li>
@@ -218,10 +221,18 @@ export function UserGuide() {
           </li>
           <li>
             Add your project teasers: up to {MAX_TEASERS_PER_SUBMISSION} at a
-            time. For each one, choose the sector and select the file, up to{" "}
-            {maxFile} each and {maxTotal} in total. PDF is preferred;
-            PowerPoint, Word, Excel and images (JPG, PNG) are also accepted. The
-            Summit team converts other formats to PDF before a teaser is shared.
+            time. For each one, select the file, up to {maxFile} each and{" "}
+            {maxTotal} in total. PDF is preferred; PowerPoint, Word, Excel and
+            images (JPG, PNG) are also accepted. The Summit team converts other
+            formats to PDF before a teaser is shared.
+          </li>
+          <li>
+            The sector is read from the teaser&apos;s subtitle (the part before
+            the dot, as in the WBG template). You can choose it yourself
+            instead; if it cannot be read, for example from an image or a scan,
+            the form asks you to choose it. Other key facts, such as size and
+            development stage, are also read from the teaser and checked by the
+            Summit team.
           </li>
           <li>
             Read the consent statement and tick the box. It confirms, on behalf
@@ -247,6 +258,11 @@ export function UserGuide() {
           The person who uploads becomes your country&apos;s contact for meeting
           requests, unless the Summit team names another focal point.
         </p>
+        <p>
+          With a country account you can also add teasers yourself, without the
+          link: sign in, open <strong>My projects</strong> and select{" "}
+          <strong>Add project</strong>. The form and its checks are the same.
+        </p>
       </Section>
 
       <Section id="focal-points" title="Country focal points: meeting requests">
@@ -263,9 +279,10 @@ export function UserGuide() {
           <li>
             <strong>My projects</strong> lists your country&apos;s projects,
             whether each one is published, and how many meeting requests it has
-            received by type of organisation (declined requests included).
-            Changes to projects are made by the Summit team; contact them if
-            something needs correcting.
+            received by type of organisation (declined requests included).{" "}
+            <strong>Add project</strong> uploads new teasers for your country.
+            The Summit team reviews and publishes them; contact them if an
+            existing project needs correcting.
           </li>
           <li>
             <strong>Meeting requests</strong> lists the requests from investors
@@ -276,7 +293,11 @@ export function UserGuide() {
           <li>
             Select <strong>Accept</strong> or <strong>Decline</strong> for each
             request. Your decision is final and the investor sees it in their
-            list. Accepting books the chosen time and room; declining frees it.
+            list. Accepting books the chosen time and room, and the investor,
+            your country&apos;s contacts and the Summit team receive a
+            confirmation by email; declining frees the time. The Summit team may
+            occasionally cancel a meeting (for example if a room is needed);
+            everyone concerned is told by email.
           </li>
           <li>
             <strong>Download CSV</strong> gives you the list as a spreadsheet,
@@ -317,9 +338,11 @@ export function UserGuide() {
           </li>
           <li>
             <strong>My requests</strong> shows each request and its status:
-            Awaiting reply, Accepted, Declined or Withdrawn. You can withdraw a
-            request that is awaiting a reply or already accepted, for example if
-            you can no longer attend.
+            Awaiting reply, Accepted, Declined, Withdrawn or Cancelled by the
+            Summit team. You can withdraw a request that is awaiting a reply or
+            already accepted, for example if you can no longer attend; you
+            receive an email when a meeting is confirmed, withdrawn or
+            cancelled.
           </li>
         </ol>
         <Screenshot
@@ -371,9 +394,12 @@ export function UserGuide() {
           <li>
             <strong>Projects</strong>: correct titles and sectors, add region,
             PPP model, size and development stage (one by one or by CSV import),
-            then publish. A project marked <strong>Needs PDF</strong> was sent
-            in another format: convert it, upload the PDF as a new version on
-            the project page, then publish. Investors only ever see PDFs.
+            then publish. Key facts are read from each teaser when it arrives;
+            check them, and use <strong>Fill from teaser</strong> on the project
+            page to read them again. A project marked <strong>Needs PDF</strong>{" "}
+            was sent in another format: convert it, upload the PDF as a new
+            version on the project page, then publish. Investors only ever see
+            PDFs.
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV
@@ -388,12 +414,21 @@ export function UserGuide() {
             mailbox is told of every new registration. Under{" "}
             <strong>Pre-approved organisations and people</strong>, keep the
             list from WBG: registrants at a listed email domain, or with a
-            listed address, are marked as pre-approved.
+            listed address, are marked as pre-approved and, when automatic
+            approval is switched on, get access straight away. Check new
+            accounts regularly and deactivate any that should not be there.
           </li>
           <li>
-            <strong>Meeting schedule</strong>: the grid of{" "}
-            {MEETING_SCHEDULE.rooms.join(" and ")}, with the times held for
-            pending requests and the meetings booked.
+            <strong>Meeting calendar</strong>: one day at a time, every
+            30-minute time in {MEETING_SCHEDULE.rooms.join(" and ")}, showing
+            which times are free, blocked, awaiting the country or booked, with
+            the project, the attendee, their organisation and email. Use{" "}
+            <strong>Block these times</strong> (or <strong>Block</strong> on one
+            time) to stop times being offered to investors, for example during
+            the Summit plenary, and <strong>Unblock</strong> to offer them
+            again. <strong>Cancel meeting</strong> cancels a request or a
+            confirmed meeting and frees its time; the investor, the country and
+            the Summit mailbox are told, with your reason if you give one.
           </li>
           <li>
             <strong>Countries and contacts</strong>, <strong>Exports</strong>:
@@ -404,6 +439,10 @@ export function UserGuide() {
         <Screenshot
           name="admin-submissions"
           alt="Teaser submissions in the Admin area, with the virus check of each file"
+        />
+        <Screenshot
+          name="admin-meetings"
+          alt="The meeting calendar: booked, awaiting, blocked and free times by room, with Block and Cancel meeting"
         />
       </Section>
 

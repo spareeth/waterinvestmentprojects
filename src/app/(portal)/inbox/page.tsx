@@ -39,6 +39,7 @@ const STATUS_FILTERS: { value: MeetingRequestStatus | ""; label: string }[] = [
   { value: MeetingRequestStatus.ACCEPTED, label: "Accepted" },
   { value: MeetingRequestStatus.DECLINED, label: "Declined" },
   { value: MeetingRequestStatus.WITHDRAWN, label: "Withdrawn" },
+  { value: MeetingRequestStatus.CANCELLED, label: "Cancelled" },
 ];
 
 function one(value: string | string[] | undefined): string {

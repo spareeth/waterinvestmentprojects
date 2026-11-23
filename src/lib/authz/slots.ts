@@ -101,6 +101,46 @@ export function slotView(
   };
 }
 
+/**
+ * The admin master calendar (23 Nov): every slot with the full booking details, blocking and unblocking free
+ * slots, and cancelling meetings. Summit and platform admins only; countries, coordinators and investors never.
+ */
+export function canManageMeetingSchedule(viewer: Viewer | null): boolean {
+  return isAdminViewer(viewer);
+}
+
+/** Blocking a slot: an admin, and only a free slot (no request holds it). */
+export function canBlockSlot(
+  viewer: Viewer | null,
+  slot: { status: SlotStatus; meetingRequestId: string | null },
+): boolean {
+  return (
+    canManageMeetingSchedule(viewer) &&
+    slot.status === SlotStatus.OPEN &&
+    slot.meetingRequestId === null
+  );
+}
+
+/** Unblocking: an admin, and only a blocked slot. */
+export function canUnblockSlot(
+  viewer: Viewer | null,
+  slot: { status: SlotStatus },
+): boolean {
+  return canManageMeetingSchedule(viewer) && slot.status === SlotStatus.BLOCKED;
+}
+
+/** Cancelling a meeting from the calendar: an admin, while the request is still open (awaiting or accepted). */
+export function canCancelMeetingRequest(
+  viewer: Viewer | null,
+  request: { status: MeetingRequestStatus },
+): boolean {
+  return (
+    canManageMeetingSchedule(viewer) &&
+    (request.status === MeetingRequestStatus.PENDING ||
+      request.status === MeetingRequestStatus.ACCEPTED)
+  );
+}
+
 /** Assigning a slot to an ACCEPTED request: admins, or a user of the owning country. */
 export function canBookSlot(
   viewer: Viewer | null,

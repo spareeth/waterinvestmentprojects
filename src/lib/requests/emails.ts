@@ -208,17 +208,79 @@ export function countryWithdrawnEmail(
   };
 }
 
-/** To the Summit team mailbox: a meeting was confirmed or a request withdrawn. */
+/** "Reason given: ..." when the Summit team gave one. */
+function reasonLines(reason: string): string[] {
+  return reason ? [`Reason given: ${reason}`] : [];
+}
+
+/** To the investor when the Summit team cancels their request or meeting (admin calendar, 23 Nov). */
+export function investorCancelledEmail(
+  facts: RequestMailFacts,
+  wasAccepted: boolean,
+  reason: string,
+): MailContent {
+  return {
+    subject: `${appConfig.name}: your meeting ${wasAccepted ? "" : "request "}was cancelled (${facts.projectTitle})`,
+    text: [
+      `Dear ${facts.investorName},`,
+      "",
+      wasAccepted
+        ? `The Summit team has cancelled your confirmed bilateral meeting about ${facts.projectTitle} (${facts.countryName}).`
+        : `The Summit team has cancelled your request for a bilateral meeting about ${facts.projectTitle} (${facts.countryName}).`,
+      ...(facts.meetingTime ? [`Meeting time: ${facts.meetingTime}.`] : []),
+      ...reasonLines(reason),
+      "",
+      "You can request a meeting on the project again in the portal, choosing another time:",
+      link("/requests"),
+      "",
+      `Reference: ${facts.requestId}`,
+      ...SIGN_OFF,
+    ].join("\n"),
+  };
+}
+
+/** To the country when the Summit team cancels a request or meeting. */
+export function countryCancelledEmail(
+  facts: RequestMailFacts,
+  wasAccepted: boolean,
+  reason: string,
+): MailContent {
+  return {
+    subject: `${appConfig.name}: meeting ${wasAccepted ? "" : "request "}cancelled by the Summit team (${facts.projectTitle})`,
+    text: [
+      "Dear colleague,",
+      "",
+      wasAccepted
+        ? `The Summit team has cancelled the confirmed bilateral meeting with ${facts.investorName} (${facts.organisation}) about ${facts.projectTitle}.`
+        : `The Summit team has cancelled the meeting request from ${facts.investorName} (${facts.organisation}) about ${facts.projectTitle}.`,
+      ...(facts.meetingTime
+        ? [`The meeting time ${facts.meetingTime} is free again.`]
+        : []),
+      ...reasonLines(reason),
+      "",
+      "Your meeting requests are in the portal (sign-in needed):",
+      link("/inbox"),
+      "",
+      `Reference: ${facts.requestId}`,
+      ...SIGN_OFF,
+    ].join("\n"),
+  };
+}
+
+/** To the Summit team mailbox: a meeting was confirmed, withdrawn, or cancelled by the investor or the Summit team. */
 export function summitRequestChangeNotice(
   facts: RequestMailFacts,
-  change: "confirmed" | "withdrawn" | "cancelled",
+  change: "confirmed" | "withdrawn" | "cancelled" | "cancelled_by_summit",
+  reason = "",
 ): MailContent {
   const what =
     change === "confirmed"
       ? "Meeting confirmed"
       : change === "cancelled"
         ? "Confirmed meeting cancelled by the investor"
-        : "Meeting request withdrawn";
+        : change === "cancelled_by_summit"
+          ? "Meeting cancelled by the Summit team"
+          : "Meeting request withdrawn";
   return {
     subject: `${what}: ${facts.projectTitle} (${facts.countryName})`,
     text: [
@@ -227,6 +289,7 @@ export function summitRequestChangeNotice(
       `Project: ${facts.projectTitle} (${facts.countryName})`,
       `Investor: ${facts.investorName} <${facts.investorEmail}>, ${facts.role}, ${facts.organisation}`,
       meetingLine(facts),
+      ...reasonLines(reason),
       "",
       `Reference: ${facts.requestId}`,
     ].join("\n"),

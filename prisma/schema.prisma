@@ -85,6 +85,8 @@ enum MeetingRequestStatus {
   ACCEPTED
   DECLINED
   WITHDRAWN
+  /// 23 Nov (admin meeting calendar): cancelled by the Summit team; the slot is freed and everyone is told.
+  CANCELLED
 }
 
 /// PLAN v0.3 CountryContact.role. FOCAL_POINT: the country's request-inbox contact (by default the upload
@@ -98,6 +100,8 @@ enum SlotStatus {
   OPEN
   HELD
   BOOKED
+  /// 23 Nov (admin meeting calendar): taken out of use by the Summit team; never offered to investors.
+  BLOCKED
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +501,8 @@ model Slot {
   startsAt         DateTime
   endsAt           DateTime
   status           SlotStatus @default(OPEN)
+  /// Why the Summit team blocked this slot (BLOCKED only), shown on the admin calendar.
+  blockedReason    String?
   meetingRequestId String?    @unique
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt

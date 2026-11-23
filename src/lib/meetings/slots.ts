@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { MeetingRequestStatus, SlotStatus } from "@/generated/prisma/enums";
-import { canUseAdminConsole, type Viewer } from "@/lib/authz";
+import { canManageMeetingSchedule, type Viewer } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { RequestError } from "@/lib/requests/errors";
 import {
@@ -23,6 +23,11 @@ import {
 // same slot. Rooms and slots come from MEETING_ROOMS and MEETING_SCHEDULE (src/lib/meetings/schedule.ts).
 
 const SLOT_LOCK = "meeting-slots";
+
+/** Takes the one slot lock for the rest of the transaction (every slot change runs under it). */
+export async function lockSlots(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${SLOT_LOCK}))`;
+}
 
 let ensured: Promise<void> | null = null;
 
@@ -137,7 +142,10 @@ export async function listRoomTimes(
       room.days.push(day);
     }
     let state: RoomSlotState;
-    if (!s.meetingRequestId) {
+    if (s.status === SlotStatus.BLOCKED) {
+      // Blocked by the Summit team (23 Nov): never offered, and the reason is not shown to investors.
+      state = "unavailable";
+    } else if (!s.meetingRequestId) {
       state = busy.has(s.startsAt.getTime()) ? "unavailable" : "free";
     } else if (s.meetingRequest?.requesterId === requesterId) {
       state = "yours";
@@ -168,6 +176,7 @@ export async function listMeetingTimes(
     orderBy: [{ startsAt: "asc" }],
     select: {
       startsAt: true,
+      status: true,
       meetingRequestId: true,
       meetingRequest: {
         select: { requesterId: true, project: { select: { countryId: true } } },
@@ -185,7 +194,7 @@ export async function listMeetingTimes(
       free: false,
       clash: false,
     };
-    if (!s.meetingRequestId) entry.free = true;
+    if (!s.meetingRequestId && s.status === SlotStatus.OPEN) entry.free = true;
     const r = s.meetingRequest;
     if (
       r &&
@@ -240,11 +249,12 @@ export async function holdSlot(
     },
   });
   if (clash > 0) throw new RequestError("slot_taken");
-  // A slot is free when no request holds it (its status then is OPEN; the id is what counts).
+  // A slot is free when no request holds it and the Summit team has not blocked it (status OPEN).
   const free = await tx.slot.findFirst({
     where: {
       startsAt,
       meetingRequestId: null,
+      status: SlotStatus.OPEN,
       ...(room ? { room: { name: currentRoomName(room) } } : {}),
     },
     orderBy: { room: { name: "asc" } },
@@ -252,7 +262,7 @@ export async function holdSlot(
   });
   if (!free) throw new RequestError("slot_taken");
   const { count } = await tx.slot.updateMany({
-    where: { id: free.id, meetingRequestId: null },
+    where: { id: free.id, meetingRequestId: null, status: SlotStatus.OPEN },
     data: { status: SlotStatus.HELD, meetingRequestId: request.id },
   });
   if (count !== 1) throw new RequestError("slot_taken");
@@ -298,16 +308,26 @@ const SCHEDULE_SELECT = {
   startsAt: true,
   endsAt: true,
   status: true,
-  room: { select: { id: true, name: true } },
+  blockedReason: true,
+  room: { select: { id: true, name: true, capacity: true } },
   meetingRequest: {
     select: {
       id: true,
       status: true,
       organisation: true,
+      role: true,
+      note: true,
       contactName: true,
-      requester: { select: { name: true } },
+      contactEmail: true,
+      createdAt: true,
+      decidedAt: true,
+      requester: { select: { name: true, email: true } },
       project: {
-        select: { title: true, country: { select: { name: true } } },
+        select: {
+          id: true,
+          title: true,
+          country: { select: { name: true } },
+        },
       },
     },
   },
@@ -320,7 +340,7 @@ export type ScheduleSlot = Prisma.SlotGetPayload<{
 export interface ScheduleDay {
   key: string;
   label: string;
-  rooms: { id: string; name: string }[];
+  rooms: { id: string; name: string; capacity: number }[];
   rows: {
     startsAt: Date;
     endsAt: Date;
@@ -329,13 +349,18 @@ export interface ScheduleDay {
   }[];
   held: number;
   booked: number;
+  blocked: number;
+  free: number;
 }
 
-/** Admins: every day of the schedule as a grid of start times by room. Empty for anyone else. */
+/**
+ * Admins: the master calendar (23 Nov). Every day of the schedule as a grid of start times by room, with the full
+ * booking details and the blocked slots. Empty for anyone else (canManageMeetingSchedule).
+ */
 export async function getMeetingSchedule(
   viewer: Viewer,
 ): Promise<ScheduleDay[]> {
-  if (!canUseAdminConsole(viewer)) return [];
+  if (!canManageMeetingSchedule(viewer)) return [];
   await ensureSchedule();
   const slots = await db.slot.findMany({
     orderBy: [{ startsAt: "asc" }, { room: { name: "asc" } }],
@@ -356,6 +381,8 @@ export async function getMeetingSchedule(
         rows: [],
         held: 0,
         booked: 0,
+        blocked: 0,
+        free: 0,
       };
       days.set(key, day);
     }
@@ -375,6 +402,8 @@ export async function getMeetingSchedule(
     if (slot.meetingRequest?.status === MeetingRequestStatus.ACCEPTED)
       day.booked++;
     else if (slot.meetingRequest) day.held++;
+    else if (slot.status === SlotStatus.BLOCKED) day.blocked++;
+    else day.free++;
   }
   return [...days.values()];
 }

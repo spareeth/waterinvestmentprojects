@@ -56,7 +56,15 @@ import {
   NO_REQUEST,
   requestInboxWhere,
 } from "./requests";
-import { canBookSlot, type SlotRef, slotView } from "./slots";
+import {
+  canBlockSlot,
+  canBookSlot,
+  canCancelMeetingRequest,
+  canManageMeetingSchedule,
+  canUnblockSlot,
+  type SlotRef,
+  slotView,
+} from "./slots";
 import {
   actsOnBehalf,
   hasPipeline,
@@ -663,6 +671,74 @@ describe("slots", () => {
         status: MeetingRequestStatus.PENDING,
       }),
     ).toBe(false);
+  });
+
+  it("gives the master calendar and its controls to admins only (23 Nov)", () => {
+    for (const v of everyone) {
+      const admin = admins.includes(v);
+      expect(canManageMeetingSchedule(v), v.id).toBe(admin);
+      expect(
+        canBlockSlot(v, { status: SlotStatus.OPEN, meetingRequestId: null }),
+        v.id,
+      ).toBe(admin);
+      expect(canUnblockSlot(v, { status: SlotStatus.BLOCKED }), v.id).toBe(
+        admin,
+      );
+      for (const status of [
+        MeetingRequestStatus.PENDING,
+        MeetingRequestStatus.ACCEPTED,
+      ]) {
+        expect(canCancelMeetingRequest(v, { status }), v.id).toBe(admin);
+      }
+    }
+    expect(canManageMeetingSchedule(null)).toBe(false);
+    expect(canCancelMeetingRequest(null, { status: "PENDING" })).toBe(false);
+  });
+
+  it("blocks only free slots, unblocks only blocked ones and cancels only open requests", () => {
+    expect(
+      canBlockSlot(summitAdmin, {
+        status: SlotStatus.HELD,
+        meetingRequestId: "r",
+      }),
+    ).toBe(false);
+    expect(
+      canBlockSlot(summitAdmin, {
+        status: SlotStatus.BOOKED,
+        meetingRequestId: "r",
+      }),
+    ).toBe(false);
+    expect(
+      canBlockSlot(summitAdmin, {
+        status: SlotStatus.BLOCKED,
+        meetingRequestId: null,
+      }),
+    ).toBe(false);
+    expect(canUnblockSlot(summitAdmin, { status: SlotStatus.OPEN })).toBe(
+      false,
+    );
+    for (const status of [
+      MeetingRequestStatus.DECLINED,
+      MeetingRequestStatus.WITHDRAWN,
+      MeetingRequestStatus.CANCELLED,
+    ]) {
+      expect(canCancelMeetingRequest(platformAdmin, { status })).toBe(false);
+    }
+  });
+
+  it("never shows a blocked slot's reason or state as free to non-admins", () => {
+    const blocked: SlotRef = {
+      id: "s",
+      roomId: "r",
+      startsAt: new Date("2026-12-08T05:00:00Z"),
+      endsAt: new Date("2026-12-08T05:30:00Z"),
+      status: SlotStatus.BLOCKED,
+      meetingRequestId: null,
+      meetingRequest: null,
+    };
+    for (const v of [focalA, coordA, investor]) {
+      expect(slotView(v, blocked)?.status, v.id).toBe(SlotStatus.BOOKED);
+    }
   });
 });
 

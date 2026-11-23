@@ -273,6 +273,26 @@ or load them on local or staging (the "no real country data" rule stands).
       branding with MoFA's approval) still applies before the page is widely shared.
     - The rooms (Smita's part of the 22 Nov email) were settled separately (0b.24).
 
+**Admin master calendar and hand-out (Sajid, 23 Nov)**
+11. **Admin, Meeting calendar** (replaces the read-only Meeting schedule grid), built 23 Nov:
+    - one day at a time, every 30-minute time by room, with totals of booked, awaiting country, blocked and free;
+    - each booking shows the project and country, the attendee, organisation, role and email, the account, when it
+      was requested and accepted, and the note;
+    - **Block** free times, one at a time or as a range of a day (one room or all rooms, optional reason shown only
+      to admins). Investors see blocked times as not available and cannot take them; times a request holds are
+      never blocked (cancel first). **Unblock** offers them again;
+    - **Cancel meeting** cancels a request awaiting the country or a confirmed meeting (new status `CANCELLED`). The
+      slot is freed, and the investor, the country's focal points (coordinators copied) and the Summit mailbox are
+      emailed, with the reason if one is given. The investor may request the project again;
+    - admins only (`canManageMeetingSchedule` in `src/lib/authz/slots.ts`); every block, unblock and cancel is
+      audited (`slot.block`, `slot.unblock`, `meeting_request.cancel`).
+    Data model: `SlotStatus.BLOCKED`, `Slot.blockedReason`, `MeetingRequestStatus.CANCELLED` (additive migration
+    `admin_meeting_calendar`).
+12. **Hand-out workbook for WBG and partners:** country upload links, country logins (government focal points and
+    lead WBG contacts as `COUNTRY` accounts), Summit admin logins for Jacob Kim, Dan Vardi, Jason Lee and Benjamin
+    Bartle (GCFC), sign-in URLs and the pre-approved list. Built on the server by the deploy session from production
+    data; it holds passwords, so it is never committed and is shared only with the people named.
+
 ---
 
 ## 1. Timeline (WBG proposal of 17 Nov, to confirm on the 18 Nov call)
@@ -387,9 +407,11 @@ Document(id, projectId, submissionId, kind[TEASER], filename, version, allowDown
 User(id, email, name, organisation, jobTitle, role[PLATFORM_ADMIN|SUMMIT_ADMIN|COUNTRY|WBG_COORDINATOR|INVESTOR],
      countryIds[], status, investorAckTextVersion?, investorAckAcceptedAt?)
 Invitation(id, email, role, countryId?, tokenHash, expiresAt, acceptedAt, invitedById)
-MeetingRequest(id, projectId, requesterId, organisation, role, note, status[PENDING|ACCEPTED|DECLINED|WITHDRAWN],
-               decidedById, decidedAt, createdAt)
-Room(id, name, capacity) / Slot(id, roomId, startsAt, endsAt, status, meetingRequestId?)   // F9 only
+MeetingRequest(id, projectId, requesterId, organisation, role, note,
+               status[PENDING|ACCEPTED|DECLINED|WITHDRAWN|CANCELLED], decidedById, decidedAt, createdAt)
+               // CANCELLED added 23 Nov: cancelled by the Summit team (0c.11)
+Room(id, name, capacity) / Slot(id, roomId, startsAt, endsAt, status[OPEN|HELD|BOOKED|BLOCKED], blockedReason?,
+               meetingRequestId?)   // F9 only; BLOCKED and blockedReason added 23 Nov (0c.11)
 AuditEvent(id, actorId?, action, entityType, entityId, ip, userAgent, at, metadata)
 ```
 Removed from v0.2: `tier`, `ProjectGrant`, `rank`, `Acknowledgement` per document (replaced by `Submission`),

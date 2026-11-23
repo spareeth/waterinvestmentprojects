@@ -959,7 +959,8 @@ function request(
   };
 }
 
-const { PENDING, ACCEPTED, DECLINED, WITHDRAWN } = MeetingRequestStatus;
+const { PENDING, ACCEPTED, DECLINED, WITHDRAWN, CANCELLED } =
+  MeetingRequestStatus;
 
 export const meetingRequests = [
   request(
@@ -1074,6 +1075,15 @@ export const meetingRequests = [
     gst("2026-11-15T09:00"),
     "Could you share the hydrology summary?",
   ),
+  // 23 Nov: cancelled by the Summit team from the admin calendar (the slot was freed).
+  request(
+    "12",
+    "seed-project-d1",
+    "seed-user-investor-2",
+    CANCELLED,
+    gst("2026-11-15T15:00"),
+    "Could we meet the utility's finance director?",
+  ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -1119,6 +1129,22 @@ const slotAssignments: Record<
   },
 };
 
+/** 23 Nov: times the Summit team blocked on the admin calendar, in every room (demo data). */
+const SEED_BLOCK = {
+  date: "2026-12-09",
+  from: "15:30",
+  to: "17:00",
+  reason: "Summit plenary",
+} as const;
+
+function isSeedBlocked(date: string, minutes: number): boolean {
+  return (
+    date === SEED_BLOCK.date &&
+    minutes >= minutesOf(SEED_BLOCK.from) &&
+    minutes < minutesOf(SEED_BLOCK.to)
+  );
+}
+
 function minutesOf(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
@@ -1138,12 +1164,16 @@ export const slots = rooms.flatMap((room) =>
     ) {
       const local = `${window.date}T${hhmm(m)}`;
       const assignment = slotAssignments[`${room.id}@${local}`];
+      const blocked = !assignment && isSeedBlocked(window.date, m);
       result.push({
         id: `seed-slot-${room.id.replace("seed-", "")}-${window.date}-${hhmm(m).replace(":", "")}`,
         roomId: room.id,
         startsAt: gst(local),
         endsAt: gst(`${window.date}T${hhmm(m + SLOT_MINUTES)}`),
-        status: assignment?.status ?? SlotStatus.OPEN,
+        status: blocked
+          ? SlotStatus.BLOCKED
+          : (assignment?.status ?? SlotStatus.OPEN),
+        blockedReason: blocked ? SEED_BLOCK.reason : null,
         meetingRequestId: assignment?.meetingRequestId ?? null,
       });
     }

@@ -448,7 +448,11 @@ describe("seed data: meeting requests and slots", () => {
     expect(linked.some((s) => s.status === SlotStatus.HELD)).toBe(true);
     for (const s of slots) {
       if (s.status === SlotStatus.OPEN) expect(s.meetingRequestId).toBeNull();
-      else
+      else if (s.status === SlotStatus.BLOCKED) {
+        // 23 Nov: blocked by the Summit team, held by no request, with its reason.
+        expect(s.meetingRequestId).toBeNull();
+        expect(s.blockedReason).toBeTruthy();
+      } else
         expect(requestById.get(s.meetingRequestId!)?.status).toBe(
           s.status === SlotStatus.BOOKED
             ? MeetingRequestStatus.ACCEPTED
@@ -470,6 +474,7 @@ describe("seed data: meeting requests and slots", () => {
     }
     const requestIds = linked.map((s) => s.meetingRequestId);
     expect(new Set(requestIds).size).toBe(requestIds.length);
+    expect(slots.some((s) => s.status === SlotStatus.BLOCKED)).toBe(true);
   });
 
   it("keeps audit events pointing at real actors, with one anonymous failed login", () => {

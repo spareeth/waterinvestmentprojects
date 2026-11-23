@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { MeetingRequestStatus } from "@/generated/prisma/enums";
 import { type RequestMeta, writeAudit } from "@/lib/audit";
 import {
+  canCancelMeetingRequest,
   canDecideMeetingRequest,
   canExportMeetingRequests,
   canRequestMeeting,
@@ -30,9 +31,11 @@ import { toCsv } from "./csv";
 import { type ProjectDemand, summariseDemand } from "./demand";
 import {
   type DecisionOutcome,
+  countryCancelledEmail,
   countryMeetingConfirmedEmail,
   countryWithdrawnEmail,
   focalPointRequestEmail,
+  investorCancelledEmail,
   investorDecisionEmail,
   investorWithdrawnEmail,
   type RequestMailFacts,
@@ -54,6 +57,8 @@ export const REQUEST_AUDIT = {
   WITHDRAW: "meeting_request.withdraw",
   ACCEPT: "meeting_request.accept",
   DECLINE: "meeting_request.decline",
+  /** 23 Nov: cancelled by the Summit team from the admin calendar. */
+  CANCEL: "meeting_request.cancel",
   LIST: "meeting_request.list",
   EXPORT: "meeting_request.export",
 } as const;
@@ -452,6 +457,96 @@ export async function withdrawMeetingRequest(
   );
 }
 
+/**
+ * The Summit team cancels a meeting from the admin calendar (23 Nov): a request awaiting the country or already
+ * accepted becomes CANCELLED and its slot is free again. Like a withdrawal, it always emails the investor, the
+ * country's focal points (coordinators in copy) and the Summit mailbox, with the reason when one is given.
+ */
+export async function cancelMeetingRequest(
+  viewer: Viewer,
+  requestId: string,
+  reason: string,
+  options: RequestOptions = {},
+): Promise<void> {
+  const { meta, now = new Date() } = options;
+  const why = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  const cancelled = await db.$transaction(async (tx) => {
+    const request = await tx.meetingRequest.findFirst({
+      where: { AND: [{ id: requestId }, meetingRequestWhere(viewer)] },
+      select: POLICY_SELECT,
+    });
+    if (!request) throw new RequestError("not_found");
+    if (!canCancelMeetingRequest(viewer, { status: request.status })) {
+      throw new RequestError(
+        canCancelMeetingRequest(viewer, {
+          status: MeetingRequestStatus.PENDING,
+        })
+          ? "not_open"
+          : "forbidden",
+      );
+    }
+    const { count } = await tx.meetingRequest.updateMany({
+      where: { id: request.id, status: request.status },
+      data: { status: MeetingRequestStatus.CANCELLED, updatedAt: now },
+    });
+    if (count !== 1) throw new RequestError("not_open");
+    // Read the meeting time for the emails before the slot is released.
+    const row = await tx.meetingRequest.findUniqueOrThrow({
+      where: { id: request.id },
+      select: MAIL_SELECT,
+    });
+    await releaseSlot(tx, request.id);
+    await writeAudit(
+      {
+        actorId: viewer.id,
+        action: REQUEST_AUDIT.CANCEL,
+        entityType: "MeetingRequest",
+        entityId: request.id,
+        meta,
+        metadata: {
+          countryId: request.project.countryId,
+          previousStatus: request.status,
+          reason: why,
+        },
+      },
+      tx,
+    );
+    return {
+      row,
+      wasAccepted: request.status === MeetingRequestStatus.ACCEPTED,
+    };
+  });
+
+  const facts = mailFacts(cancelled.row);
+  const target = {
+    entityType: "MeetingRequest",
+    entityId: cancelled.row.id,
+    meta,
+    mailer: options.mailer,
+  };
+  await sendMail(
+    "meeting_request.cancelled_investor",
+    {
+      to: [facts.investorEmail],
+      ...investorCancelledEmail(facts, cancelled.wasAccepted, why),
+    },
+    target,
+  );
+  const { to, cc } = await countryRecipients(cancelled.row.project.countryId);
+  if (to.length > 0) {
+    await sendMail(
+      "meeting_request.cancelled_country",
+      { to, cc, ...countryCancelledEmail(facts, cancelled.wasAccepted, why) },
+      target,
+    );
+  }
+  await notifySummitTeam(
+    "meeting_request.summit_change",
+    summitRequestChangeNotice(facts, "cancelled_by_summit", why),
+    { ...target, recipients: options.summitRecipients },
+  );
+}
+
 const MINE_SELECT = {
   id: true,
   organisation: true,
@@ -775,6 +870,7 @@ const STATUS_LABEL: Record<MeetingRequestStatus, string> = {
   ACCEPTED: "Accepted",
   DECLINED: "Declined",
   WITHDRAWN: "Withdrawn",
+  CANCELLED: "Cancelled by the Summit team",
 };
 
 export const EXPORT_HEADER = [

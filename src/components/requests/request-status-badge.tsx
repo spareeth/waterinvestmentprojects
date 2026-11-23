@@ -18,6 +18,10 @@ const STATUS: Record<
     className: "bg-declined text-declined-foreground",
   },
   WITHDRAWN: { label: "Withdrawn", className: "bg-muted text-foreground" },
+  CANCELLED: {
+    label: "Cancelled by the Summit team",
+    className: "bg-muted text-foreground",
+  },
 };
 
 export function RequestStatusBadge({
