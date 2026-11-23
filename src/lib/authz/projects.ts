@@ -77,9 +77,28 @@ export function canCreateProject(viewer: Viewer | null): boolean {
   return isAdminViewer(viewer);
 }
 
-/** Editing title and metadata (sector, PPP model, size, stage): admins only. */
+/** Editing title and metadata (sector, PPP model, size, stage) of any project: admins. */
 export function canEditProject(viewer: Viewer | null): boolean {
   return isAdminViewer(viewer);
+}
+
+/**
+ * Editing a project's key facts (23 Nov, Sajid): admins always; the person who uploaded the project too, while it
+ * is not in the pipeline (drafts and withdrawn ones) and only for their own country. `isUploader` comes from
+ * isProjectUploader (src/lib/authz/data.ts): a teaser uploaded from their account, or an upload-link submission
+ * made with their account's email. Other users of the country, coordinators and investors cannot edit.
+ */
+export function canEditProjectFacts(
+  viewer: Viewer | null,
+  project: Pick<ProjectRef, "countryId" | "status">,
+  isUploader: boolean,
+): boolean {
+  if (canEditProject(viewer)) return true;
+  return (
+    isUploader &&
+    isOwnCountry(viewer, project.countryId) &&
+    project.status !== ProjectStatus.PUBLISHED
+  );
 }
 
 /**

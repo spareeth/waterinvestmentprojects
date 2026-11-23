@@ -27,7 +27,7 @@ const initial: WorkspaceFormState = {};
 
 /**
  * Key fields of a project (PLAN F3). Used for a new project (with a country choice) and for editing.
- * `readOnly` comes from the policy module (canEditProject) via the page; the server checks again.
+ * `readOnly` comes from the policy module (canEditProjectFacts) via the page; the server checks again.
  */
 export function ProjectForm({
   mode,
@@ -150,8 +150,9 @@ export function ProjectForm({
       {state.success ? <Notice tone="success">{state.success}</Notice> : null}
       {readOnly ? (
         <Notice tone="info">
-          Project details are kept by the Summit team. Contact them if something
-          needs to change.
+          The person who uploaded this project can change these details until it
+          is published; after that, and for everyone else, the Summit team does.
+          Contact them if something needs to change.
         </Notice>
       ) : null}
 

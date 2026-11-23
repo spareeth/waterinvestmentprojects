@@ -7,7 +7,7 @@ import { CountryStatus } from "@/generated/prisma/enums";
 import { NO_COUNTRY } from "./people";
 import {
   canDeleteProject,
-  canEditProject,
+  canEditProjectFacts,
   canPublishProject,
   canWithdrawProject,
   NO_PROJECT,
@@ -66,9 +66,11 @@ export interface WorkspacePermissions {
 export function workspacePermissions(
   viewer: Viewer | null,
   project: Pick<ProjectRef, "countryId" | "status">,
+  /** 23 Nov: the viewer uploaded this project (isProjectUploader), so may edit its key facts while unpublished. */
+  isUploader = false,
 ): WorkspacePermissions {
   return {
-    edit: canEditProject(viewer),
+    edit: canEditProjectFacts(viewer, project, isUploader),
     uploadTeaser: canUploadDocument(viewer),
     publish: canPublishProject(viewer, project),
     withdraw: canWithdrawProject(viewer, project),

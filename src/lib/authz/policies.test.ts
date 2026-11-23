@@ -36,6 +36,7 @@ import {
   canCreateProject,
   canDeleteProject,
   canEditProject,
+  canEditProjectFacts,
   canPublishProject,
   canViewProject,
   canWithdrawProject,
@@ -292,6 +293,26 @@ describe("projects", () => {
       }
     }
     expect(canRequestMeeting(investor, bPub)).toBe(true);
+  });
+
+  it("lets the uploader edit key facts of their own unpublished project, and admins any project (23 Nov)", () => {
+    for (const v of everyone) {
+      const admin = admins.includes(v);
+      for (const uploader of [false, true]) {
+        const ownA = (v === focalA || v === memberA) && uploader;
+        for (const p of [aDraft, aWithdrawn]) {
+          expect(canEditProjectFacts(v, p, uploader), v.id).toBe(admin || ownA);
+        }
+        expect(canEditProjectFacts(v, aPub, uploader), v.id).toBe(admin);
+        // Another country's project: never, even when flagged as uploader.
+        expect(canEditProjectFacts(v, bDraft, uploader), v.id).toBe(
+          admin || (v === focalB && uploader),
+        );
+      }
+    }
+    for (const v of [coordA, investorWithStrayMembership, null]) {
+      expect(canEditProjectFacts(v, aDraft, true)).toBe(false);
+    }
   });
 
   it("lets only admins create, edit, publish and withdraw (v0.3: countries only see)", () => {

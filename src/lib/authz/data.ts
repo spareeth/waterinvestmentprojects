@@ -53,6 +53,41 @@ export async function findWorkspaceProjectFor(
   });
 }
 
+/**
+ * Did this viewer upload the project (23 Nov, for canEditProjectFacts)? True when one of its teasers was uploaded
+ * from the viewer's account (My projects, Document.uploadedById), or when the submission behind it (upload link)
+ * was made with the viewer's account email. Country users only: everyone else gets false.
+ */
+export async function isProjectUploader(
+  viewer: Viewer | null,
+  projectId: string,
+  { client = db }: DataOptions = {},
+): Promise<boolean> {
+  if (!viewer || viewer.role !== "COUNTRY") return false;
+  const user = await client.user.findUnique({
+    where: { id: viewer.id },
+    select: { email: true },
+  });
+  const byEmail = user
+    ? { uploaderEmail: { equals: user.email, mode: "insensitive" as const } }
+    : null;
+  const count = await client.project.count({
+    where: {
+      id: projectId,
+      OR: [
+        { documents: { some: { uploadedById: viewer.id } } },
+        ...(byEmail
+          ? [
+              { submission: byEmail },
+              { documents: { some: { submission: byEmail } } },
+            ]
+          : []),
+      ],
+    },
+  });
+  return count > 0;
+}
+
 /** Document metadata (never the blob key; files go through authorizeDocumentFile). */
 export async function findDocumentFor(
   viewer: Viewer | null,

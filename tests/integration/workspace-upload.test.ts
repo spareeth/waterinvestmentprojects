@@ -371,14 +371,24 @@ describe("Add project from My projects", () => {
     expect(report.filled.sort()).toEqual(
       ["pppModel", "sizeMinUsdMillion", "title"].sort(),
     );
-    // "Fill from teaser" reads everything again (nothing saved), for admins only.
+    // "Fill from teaser" reads everything again (nothing saved), for whoever may edit the key facts: admins, and
+    // (23 Nov) the focal point who uploaded this draft; never a coordinator or another country.
     const facts = await readProjectTeaserFacts(v.admin, projectId, {
       store: opts.store,
     });
     expect(facts?.developmentStage).toBe("RFP");
-    await expect(
-      readProjectTeaserFacts(v.focalA, projectId, { store: opts.store }),
-    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      (
+        await readProjectTeaserFacts(v.focalA, projectId, {
+          store: opts.store,
+        })
+      )?.developmentStage,
+    ).toBe("RFP");
+    for (const viewer of [v.coordinatorA, v.focalX]) {
+      await expect(
+        readProjectTeaserFacts(viewer, projectId, { store: opts.store }),
+      ).rejects.toMatchObject({ code: "not_found" });
+    }
   });
 
   it("takes a Word teaser on every route and fills the project from it (22 Nov: same formats everywhere)", async () => {

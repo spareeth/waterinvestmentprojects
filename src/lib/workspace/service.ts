@@ -13,11 +13,12 @@ import {
   auditAccess,
   canCreateProject,
   canDeleteProject,
-  canEditProject,
+  canEditProjectFacts,
   canPublishProject,
   canUploadDocument,
   canWithdrawProject,
   findWorkspaceProjectFor,
+  isProjectUploader,
   publishBlocker,
   type Viewer,
   workspaceCountryWhere,
@@ -175,7 +176,11 @@ export async function getWorkspaceProject(
   });
   const current = teasers.find((t) => t.supersededById === null) ?? null;
   const blocker = await publishBlocker(viewer, projectId);
-  const permissions = workspacePermissions(viewer, project);
+  const permissions = workspacePermissions(
+    viewer,
+    project,
+    await isProjectUploader(viewer, projectId),
+  );
   return {
     project,
     teasers,
@@ -263,7 +268,9 @@ export async function updateProject(
       client: tx,
     });
     if (!project) throw new WorkspaceError("not_found");
-    if (!canEditProject(viewer)) {
+    // 23 Nov: admins, or the person who uploaded it while it is not published.
+    const uploader = await isProjectUploader(viewer, projectId, { client: tx });
+    if (!canEditProjectFacts(viewer, project, uploader)) {
       throw new WorkspaceError("forbidden");
     }
     const data = projectData(input);
@@ -847,8 +854,9 @@ async function fillProjectFromTeaser(
 
 /**
  * "Fill from teaser" on the project page (22 Nov): the key facts read from the project's current teaser (any
- * format but images), for an admin to review in the form before saving. Nothing is written. Admins only
- * (canEditProject); null when the project has no teaser or nothing could be read.
+ * format but images), for the person editing to review in the form before saving. Nothing is written. Whoever may
+ * edit the key facts (canEditProjectFacts: admins, or the uploader while unpublished); null when the project has
+ * no teaser or nothing could be read.
  */
 export async function readProjectTeaserFacts(
   viewer: Viewer,
@@ -857,7 +865,10 @@ export async function readProjectTeaserFacts(
 ): Promise<TeaserFacts | null> {
   const project = await findWorkspaceProjectFor(viewer, projectId);
   if (!project) throw new WorkspaceError("not_found");
-  if (!canEditProject(viewer)) throw new WorkspaceError("forbidden");
+  const uploader = await isProjectUploader(viewer, projectId);
+  if (!canEditProjectFacts(viewer, project, uploader)) {
+    throw new WorkspaceError("forbidden");
+  }
   const teaser = await db.document.findFirst({
     where: { projectId, kind: DocumentKind.TEASER, supersededById: null },
     orderBy: { version: "desc" },

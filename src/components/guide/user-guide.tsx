@@ -281,9 +281,13 @@ export function UserGuide() {
             whether each one is published, and how many meeting requests it has
             received by type of organisation (declined requests included).{" "}
             <strong>Add project</strong> uploads new teasers for your country.
-            The Summit team reviews and publishes them; contact them if an
-            existing project needs correcting. A project that is not yet
-            published (or was taken out of the pipeline) can be deleted with{" "}
+            The Summit team reviews and publishes them. If you uploaded a
+            project, you can correct its <strong>Key facts</strong> (title,
+            sector, region, PPP model, size, stage) on its page until it is
+            published; use <strong>Fill from teaser</strong> to read them from
+            the file again. After that, or for projects others uploaded, contact
+            the Summit team. A project that is not yet published (or was taken
+            out of the pipeline) can be deleted with{" "}
             <strong>Delete project</strong> on its page; ask the Summit team to
             delete a published one.
           </li>

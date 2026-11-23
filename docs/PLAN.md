@@ -308,6 +308,12 @@ or load them on local or staging (the "no real country data" rule stands).
     "Meeting calendar" instead of "Meeting requests" for admins, with two views: **Calendar** (`/admin/meetings`)
     and **All requests** (`/inbox`, every request with or without a time, decisions on behalf, CSV). Country users
     and coordinators keep their own "Meeting requests".
+15. **The uploader edits key facts** (Sajid, 23 Nov; replaces "Summit team only" for key facts): on the project
+    page, the person who uploaded the project may edit its key facts and use Fill from teaser while it is not
+    published; admins always. "Uploaded" means a teaser uploaded from their account (My projects) or an
+    upload-link submission made with their account's email. Other users of the country, coordinators and
+    investors cannot (`canEditProjectFacts` in `src/lib/authz/projects.ts`, `isProjectUploader` in
+    `src/lib/authz/data.ts`). Every save is audited as `project.update`.
 
 ---
 
