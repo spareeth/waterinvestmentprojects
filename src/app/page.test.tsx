@@ -107,15 +107,16 @@ describe("Landing page", () => {
       name: /A pipeline of water project opportunities/,
     });
     const list = within(hero).getByRole("list", { name: "Partners" });
-    // Order set by Sajid, 22 Nov: UNWC, ECD|Terra, GCFC, WBG. No MoFA logo (PLAN v0.4 0b.27). The UN Water
-    // Conference slot stays hidden until its logo file is added (styling pass, 22 Nov).
+    // Order set by Sajid, 22 Nov: UNWC, ECD|Terra, GCFC, WBG; Water Forward added after WBG on 23 Nov (PLAN 0c.10).
+    // No MoFA logo (PLAN v0.4 0b.27).
     const items = within(list).getAllByRole("listitem");
     expect(items.map((li) => li.querySelector("img")?.alt)).toEqual([
+      "2026 UN Water Conference",
       "Terra, Expo City Dubai",
       "GCFC",
       "World Bank Group",
+      "Water Forward",
     ]);
-    expect(within(list).queryByText("2026 UN Water Conference")).toBeNull();
     expect(
       container.querySelector('[data-placeholder="partner-logo"]'),
     ).toBeNull();

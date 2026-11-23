@@ -19,14 +19,23 @@ export const appConfig = {
   /**
    * Partner marks in the landing page hero, "In partnership with" (PLAN v0.4 0b.27: 2026 UN Water Conference,
    * Expo City Dubai / Terra, GCFC, a single World Bank Group mark; no MoFA logo). Order as Sajid set it on
-   * 22 Nov. To add a logo, put the file under public/partners/ and set `logo` to its path, pixel size and
+   * 22 Nov; Water Forward (WBG, sent by Jacob Kim) added after the WBG mark on 23 Nov (PLAN 0c.10). The UN Water
+   * Conference mark ("2026 UN Water Conference, Abu Dhabi", dark artwork) was supplied by Sajid on 23 Nov. To add a logo, put the file under public/partners/ and set `logo` to its path, pixel size and
    * artwork ("light" for white artwork, "dark" for dark artwork, which gets a white tile on the dark hero);
    * until then the page shows a dashed placeholder with the partner's name. Order and entries can change here
    * without touching components.
    */
   partners: [
-    // Logo still to come from the organisers.
-    { id: "unwc", name: "2026 UN Water Conference" },
+    {
+      id: "unwc",
+      name: "2026 UN Water Conference",
+      logo: {
+        src: "/partners/unwc-2026.png",
+        width: 1813,
+        height: 436,
+        artwork: "dark",
+      },
+    },
     {
       id: "ecd-terra",
       name: "Terra, Expo City Dubai",
@@ -54,6 +63,16 @@ export const appConfig = {
         src: "/partners/world-bank-group.png",
         width: 2013,
         height: 395,
+        artwork: "dark",
+      },
+    },
+    {
+      id: "water-forward",
+      name: "Water Forward",
+      logo: {
+        src: "/partners/water-forward.png",
+        width: 1500,
+        height: 500,
         artwork: "dark",
       },
     },

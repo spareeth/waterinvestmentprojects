@@ -221,6 +221,8 @@ or load them on local or staging (the "no real country data" rule stands).
    - no government email for **Jordan** and **Morocco**;
    - **Azerbaijan** and **Sri Lanka** (in the 20 Nov dev list, 0b.8) are not in the table: ask whether they still take
      part.
+   - **Decided 23 Nov (Sajid):** every country in Jacob's table that production does not have yet is added there
+     (Pakistan once). Countries already on production stay.
 3. Accounts on production, following 0b.11 and 0b.12:
    - the government contact gets a `COUNTRY` account on their country;
    - the lead WBG contact also gets a `COUNTRY` account on that country (a relationship manager who acts for the
@@ -228,9 +230,8 @@ or load them on local or staging (the "no real country data" rule stands).
      WBG contact covers the country alone;
    - passwords are handed over personally (0b.26).
 4. **Pakistan has two sub-national entries** (Kasur and Chakwal), each with its own government contact and the same
-   lead WBG contact. Proposed: one country "Pakistan" with both focal points, and the place in the project's Region
-   field. Both focal points then see each other's projects and requests. Separate entries ("Pakistan (Kasur)" and
-   "Pakistan (Chakwal)") would keep them apart. **Sajid to decide.**
+   lead WBG contact. **Decided 23 Nov (Sajid): one country "Pakistan"** with both focal points, and the place
+   (Kasur, Chakwal) in the project's Region field. Both focal points see each other's projects and requests.
 5. Both Pakistan government contacts use personal webmail addresses. This is acceptable for admin-created `COUNTRY`
    accounts (the public-domain rule in 0b.18 applies to investor self-registration only), but confirm with Jacob that
    these are the addresses to use.
@@ -240,9 +241,13 @@ or load them on local or staging (the "no real country data" rule stands).
    - Enter them under Admin, Pre-approved organisations and people.
    - A website domain is not always the email domain (for example a group brand and its operating company). Check
      each one, and add the right email domain when a registration from that organisation lands in the pending queue.
-   - With `REGISTRATION_AUTO_APPROVE` off (the default, since email ownership is not verified), a match only marks
-     the registrant as pre-approved for the approver; it does not give immediate access. Sajid to decide whether to
-     switch it on.
+   - **Decided 23 Nov (Sajid): pre-approved registrants get straight in** (`REGISTRATION_AUTO_APPROVE=true` on
+     production). Known risk: the portal does not verify that a registrant owns the email address, so someone
+     typing an address at a pre-approved domain gets in without approval. Mitigations: approvers watch the
+     registrations list and the audit log, and can deactivate an account at once; email verification at
+     registration is the fix once external email passes the deliverability check (0b.26).
+   - The 23 domains go onto production's pre-approved list (Admin, Pre-approved organisations and people) as Jacob
+     sent them.
    - No named contacts, so no logins are pre-created.
 
 **Registration approvers (answers 0b.19 and 0b.29)**
@@ -261,7 +266,11 @@ or load them on local or staging (the "no real country data" rule stands).
 **Logos**
 10. Jacob attached the **World Bank Group logo** and a **Water Forward logo**.
     - Replace `public/partners/world-bank-group.png` with the WBG file if it differs.
-    - Water Forward is not in the agreed partner set (0b.27). **Sajid to decide** whether and where to show it.
+    - **Decided 23 Nov (Sajid): Water Forward joins the partner list**, after the WBG mark
+      (`public/partners/water-forward.png`).
+    - The **2026 UN Water Conference** logo is the "2026 UN Water Conference, Abu Dhabi" mark Sajid supplied on
+      23 Nov (`public/partners/unwc-2026.png`; the version on sdgs.un.org was not the right one). It replaces the placeholder; 0.16 (UN Water Conference
+      branding with MoFA's approval) still applies before the page is widely shared.
     - The rooms (Smita's part of the 22 Nov email) were settled separately (0b.24).
 
 ---
