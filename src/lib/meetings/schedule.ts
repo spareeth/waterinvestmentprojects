@@ -193,3 +193,68 @@ export function formatMeetingSlot(slot: {
   const time = `${formatMeetingDay(slot.startsAt)}, ${formatClock(slot.startsAt)} to ${formatClock(slot.endsAt)} (UAE time)`;
   return slot.room ? `${time}, ${slot.room.name}` : time;
 }
+
+// ---------------------------------------------------------------------------
+// 25 Nov (WBG, Jacob Kim): sign-ups by country instead of bookings
+// ---------------------------------------------------------------------------
+
+/**
+ * Investors sign up to meet a country's delegation by ticking every time they could make, inside the country's
+ * time blocks; the Summit team allocates one 20-minute meeting per sign-up after the deadline and confirms by
+ * email. Times start every 30 minutes and are shown as 09:00–09:20, 09:30–09:50, so meetings can run over a
+ * little without keeping the next party waiting. Rooms are never shown to investors.
+ */
+export const MEETING_SIGNUP = {
+  slotMinutes: 30,
+  meetingMinutes: 20,
+  /** Sign-ups close at the end of 1 December, UAE time. */
+  deadline: new Date("2026-12-01T23:59:59+04:00"),
+  deadlineLabel: "1 December",
+  confirmationLabel: "4 December",
+} as const;
+
+/**
+ * The rooms a country's block can be in, by number as in WBG's time-block sheet (24 Nov): the two venue rooms and
+ * the two hotel rooms WBG booked at the Pearl Rotana Capital Centre.
+ */
+export const BLOCK_ROOMS: readonly string[] = [
+  MEETING_ROOMS[0].name,
+  MEETING_ROOMS[1].name,
+  "Room 3 - Hotel room A (Pearl Rotana)",
+  "Room 4 - Hotel room B (Pearl Rotana)",
+];
+
+export function signupDeadlinePassed(now: Date = new Date()): boolean {
+  return now.getTime() > MEETING_SIGNUP.deadline.getTime();
+}
+
+/** Every 30-minute start inside the blocks, in time order, without duplicates. */
+export function blockSlotStarts(
+  blocks: readonly { startsAt: Date; endsAt: Date }[],
+): Date[] {
+  const step = MEETING_SIGNUP.slotMinutes * 60_000;
+  const starts = new Map<number, Date>();
+  for (const block of blocks) {
+    for (
+      let t = block.startsAt.getTime();
+      t + step <= block.endsAt.getTime();
+      t += step
+    ) {
+      starts.set(t, new Date(t));
+    }
+  }
+  return [...starts.values()].sort((a, b) => a.getTime() - b.getTime());
+}
+
+/** "09:00–09:20" (UAE time): the 20-minute meeting starting then. */
+export function formatSignupSlot(startsAt: Date): string {
+  const end = new Date(
+    startsAt.getTime() + MEETING_SIGNUP.meetingMinutes * 60_000,
+  );
+  return `${formatClock(startsAt)}–${formatClock(end)}`;
+}
+
+/** "Tuesday 8 December, 09:00–09:20" */
+export function formatSignupSlotWithDay(startsAt: Date): string {
+  return `${formatMeetingDay(startsAt)}, ${formatSignupSlot(startsAt)}`;
+}

@@ -18,6 +18,7 @@ export * from "./projects";
 export * from "./documents";
 export * from "./requests";
 export * from "./slots";
+export * from "./signups";
 export * from "./people";
 export * from "./workspace";
 export * from "./submissions";

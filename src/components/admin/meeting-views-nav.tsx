@@ -5,9 +5,16 @@ import { cn } from "@/lib/utils";
 // calendar", with two views: the room calendar and the full list of requests (including requests without a
 // time, decisions on behalf of a country, and the CSV download). Countries keep their own "Meeting requests".
 
+// 25 Nov: investors sign up by country; "Sign-ups" is the first view, then the countries' time blocks and their
+// counterparts, then the room calendar (for allocating the meetings after sign-ups close).
 const VIEWS = [
-  { key: "calendar", href: "/admin/meetings", label: "Calendar" },
-  { key: "requests", href: "/inbox", label: "All requests" },
+  { key: "requests", href: "/inbox", label: "Sign-ups" },
+  {
+    key: "blocks",
+    href: "/admin/meetings/blocks",
+    label: "Time blocks and counterparts",
+  },
+  { key: "calendar", href: "/admin/meetings", label: "Room calendar" },
 ] as const;
 
 export function MeetingViewsNav({

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AccountHeader } from "@/components/auth/account-header";
 import { AuthPage } from "@/components/auth/auth-page";
 import { InvestorAckForm } from "@/components/auth/investor-ack-form";
+import { TERMS_SECTIONS } from "@/lib/auth/terms";
 import { requireStage } from "@/lib/authz";
 import { appConfig } from "@/lib/config";
 
@@ -21,10 +22,10 @@ export default async function InvestorAcknowledgementPage() {
     <AuthPage
       wide
       title="Before you see the projects"
-      description="The project teasers are shared by the participating Governments for the Water Investment Summit. Please confirm how you will use them."
+      description="The project teasers are shared by the participating countries for the Water Investment Summit. Please read the terms of use and accept them."
       header={<AccountHeader name={user.name} />}
     >
-      <InvestorAckForm text={ack.text} />
+      <InvestorAckForm text={ack.text} sections={TERMS_SECTIONS} />
     </AuthPage>
   );
 }

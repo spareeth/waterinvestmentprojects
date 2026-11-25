@@ -60,7 +60,7 @@ describe("PortalHeader tabs", () => {
     expect(tabs()).not.toContain("Meeting requests");
     expect(
       screen.getByRole("link", { name: "Meeting calendar" }),
-    ).toHaveAttribute("href", "/admin/meetings");
+    ).toHaveAttribute("href", "/inbox");
   });
 
   it("gives a country focal point My projects and the request inbox, but no admin tabs", () => {
@@ -78,14 +78,15 @@ describe("PortalHeader tabs", () => {
       screen.getByRole("link", { name: "My projects" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Meeting requests" }),
+      // 25 Nov: investors sign up by country; countries see the sign-ups.
+      screen.getByRole("link", { name: "Meeting sign-ups" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Accounts" }),
     ).not.toBeInTheDocument();
   });
 
-  it("gives an investor My requests and no workspace", () => {
+  it("gives an investor My sign-ups and no workspace", () => {
     render(
       <PortalHeader
         name="Investor"
@@ -93,7 +94,7 @@ describe("PortalHeader tabs", () => {
       />,
     );
     expect(
-      screen.getByRole("link", { name: "My requests" }),
+      screen.getByRole("link", { name: "My sign-ups" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "My projects" }),

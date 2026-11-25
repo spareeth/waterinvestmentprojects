@@ -10,14 +10,17 @@ import {
 } from "@/components/pipeline/teaser-viewer";
 import { PartnerStrip } from "@/components/brand/partner-logos";
 import { PortalHeader } from "@/components/portal/portal-header";
-import { MeetingRequestPanel } from "@/components/requests/meeting-request-panel";
+import {
+  CounterpartsList,
+  MeetingSignupPanel,
+} from "@/components/requests/meeting-signup-panel";
 import { Button } from "@/components/ui/button";
 import { appConfig } from "@/lib/config";
 import { requestMetaFrom } from "@/lib/audit";
 import { requirePortalUser } from "@/lib/authz";
 import { formatUsdRange, pipelineHref } from "@/lib/pipeline/filters";
+import { getProjectCounterparts } from "@/lib/meetings/signups";
 import { getPipelineProject } from "@/lib/pipeline/service";
-import { PROJECT_TYPE_LABEL } from "@/lib/workspace/project-input";
 import { formatBytes } from "@/lib/workspace/teaser-file";
 
 // Reads the session and the database on the server before rendering, so it may block.
@@ -43,6 +46,7 @@ export default async function PipelineProjectPage({
   });
   if (!data) notFound();
   const { project, teaser } = data;
+  const counterparts = await getProjectCounterparts(viewer, project.id);
   const size = formatUsdRange(project.sizeMinUsd, project.sizeMaxUsd);
   const facts: [string, string | null][] = [
     ["Country", project.country.name],
@@ -51,11 +55,7 @@ export default async function PipelineProjectPage({
     ["PPP model", project.pppModel],
     ["Indicative size", size ?? "TBC"],
     ["Development stage", project.developmentStage],
-    ["Project type", PROJECT_TYPE_LABEL[project.projectType]],
-    [
-      "Published",
-      project.publishedAt ? date.format(project.publishedAt) : null,
-    ],
+    // 25 Nov (WBG): "Project type" and "Published" are left out, they mean nothing to investors.
   ];
 
   return (
@@ -172,10 +172,12 @@ export default async function PipelineProjectPage({
               </dl>
             </section>
 
-            {/* Stays in view while the teaser is read (desktop). */}
-            <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:rounded-xl">
-              <MeetingRequestPanel viewer={viewer} projectId={project.id} />
-            </div>
+            <CounterpartsList
+              countryName={project.country.name}
+              counterparts={counterparts}
+            />
+
+            <MeetingSignupPanel viewer={viewer} projectId={project.id} />
           </div>
         </div>
         <PartnerStrip

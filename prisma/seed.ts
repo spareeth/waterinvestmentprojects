@@ -234,6 +234,33 @@ async function main(): Promise<void> {
             update: data,
           });
         }
+        // 25 Nov: the countries' meeting time blocks (sign-ups by country).
+        await tx.meetingBlock.deleteMany({
+          where: { countryId: { in: d.countries.map((c) => c.id) } },
+        });
+        await tx.meetingBlock.createMany({ data: d.meetingBlocks });
+        // 25 Nov: fictional sign-ups, matched on investor and country (one sign-up each), projects replaced.
+        for (const { id, projectIds, ...data } of d.meetingSignups) {
+          const row = await tx.meetingSignup.upsert({
+            where: {
+              countryId_requesterId: {
+                countryId: data.countryId,
+                requesterId: data.requesterId,
+              },
+            },
+            create: { id, ...data, status: "ACTIVE" },
+            update: { ...data, status: "ACTIVE" },
+          });
+          await tx.meetingSignupProject.deleteMany({
+            where: { signupId: row.id },
+          });
+          await tx.meetingSignupProject.createMany({
+            data: projectIds.map((projectId) => ({
+              signupId: row.id,
+              projectId,
+            })),
+          });
+        }
         for (const { id, ...data } of d.auditEvents) {
           await tx.auditEvent.upsert({
             where: { id },

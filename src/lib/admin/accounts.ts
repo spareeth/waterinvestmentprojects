@@ -297,6 +297,11 @@ export async function removeUser(
       USER_REMOVED_REASON,
       { meta, now },
     );
+    // 25 Nov: their meeting sign-ups are withdrawn too (they stay as a record for the countries).
+    const signups = await tx.meetingSignup.updateMany({
+      where: { requesterId: userId, status: "ACTIVE" },
+      data: { status: "WITHDRAWN" },
+    });
     const sessions = await tx.session.deleteMany({ where: { userId } });
     await tx.account.deleteMany({ where: { userId } });
     await tx.twoFactor.deleteMany({ where: { userId } });
@@ -339,6 +344,7 @@ export async function removeUser(
           membershipsRemoved: memberships.count,
           contactsRemoved: contacts.count,
           openRequestsCancelled: requests.length,
+          signupsWithdrawn: signups.count,
         },
       },
       tx,

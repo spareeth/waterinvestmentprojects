@@ -8,10 +8,7 @@ import {
   MAX_TEASERS_PER_SUBMISSION,
 } from "@/lib/submission/input";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
-import {
-  describeMeetingRooms,
-  MEETING_SCHEDULE,
-} from "@/lib/meetings/schedule";
+import { BLOCK_ROOMS, MEETING_SIGNUP } from "@/lib/meetings/schedule";
 
 // The user guide (public page /guide), linked from every header. Plain language, one section per role. Name,
 // support mailbox and upload limits come from config and the code, so the guide stays true when they change.
@@ -26,8 +23,10 @@ export const GUIDE_SCREENSHOTS = [
   "investor-acknowledgement",
   "pipeline",
   "project",
+  "meeting-signup",
   "my-requests",
   "admin-submissions",
+  "admin-blocks",
   "admin-meetings",
 ] as const;
 
@@ -36,7 +35,7 @@ type ScreenshotName = (typeof GUIDE_SCREENSHOTS)[number];
 export const GUIDE_SECTIONS = [
   { id: "signing-in", title: "Signing in" },
   { id: "governments", title: "Governments: uploading teasers" },
-  { id: "focal-points", title: "Country focal points: meeting requests" },
+  { id: "focal-points", title: "Country focal points: meeting sign-ups" },
   { id: "investors", title: "Investors and operators" },
   { id: "coordinators", title: "Coordinators" },
   { id: "summit-team", title: "Summit team" },
@@ -123,9 +122,9 @@ export function UserGuide() {
           The {appConfig.name} portal lets participating governments share
           one-page project teasers with invited investors and operators ahead of
           the {appConfig.summit.name} ({appConfig.summit.date},{" "}
-          {appConfig.summit.city}). Investors request bilateral meetings, and
-          each country decides which meetings to accept. Access is by invitation
-          only.
+          {appConfig.summit.city}). Investors sign up to meet the country
+          delegations, and the Summit team allocates the bilateral meetings.
+          Access is by invitation only.
         </p>
       </header>
 
@@ -183,9 +182,9 @@ export function UserGuide() {
             account.
           </li>
           <li>
-            Investors and operators then read and accept a short acknowledgement
-            about how the shared information may be used. You are asked again
-            only if its wording changes.
+            Investors and operators then read and accept the terms of use (how
+            the shared information may be used). You are asked again only if
+            they change.
           </li>
         </ol>
         <Screenshot name="sign-in" alt="The sign-in page" />
@@ -255,8 +254,8 @@ export function UserGuide() {
           teaser, or if the link no longer works, contact <SupportContact />.
         </p>
         <p>
-          The person who uploads becomes your country&apos;s contact for meeting
-          requests, unless the Summit team names another focal point.
+          The person who uploads becomes your country&apos;s contact for
+          meetings, unless the Summit team names another focal point.
         </p>
         <p>
           With a country account you can also add teasers yourself, without the
@@ -265,7 +264,7 @@ export function UserGuide() {
         </p>
       </Section>
 
-      <Section id="focal-points" title="Country focal points: meeting requests">
+      <Section id="focal-points" title="Country focal points: meeting sign-ups">
         <p>
           As a country user (focal point, colleague or WBG relationship manager
           acting for the country) you sign in with the account the Summit team
@@ -277,43 +276,42 @@ export function UserGuide() {
             every participating country, read-only, as investors see them.
           </li>
           <li>
-            <strong>My projects</strong> lists your country&apos;s projects,
-            whether each one is published, and how many meeting requests it has
-            received by type of organisation (declined requests included).{" "}
-            <strong>Add project</strong> uploads new teasers for your country.
-            The Summit team reviews and publishes them. If you uploaded a
-            project, you can correct its <strong>Key facts</strong> (title,
-            sector, region, PPP model, size, stage) on its page until it is
-            published; use <strong>Fill from teaser</strong> to read them from
-            the file again. After that, or for projects others uploaded, contact
-            the Summit team. Until it is published (or after it was taken out of
-            the pipeline), the person who uploaded a project can also delete it
-            with <strong>Delete project</strong> on its page; ask the Summit
-            team to delete a published one.
+            <strong>My projects</strong> lists your country&apos;s projects, and
+            whether each one is published. <strong>Add project</strong> uploads
+            new teasers for your country. The Summit team reviews and publishes
+            them. If you uploaded a project, you can correct its{" "}
+            <strong>Key facts</strong> (title, sector, region, PPP model, size,
+            stage) on its page until it is published; use{" "}
+            <strong>Fill from teaser</strong> to read them from the file again.
+            After that, or for projects others uploaded, contact the Summit
+            team. Until it is published (or after it was taken out of the
+            pipeline), the person who uploaded a project can also delete it with{" "}
+            <strong>Delete project</strong> on its page; ask the Summit team to
+            delete a published one.
           </li>
           <li>
-            <strong>Meeting requests</strong> lists the requests from investors
-            and operators for your country&apos;s projects: who will attend,
-            their organisation and role, their note and the meeting time they
-            chose. Use the filter to see new, accepted or declined requests.
+            <strong>Meeting sign-ups</strong> lists the investors and operators
+            who would like to meet your delegation: who will attend, their
+            organisation and role, the projects they are interested in, their
+            note and every time they could make within your country&apos;s
+            meeting blocks. The list is for information: you do not need to
+            accept or decline anything.
           </li>
           <li>
-            Select <strong>Accept</strong> or <strong>Decline</strong> for each
-            request. Your decision is final and the investor sees it in their
-            list. Accepting books the chosen time and room, and the investor,
-            your country&apos;s contacts and the Summit team receive a
-            confirmation by email; declining frees the time. The Summit team may
-            occasionally cancel a meeting (for example if a room is needed);
-            everyone concerned is told by email.
+            Sign-ups close on {MEETING_SIGNUP.deadlineLabel}. The Summit team
+            then allocates the meetings and tells you and the investors by{" "}
+            {MEETING_SIGNUP.confirmationLabel}.
           </li>
           <li>
-            <strong>Download CSV</strong> gives you the list as a spreadsheet,
-            for example to share with colleagues preparing the meetings.
+            <strong>Download sign-ups (CSV)</strong> gives you the list as a
+            spreadsheet, for example to share with colleagues preparing the
+            meetings. Requests made before 25 November, under the earlier
+            system, are listed below the sign-ups.
           </li>
         </ul>
         <Screenshot
           name="inbox"
-          alt="A country's meeting requests, with Accept and Decline"
+          alt="A country's meeting sign-ups, with the times each investor could make"
         />
         <p>
           Please check the list regularly between the opening of the portal and
@@ -323,7 +321,7 @@ export function UserGuide() {
 
       <Section id="investors" title="Investors and operators">
         <ol>
-          <li>Sign in and accept the acknowledgement (first time only).</li>
+          <li>Sign in and accept the terms of use (first time only).</li>
           <li>
             Open <strong>Pipeline</strong> to see every published project
             teaser. Search by title or country, and filter by country, sector,
@@ -334,27 +332,35 @@ export function UserGuide() {
             phone, open the teaser in a new tab.
           </li>
           <li>
-            To meet the country, use <strong>Request a meeting</strong> on the
-            project page: the name and email address of the person who will
-            attend, your organisation and role, and, if you wish, a short note.
-            Choose a <strong>Meeting time</strong>: 30-minute bilateral meetings
-            in {describeMeetingRooms()}, UAE time. Pick the room on its tab,
-            then a free time. Times you or the country already have are not
-            offered. The time is held for you until the country answers. You can
-            have one open request per project.
+            The project page lists the government counterparts attending the{" "}
+            {appConfig.summit.name} for the country. To meet them, use{" "}
+            <strong>Meet the delegation</strong> on any of the country&apos;s
+            projects. You sign up once per country, not per project.
           </li>
           <li>
-            <strong>My requests</strong> shows each request and its status:
-            Awaiting reply, Accepted, Declined, Withdrawn or Cancelled by the
-            Summit team. You can withdraw a request that is awaiting a reply or
-            already accepted, for example if you can no longer attend; you
-            receive an email when a meeting is confirmed, withdrawn or
-            cancelled.
+            Tick every time you could make: the times are the country&apos;s
+            meeting blocks, {MEETING_SIGNUP.meetingMinutes}-minute bilateral
+            meetings, UAE time. Each time is a potential option; ticking it does
+            not book it, and other investors may tick the same times. Tick the
+            projects you are interested in, and give the name and email address
+            of the person who will attend, your organisation and role, and, if
+            you wish, a short note.
+          </li>
+          <li>
+            Sign-ups close on {MEETING_SIGNUP.deadlineLabel}. Until then you can
+            change your times or withdraw. The Summit team then matches
+            investors and delegations, and you receive a meeting confirmation by
+            email by {MEETING_SIGNUP.confirmationLabel}. Signing up does not
+            guarantee a meeting.
+          </li>
+          <li>
+            <strong>My sign-ups</strong> shows each country you signed up for,
+            with your times and projects.
           </li>
         </ol>
         <Screenshot
           name="investor-acknowledgement"
-          alt="The acknowledgement shown at first sign-in"
+          alt="The terms of use shown at first sign-in"
         />
         <Screenshot
           name="pipeline"
@@ -362,26 +368,27 @@ export function UserGuide() {
         />
         <Screenshot
           name="project"
-          alt="A project page: the teaser, key facts and the meeting request form"
+          alt="A project page: the teaser, key facts and the government counterparts"
+        />
+        <Screenshot
+          name="meeting-signup"
+          alt="Meet the delegation: the times you could make and the projects of interest"
         />
         <Screenshot
           name="my-requests"
-          alt="My requests, with the status of each request"
+          alt="My sign-ups, with your times for each country"
         />
         <p>
-          When a country accepts, your meeting time and room are booked; you see
-          them under <strong>My requests</strong>. If every time was taken, the
-          Summit team contacts you about a time. Please use the teasers only for
-          the purposes set out in the acknowledgement.
+          Please use the teasers only for the purposes set out in the terms of
+          use.
         </p>
       </Section>
 
       <Section id="coordinators" title="Coordinators">
         <p>
-          Coordinators see the meeting requests for the countries they follow
-          under <strong>Meeting requests</strong>, and can select{" "}
-          <strong>Download CSV</strong> for a spreadsheet of them. Decisions on
-          requests are made by the country focal points.
+          Coordinators see the meeting sign-ups for the countries they follow
+          under <strong>Meeting sign-ups</strong>, and can select{" "}
+          <strong>Download sign-ups (CSV)</strong> for a spreadsheet of them.
         </p>
       </Section>
 
@@ -408,9 +415,8 @@ export function UserGuide() {
             version on the project page, then publish. Investors only ever see
             PDFs. <strong>Delete project</strong> at the bottom of a project
             page removes it for good, with its teaser files and meeting
-            requests; open requests are cancelled and everyone is told. The
-            person who uploaded a project can delete it too, until it is
-            published.
+            requests. The person who uploaded a project can delete it too, until
+            it is published.
           </li>
           <li>
             <strong>Accounts</strong>: create accounts one by one or from a CSV
@@ -420,7 +426,7 @@ export function UserGuide() {
             off after the Summit. <strong>Remove user</strong> erases and
             disables an account: the person can no longer sign in, their name
             and email are erased (the email can be used for a new account) and
-            their open meeting requests are cancelled.
+            their meeting sign-ups are withdrawn.
           </li>
           <li>
             <strong>Registrations</strong>: investor and operator registrations
@@ -433,20 +439,20 @@ export function UserGuide() {
             accounts regularly and deactivate any that should not be there.
           </li>
           <li>
-            <strong>Meeting calendar</strong> has two views.{" "}
-            <strong>All requests</strong> lists every request (with or without a
-            meeting time), with Accept and Decline on behalf of a country and a
-            CSV download. <strong>Calendar</strong> shows one day at a time,
-            every 30-minute time in {MEETING_SCHEDULE.rooms.join(" and ")},
-            showing which times are free, blocked, awaiting the country or
-            booked, with the project, the attendee, their organisation and
-            email. Use <strong>Block these times</strong> (or{" "}
-            <strong>Block</strong> on one time) to stop times being offered to
-            investors, for example during the Summit plenary, and{" "}
-            <strong>Unblock</strong> to offer them again.{" "}
-            <strong>Cancel meeting</strong> cancels a request or a confirmed
-            meeting and frees its time; the investor, the country and the Summit
-            mailbox are told, with your reason if you give one.
+            <strong>Meeting calendar</strong> has three views.{" "}
+            <strong>Sign-ups</strong> lists every investor&apos;s sign-up for
+            every country, with their times and projects, and{" "}
+            <strong>Download sign-ups (CSV)</strong> for allocating the
+            meetings. <strong>Time blocks and counterparts</strong> sets each
+            country&apos;s meeting blocks ({BLOCK_ROOMS.join(", ")}): under{" "}
+            <strong>Load time blocks</strong>, paste one line per block (country
+            ISO3 code, date, start, end, room number) and select{" "}
+            <strong>Save these blocks</strong>; the countries named are
+            replaced, the others kept. On the same page, enter each
+            country&apos;s government counterparts, one per line; investors see
+            them on the country&apos;s project pages.{" "}
+            <strong>Room calendar</strong> shows the meeting requests made
+            before 25 November.
           </li>
           <li>
             <strong>Countries and contacts</strong>, <strong>Exports</strong>:
@@ -459,8 +465,12 @@ export function UserGuide() {
           alt="Teaser submissions in the Admin area, with the virus check of each file"
         />
         <Screenshot
+          name="admin-blocks"
+          alt="Time blocks and counterparts: each country's meeting blocks, sign-ups and delegation"
+        />
+        <Screenshot
           name="admin-meetings"
-          alt="The meeting calendar: booked, awaiting, blocked and free times by room, with Block and Cancel meeting"
+          alt="The meeting calendar: every country's sign-ups, with the CSV download"
         />
       </Section>
 

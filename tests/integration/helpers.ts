@@ -219,6 +219,12 @@ export async function cleanUp(): Promise<void> {
     data: { status: "OPEN", meetingRequestId: null },
   });
   await db.meetingRequest.deleteMany({ where: itRequest });
+  // 25 Nov: meeting sign-ups of test investors or "it-" countries (blocks go with the country).
+  await db.meetingSignup.deleteMany({
+    where: {
+      OR: [{ requesterId: { in: ids } }, { countryId: { startsWith: "it-" } }],
+    },
+  });
   // Upload links (M0) and submissions: for "it-" countries, created by integration test users, or (portal
   // uploads, M1) sent by an integration test user.
   const itLink = {

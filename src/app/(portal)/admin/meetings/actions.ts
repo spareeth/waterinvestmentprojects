@@ -11,6 +11,12 @@ import {
   ScheduleError,
   unblockSlot,
 } from "@/lib/meetings/manage";
+import {
+  importMeetingBlocks,
+  setCountryCounterparts,
+  SIGNUP_MESSAGES,
+  SignupError,
+} from "@/lib/meetings/signups";
 import { REQUEST_MESSAGES } from "@/lib/requests/errors";
 import { cancelMeetingRequest, RequestError } from "@/lib/requests/service";
 
@@ -122,4 +128,52 @@ export async function cancelMeetingAction(
     success:
       "Meeting cancelled. The investor, the country and the Summit mailbox are told.",
   };
+}
+
+// ---------------------------------------------------------------------------
+// 25 Nov: the countries' time blocks and counterparts (sign-ups by country)
+// ---------------------------------------------------------------------------
+
+function signupRefused(error: unknown): CalendarActionState {
+  if (!(error instanceof SignupError)) throw error;
+  return {
+    error:
+      error.code === "invalid"
+        ? (Object.values(error.fieldErrors)[0] ?? SIGNUP_MESSAGES.invalid)
+        : SIGNUP_MESSAGES[error.code],
+    fieldErrors: error.fieldErrors,
+  };
+}
+
+export async function importBlocksAction(
+  formData: FormData,
+): Promise<CalendarActionState> {
+  const viewer = await requireViewer();
+  try {
+    const result = await importMeetingBlocks(viewer, text(formData, "blocks"), {
+      meta: await meta(),
+    });
+    refresh();
+    return {
+      success: `${result.blocks} blocks saved for ${result.countries} ${result.countries === 1 ? "country" : "countries"}.`,
+    };
+  } catch (error) {
+    return signupRefused(error);
+  }
+}
+
+export async function setCounterpartsAction(
+  countryId: string,
+  counterparts: string,
+): Promise<CalendarActionState> {
+  const viewer = await requireViewer();
+  try {
+    await setCountryCounterparts(viewer, countryId, counterparts, {
+      meta: await meta(),
+    });
+    refresh();
+    return { success: "Counterparts saved." };
+  } catch (error) {
+    return signupRefused(error);
+  }
 }

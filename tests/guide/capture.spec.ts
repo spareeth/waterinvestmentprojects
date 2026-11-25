@@ -53,10 +53,19 @@ test("investor pipeline, project and requests", async ({ page }) => {
   await signIn(page, "investor@operator-one.example");
   await page.goto("/pipeline");
   await shot(page, "pipeline");
-  // A published project this investor has not asked about yet, so the request form shows.
+  // 25 Nov: the project page with the country's counterparts, then the sign-up sheet (seed sign-up for Country A).
   await page.goto("/pipeline/seed-project-d1");
   await page.waitForTimeout(1500); // let the PDF viewer draw the teaser
   await shot(page, "project");
+  await page.goto("/pipeline/seed-project-a1");
+  const signup = page.getByRole("heading", {
+    name: "Meet the Country A delegation",
+  });
+  await expect(signup).toBeVisible();
+  await signup.evaluate((el) =>
+    window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 24),
+  );
+  await shot(page, "meeting-signup");
   await page.goto("/requests");
   await shot(page, "my-requests");
 });
@@ -71,10 +80,9 @@ test("summit admin submissions", async ({ page }) => {
   await signIn(page, "summit.admin@demo.example");
   await page.goto("/admin/submissions");
   await shot(page, "admin-submissions");
-  // The master calendar (23 Nov) on the Summit day: booked and blocked times in the demo data.
-  await page.goto("/admin/meetings?day=2026-12-09");
-  await expect(
-    page.getByRole("heading", { name: "Wednesday 9 December" }),
-  ).toBeVisible();
+  // 25 Nov: the meeting calendar opens on every country's sign-ups; blocks and counterparts have their own view.
+  await page.goto("/inbox");
   await shot(page, "admin-meetings");
+  await page.goto("/admin/meetings/blocks");
+  await shot(page, "admin-blocks");
 });

@@ -315,6 +315,44 @@ or load them on local or staging (the "no real country data" rule stands).
     investors cannot (`canEditProjectFacts` in `src/lib/authz/projects.ts`, `isProjectUploader` in
     `src/lib/authz/data.ts`). Every save is audited as `project.update`.
 
+### 0d. Meeting notes of 23 and 24 Nov and WBG emails of 24 and 25 Nov (these override 0c where they differ)
+
+Stage 1 (built 25 Nov):
+
+1. **Terms of use for investors** (final text from Sajid, 25 Nov): the acknowledgement page shows the six sections of
+   `src/lib/auth/terms.ts` (`TERMS_VERSION terms-2026-11-25`) in the yellow box, with one tick, "I have read these
+   terms of use and accept them." (`INVESTOR_ACK_VERSION investor-ack-terms-2026-11-25`). Investors who accepted the
+   earlier wording are asked again. On the server, `INVESTOR_ACK_VERSION` / `INVESTOR_ACK_TEXT` must be unset (or
+   set to the new values), or the old wording stays.
+2. **Project page:** "Project type" and "Published" removed from the key facts; the room tabs and room capacity
+   are gone from investors' view. New box "Government counterparts at UNWC for this meeting", from
+   `Country.meetingCounterparts` (one person per line, entered by admins).
+3. **Meeting sign-ups by country** (replace per-project requests with a room and time):
+   - each country has meeting blocks (`MeetingBlock`: country, room, start, end) in four rooms: Room 1 - Al Jimi,
+     Room 2 - Shawka, Room 3 - Hotel room A (Pearl Rotana), Room 4 - Hotel room B (Pearl Rotana). The blocks come
+     from WBG's schedule and are loaded by admins (Meeting calendar, Time blocks and counterparts: one line per block,
+     `ISO3, YYYY-MM-DD, HH:MM, HH:MM, room 1-4`; the countries named are replaced);
+   - inside a block, a time starts every 30 minutes and is shown as a 20-minute meeting (09:00-09:20, 09:30-09:50);
+   - an investor signs up once per country (`MeetingSignup`, unique per country and investor) from any of the
+     country's published projects, ticks every time they could make (availability, not a booking; shown as
+     "Potential option") and the projects of interest (`MeetingSignupProject`), with attendee, organisation, role
+     and note. Other investors may tick the same times;
+   - sign-ups close at the end of 1 Dec, UAE time (`MEETING_SIGNUP.deadline`); until then the investor may change or
+     withdraw. Confirmations by 4 Dec. "Signing up does not guarantee a meeting" on the form and My sign-ups;
+   - no emails in stage 1 (the Summit team allocates and confirms in stage 2).
+4. **Who sees sign-ups** (`src/lib/authz/signups.ts`): investors their own (My sign-ups); country users and WBG
+   coordinators their own countries' sign-ups, read-only, with CSV (Meeting sign-ups, `/inbox`); admins every
+   sign-up, with CSV (Meeting calendar, Sign-ups). Blocks and counterparts: admins only. Every sign-up change, list,
+   export, block load and counterparts change is audited (`meeting_signup.*`, `meeting_block.import`,
+   `country.counterparts_update`). Removing a user withdraws their sign-ups. The earlier meeting requests stay
+   visible below the sign-ups ("Earlier meeting requests") and in the Room calendar view.
+5. **Production data** (not in the repo): the nine countries' blocks from WBG's room schedule and the counterparts
+   from Jacob's email of 25 Nov are loaded on the server through the admin pages.
+
+Stage 2 (by 2 Dec, not built): the Summit team allocates one time and room per sign-up (four rooms) and sends the
+confirmations; virtual-only projects (ADB/AIIB: Azerbaijan, Sri Lanka, Benin, Pakistan-Lahore); more
+pre-approved domains.
+
 ---
 
 ## 1. Timeline (WBG proposal of 17 Nov, to confirm on the 18 Nov call)
@@ -435,6 +473,11 @@ MeetingRequest(id, projectId, requesterId, organisation, role, note,
                // CANCELLED added 23 Nov: cancelled by the Summit team (0c.11)
 Room(id, name, capacity) / Slot(id, roomId, startsAt, endsAt, status[OPEN|HELD|BOOKED|BLOCKED], blockedReason?,
                meetingRequestId?)   // F9 only; BLOCKED and blockedReason added 23 Nov (0c.11)
+Country.meetingCounterparts   // 25 Nov (0d.2): one person per line
+MeetingBlock(id, countryId, roomId, startsAt, endsAt)   // 25 Nov (0d.3)
+MeetingSignup(id, countryId, requesterId, contactName, contactEmail, organisation, role, note, slotStarts[],
+              status[ACTIVE|WITHDRAWN], createdAt, updatedAt)   // 25 Nov, unique (countryId, requesterId)
+MeetingSignupProject(signupId, projectId)   // 25 Nov: the projects of interest
 AuditEvent(id, actorId?, action, entityType, entityId, ip, userAgent, at, metadata)
 ```
 Removed from v0.2: `tier`, `ProjectGrant`, `rank`, `Acknowledgement` per document (replaced by `Submission`),

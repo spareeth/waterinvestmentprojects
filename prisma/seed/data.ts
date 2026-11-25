@@ -46,30 +46,44 @@ export const countries = [
     name: "Country A",
     iso3: "XAA",
     status: CountryStatus.ACTIVE,
+
+    meetingCounterparts:
+      "Ana Fictional, Director of Water Supply, Ministry of Water (Country A)\nBen Example, Head of the PPP Unit (Country A)",
   },
   {
     id: "seed-country-b",
     name: "Country B",
     iso3: "XAB",
     status: CountryStatus.ACTIVE,
+
+    meetingCounterparts:
+      "Carla Placeholder, Secretary General, Water Authority (Country B)",
   },
   {
     id: "seed-country-c",
     name: "Country C",
     iso3: "XAC",
     status: CountryStatus.ACTIVE,
+
+    meetingCounterparts:
+      "Dev Sample, Managing Director, City Water Company (Country C)",
   },
   {
     id: "seed-country-d",
     name: "Country D",
     iso3: "XAD",
     status: CountryStatus.ACTIVE,
+
+    meetingCounterparts:
+      "Eli Demo, Advisor to the Minister of Finance (Country D)\nFay Mock, Project Officer (Country D)",
   },
   {
     id: "seed-country-e",
     name: "Country E",
     iso3: "XAE",
     status: CountryStatus.ACTIVE,
+
+    meetingCounterparts: "",
   },
 ];
 
@@ -1237,6 +1251,107 @@ export const auditEvents = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 25 Nov: each country's meeting time blocks (fictional), two per country, in rooms 1 and 2
+// ---------------------------------------------------------------------------
+
+const blockPlan: [string, string, string, string, string][] = [
+  ["a", "2026-12-08", "09:00", "12:00", "seed-room-1"],
+  ["a", "2026-12-09", "12:00", "15:00", "seed-room-1"],
+  ["b", "2026-12-08", "09:00", "12:00", "seed-room-2"],
+  ["b", "2026-12-09", "09:00", "11:30", "seed-room-2"],
+  ["c", "2026-12-08", "12:30", "15:30", "seed-room-1"],
+  ["c", "2026-12-09", "17:30", "19:00", "seed-room-1"],
+  ["d", "2026-12-08", "12:30", "15:30", "seed-room-2"],
+  ["d", "2026-12-09", "12:00", "15:00", "seed-room-2"],
+];
+
+export const meetingBlocks = blockPlan.map(
+  ([c, date, from, to, roomId], i) => ({
+    id: `seed-block-${i + 1}`,
+    countryId: `seed-country-${c}`,
+    roomId,
+    startsAt: gst(`${date}T${from}`),
+    endsAt: gst(`${date}T${to}`),
+  }),
+);
+
+// 25 Nov: fictional meeting sign-ups (investors 1 and 2 for Country A, investor 2 for Country B).
+const signupPlan: {
+  id: string;
+  country: string;
+  investor: "1" | "2";
+  name: string;
+  email: string;
+  organisation: string;
+  role: string;
+  note: string;
+  slots: [string, string][];
+  projects: string[];
+  at: string;
+}[] = [
+  {
+    id: "seed-signup-1",
+    country: "a",
+    investor: "1",
+    name: "Drew Investor",
+    email: "investor@operator-one.example",
+    organisation: "Operator One",
+    role: "Head of Business Development",
+    note: "Interested in operating both networks.",
+    slots: [
+      ["2026-12-08", "09:00"],
+      ["2026-12-08", "09:30"],
+      ["2026-12-09", "12:30"],
+    ],
+    projects: ["seed-project-a1", "seed-project-a2"],
+    at: "2026-11-25T10:00",
+  },
+  {
+    id: "seed-signup-2",
+    country: "a",
+    investor: "2",
+    name: "Eden Investor",
+    email: "investor@fund-two.example",
+    organisation: "Infrastructure Fund Two",
+    role: "Investment Director",
+    note: "",
+    slots: [
+      ["2026-12-08", "09:30"],
+      ["2026-12-08", "10:00"],
+    ],
+    projects: ["seed-project-a1"],
+    at: "2026-11-25T11:15",
+  },
+  {
+    id: "seed-signup-3",
+    country: "b",
+    investor: "2",
+    name: "Eden Investor",
+    email: "investor@fund-two.example",
+    organisation: "Infrastructure Fund Two",
+    role: "Investment Director",
+    note: "",
+    slots: [["2026-12-09", "09:00"]],
+    projects: ["seed-project-b1"],
+    at: "2026-11-25T11:20",
+  },
+];
+
+export const meetingSignups = signupPlan.map((s) => ({
+  id: s.id,
+  countryId: `seed-country-${s.country}`,
+  requesterId: `seed-user-investor-${s.investor}`,
+  contactName: s.name,
+  contactEmail: s.email,
+  organisation: s.organisation,
+  role: s.role,
+  note: s.note,
+  slotStarts: s.slots.map(([date, time]) => gst(`${date}T${time}`)),
+  createdAt: gst(s.at),
+  projectIds: s.projects,
+}));
+
 export const seedData = {
   countries,
   users,
@@ -1251,5 +1366,7 @@ export const seedData = {
   meetingRequests,
   rooms,
   slots,
+  meetingBlocks,
+  meetingSignups,
   auditEvents,
 };

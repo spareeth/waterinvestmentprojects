@@ -136,8 +136,10 @@ function investorAcknowledgement(): {
   const version = process.env.INVESTOR_ACK_VERSION?.trim();
   const text = process.env.INVESTOR_ACK_TEXT?.trim();
   if (version && text) return { version, text };
+  // 25 Nov (Jacob Kim, confirmed by Sajid): the box shows the full terms of use (TERMS_SECTIONS) and this line is
+  // what the investor ticks. The version follows the terms, so everyone accepts the new wording once.
   return {
-    version: "investor-ack-placeholder-v1",
-    text: "I confirm that I will use the project teasers and other information shared through this portal only for the purposes of the Water Investment Summit and related bilateral discussions, and that I will not pass them on outside my organisation without the agreement of the country concerned.",
+    version: "investor-ack-terms-2026-11-25",
+    text: "I have read these terms of use and accept them.",
   };
 }

@@ -16,10 +16,13 @@ import { requestMetaFrom } from "@/lib/audit";
 import {
   canExportMeetingRequests,
   canViewRequestInbox,
+  canViewSignupList,
   isAdminViewer,
   requirePortalUser,
 } from "@/lib/authz";
-import { formatMeetingSlot } from "@/lib/meetings/schedule";
+import { SignupList } from "@/components/requests/signup-list";
+import { formatMeetingSlot, MEETING_SIGNUP } from "@/lib/meetings/schedule";
+import { listCountrySignups } from "@/lib/meetings/signups";
 import {
   getRequestCounts,
   type InboxFilter,
@@ -91,30 +94,31 @@ export default async function InboxPage({
     await searchParams,
     countries.map((c) => c.id),
   );
-  const [requests, counts] = await Promise.all([
-    listInboxRequests(viewer, filter, {
-      meta: requestMetaFrom(await headers()),
-    }),
+  const meta = requestMetaFrom(await headers());
+  const [requests, counts, signups] = await Promise.all([
+    listInboxRequests(viewer, filter, { meta }),
     getRequestCounts(viewer, { now }),
+    listCountrySignups(viewer, { countryId: filter.countryId, meta }),
   ]);
   const admin = isAdminViewer(viewer);
   const readOnly = !requests.some((r) => r.canDecide) && !admin;
+  const activeSignups = signups.filter((s) => s.status === "ACTIVE").length;
 
   return (
     <>
       <PortalHeader name={user.name} viewer={viewer} />
       {/* 23 Nov: for the Summit team this list is the "All requests" view of the Meeting calendar section. */}
-      {admin ? <AdminNav current="/admin/meetings" /> : null}
+      {admin ? <AdminNav current="/inbox" /> : null}
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
-              {admin ? "Meeting calendar" : "Meeting requests"}
+              {admin ? "Meeting calendar" : "Meeting sign-ups"}
             </h1>
             <p className="mt-1 max-w-3xl text-muted-foreground">
               {admin
-                ? "Every request from investors and operators, for every country, including requests without a meeting time. Accept or decline on behalf of a country when its focal point asks you to."
-                : "Requests from investors and operators to meet about your country's projects. Choose whom to meet: accept or decline each request."}
+                ? `Investors and operators sign up to meet each country's delegation and tick every time they could make. Sign-ups close on ${MEETING_SIGNUP.deadlineLabel}; the Summit team then allocates the meetings and confirms them by ${MEETING_SIGNUP.confirmationLabel}.`
+                : `Investors and operators who would like to meet your delegation, and the times they could make. Sign-ups close on ${MEETING_SIGNUP.deadlineLabel}; the Summit team then allocates the meetings and tells you and them by ${MEETING_SIGNUP.confirmationLabel}.`}
             </p>
             {admin ? (
               <div className="mt-4">
@@ -122,143 +126,182 @@ export default async function InboxPage({
               </div>
             ) : null}
           </div>
-          {canExportMeetingRequests(viewer) ? (
+          {canViewSignupList(viewer) ? (
             <Button asChild variant="outline" size="lg">
-              <a href={`/inbox/export${query(filter)}`} download>
-                Download CSV
+              <a
+                href={`/inbox/signups-export${filter.countryId ? `?country=${encodeURIComponent(filter.countryId)}` : ""}`}
+                download
+              >
+                Download sign-ups (CSV)
               </a>
             </Button>
           ) : null}
         </div>
 
-        <dl className="grid grid-cols-3 gap-3 sm:max-w-xl">
-          {[
-            { label: "Awaiting reply", value: counts.pending },
-            { label: "New today", value: counts.newPending },
-            { label: "All requests", value: counts.total },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">{c.label}</dt>
-              <dd className="text-2xl font-semibold text-brand-navy">
-                {c.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        <nav
-          aria-label="Filter requests"
-          className="flex flex-col gap-3 rounded-xl border bg-card p-4"
+        <section
+          aria-labelledby="signups-heading"
+          className="flex flex-col gap-3"
         >
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-semibold">Status:</span>
-            {STATUS_FILTERS.map((s) => {
-              const active = (filter.status ?? "") === s.value;
-              return (
-                <Link
-                  key={s.label}
-                  href={`/inbox${query({ ...filter, status: s.value || undefined })}`}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    active
-                      ? "rounded-full bg-brand-navy px-3 py-1 text-white"
-                      : "rounded-full border px-3 py-1 hover:bg-muted"
-                  }
-                >
-                  {s.label}
-                </Link>
-              );
-            })}
+          <h2
+            id="signups-heading"
+            className="text-lg font-semibold text-brand-navy"
+          >
+            Sign-ups ({activeSignups} active)
+          </h2>
+          <SignupList
+            rows={signups}
+            empty="No sign-ups yet. They appear here as investors and operators tick the times they could meet."
+          />
+        </section>
+
+        {counts.total > 0 ? (
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3 border-t pt-6">
+            <h2 className="text-lg font-semibold text-brand-navy">
+              Earlier meeting requests (before 25 November)
+            </h2>
+            {canExportMeetingRequests(viewer) ? (
+              <a
+                href={`/inbox/export${query(filter)}`}
+                download
+                className="text-sm link"
+              >
+                Download earlier requests (CSV)
+              </a>
+            ) : null}
           </div>
-          {countries.length > 1 ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-semibold">Country:</span>
-              {[{ id: "", name: "All" }, ...countries].map((c) => {
-                const active = (filter.countryId ?? "") === c.id;
-                return (
-                  <Link
-                    key={c.id || "all"}
-                    href={`/inbox${query({ ...filter, countryId: c.id || undefined })}`}
-                    aria-current={active ? "page" : undefined}
-                    className={
-                      active
-                        ? "rounded-full bg-brand-navy px-3 py-1 text-white"
-                        : "rounded-full border px-3 py-1 hover:bg-muted"
-                    }
-                  >
-                    {c.name}
-                  </Link>
-                );
-              })}
-            </div>
-          ) : null}
-        </nav>
-
-        {readOnly && requests.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You can read these requests. The country&rsquo;s focal point accepts
-            or declines them.
-          </p>
         ) : null}
+        {counts.total > 0 ? (
+          <>
+            <dl className="grid grid-cols-3 gap-3 sm:max-w-xl">
+              {[
+                { label: "Awaiting reply", value: counts.pending },
+                { label: "New today", value: counts.newPending },
+                { label: "All requests", value: counts.total },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl border bg-card p-4">
+                  <dt className="text-xs text-muted-foreground">{c.label}</dt>
+                  <dd className="text-2xl font-semibold text-brand-navy">
+                    {c.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
 
-        {requests.length === 0 ? (
-          <p className="rounded-xl border bg-card p-6 text-muted-foreground">
-            No requests to show.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-4">
-            {requests.map((r) => {
-              const contact = requestContact(r);
-              return (
-                <li
-                  key={r.id}
-                  className="flex flex-col gap-3 rounded-xl border bg-card p-5"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-brand-navy">
-                      {r.project.title}
-                      {r.status === MeetingRequestStatus.PENDING &&
-                      isNewRequest(r.createdAt, now) ? (
-                        <NewMarker />
+            <nav
+              aria-label="Filter requests"
+              className="flex flex-col gap-3 rounded-xl border bg-card p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-semibold">Status:</span>
+                {STATUS_FILTERS.map((s) => {
+                  const active = (filter.status ?? "") === s.value;
+                  return (
+                    <Link
+                      key={s.label}
+                      href={`/inbox${query({ ...filter, status: s.value || undefined })}`}
+                      aria-current={active ? "page" : undefined}
+                      className={
+                        active
+                          ? "rounded-full bg-brand-navy px-3 py-1 text-white"
+                          : "rounded-full border px-3 py-1 hover:bg-muted"
+                      }
+                    >
+                      {s.label}
+                    </Link>
+                  );
+                })}
+              </div>
+              {countries.length > 1 ? (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold">Country:</span>
+                  {[{ id: "", name: "All" }, ...countries].map((c) => {
+                    const active = (filter.countryId ?? "") === c.id;
+                    return (
+                      <Link
+                        key={c.id || "all"}
+                        href={`/inbox${query({ ...filter, countryId: c.id || undefined })}`}
+                        aria-current={active ? "page" : undefined}
+                        className={
+                          active
+                            ? "rounded-full bg-brand-navy px-3 py-1 text-white"
+                            : "rounded-full border px-3 py-1 hover:bg-muted"
+                        }
+                      >
+                        {c.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </nav>
+
+            {readOnly && requests.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You can read these requests. The country&rsquo;s focal point
+                accepts or declines them.
+              </p>
+            ) : null}
+
+            {requests.length === 0 ? (
+              <p className="rounded-xl border bg-card p-6 text-muted-foreground">
+                No requests to show.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {requests.map((r) => {
+                  const contact = requestContact(r);
+                  return (
+                    <li
+                      key={r.id}
+                      className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-brand-navy">
+                          {r.project.title}
+                          {r.status === MeetingRequestStatus.PENDING &&
+                          isNewRequest(r.createdAt, now) ? (
+                            <NewMarker />
+                          ) : null}
+                        </h2>
+                        <RequestStatusBadge status={r.status} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {r.project.country.name} · {r.project.sector} ·
+                        requested {formatUaeTime(r.createdAt)}
+                      </p>
+                      <div className="text-sm">
+                        <p className="font-medium">
+                          {contact.name}, {r.role}, {r.organisation}
+                        </p>
+                        <a href={`mailto:${contact.email}`} className="link">
+                          {contact.email}
+                        </a>
+                      </div>
+                      <MeetingTimeLine slot={r.slot} status={r.status} />
+                      {r.note ? (
+                        <p className="rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-line">
+                          {r.note}
+                        </p>
                       ) : null}
-                    </h2>
-                    <RequestStatusBadge status={r.status} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {r.project.country.name} · {r.project.sector} · requested{" "}
-                    {formatUaeTime(r.createdAt)}
-                  </p>
-                  <div className="text-sm">
-                    <p className="font-medium">
-                      {contact.name}, {r.role}, {r.organisation}
-                    </p>
-                    <a href={`mailto:${contact.email}`} className="link">
-                      {contact.email}
-                    </a>
-                  </div>
-                  <MeetingTimeLine slot={r.slot} status={r.status} />
-                  {r.note ? (
-                    <p className="rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-line">
-                      {r.note}
-                    </p>
-                  ) : null}
-                  {r.decidedAt ? (
-                    <p className="text-xs text-muted-foreground">
-                      {r.status === MeetingRequestStatus.ACCEPTED
-                        ? "Accepted"
-                        : r.status === MeetingRequestStatus.DECLINED
-                          ? "Declined"
-                          : "Answered"}{" "}
-                      {r.decidedBy ? `by ${r.decidedBy.name} ` : ""}on{" "}
-                      {formatUaeTime(r.decidedAt)}
-                    </p>
-                  ) : null}
-                  {r.canDecide ? <DecisionForm requestId={r.id} /> : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                      {r.decidedAt ? (
+                        <p className="text-xs text-muted-foreground">
+                          {r.status === MeetingRequestStatus.ACCEPTED
+                            ? "Accepted"
+                            : r.status === MeetingRequestStatus.DECLINED
+                              ? "Declined"
+                              : "Answered"}{" "}
+                          {r.decidedBy ? `by ${r.decidedBy.name} ` : ""}on{" "}
+                          {formatUaeTime(r.decidedAt)}
+                        </p>
+                      ) : null}
+                      {r.canDecide ? <DecisionForm requestId={r.id} /> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
+        ) : null}
       </main>
     </>
   );

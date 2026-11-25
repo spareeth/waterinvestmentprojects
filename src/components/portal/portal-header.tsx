@@ -47,17 +47,17 @@ export function PortalHeader({
       ) : null}
       {showRequests ? (
         <Link href="/requests" className={linkClass}>
-          My requests
+          My sign-ups
         </Link>
       ) : null}
       {showCalendar ? (
         // 23 Nov: the Summit team's requests and room calendar are one section.
-        <Link href="/admin/meetings" className={linkClass}>
+        <Link href="/inbox" className={linkClass}>
           Meeting calendar
         </Link>
       ) : showInbox ? (
         <Link href="/inbox" className={linkClass}>
-          Meeting requests
+          Meeting sign-ups
         </Link>
       ) : null}
       {showAdmin ? (

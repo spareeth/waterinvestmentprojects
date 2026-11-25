@@ -60,7 +60,7 @@ export default async function MeetingSchedulePage({
     <AdminShell
       name={user.name}
       viewer={viewer}
-      current="/admin/meetings"
+      current="/inbox"
       title="Meeting calendar"
       intro={`Bilateral meetings in ${describeMeetingRooms()}, ${MEETING_SCHEDULE.slotMinutes} minutes each, UAE time. Investors choose a time when they request a meeting; it is held until the country answers. Block times that must not be offered, and cancel meetings when needed. All requests, including those without a time, are under All requests.`}
     >

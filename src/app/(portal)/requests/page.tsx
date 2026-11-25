@@ -10,22 +10,25 @@ import {
   canWithdrawMeetingRequest,
   requirePortalUser,
 } from "@/lib/authz";
-import { formatMeetingSlot } from "@/lib/meetings/schedule";
+import { SignupList } from "@/components/requests/signup-list";
+import { formatMeetingSlot, MEETING_SIGNUP } from "@/lib/meetings/schedule";
+import { listMySignups } from "@/lib/meetings/signups";
 import { listMyRequests, requestContact } from "@/lib/requests/service";
 import { formatUaeTime } from "@/lib/submission/format";
 
 // Reads the session and the database on the server before rendering, so it may block.
 export const instant = false;
 
-export const metadata: Metadata = { title: "My meeting requests" };
+export const metadata: Metadata = { title: "My meeting sign-ups" };
 
 /** Investor: every own meeting request with its status, newest first, and a withdraw button while open (M5, F5). */
 export default async function MyRequestsPage() {
   const { user, viewer } = await requirePortalUser();
   if (!canListOwnMeetingRequests(viewer)) notFound();
-  const requests = await listMyRequests(viewer, {
-    meta: requestMetaFrom(await headers()),
-  });
+  const [requests, signups] = await Promise.all([
+    listMyRequests(viewer, { meta: requestMetaFrom(await headers()) }),
+    listMySignups(viewer),
+  ]);
 
   return (
     <>
@@ -33,20 +36,29 @@ export default async function MyRequestsPage() {
       <main className="mx-auto flex w-full max-w-page flex-1 flex-col gap-6 px-4 py-10 sm:px-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-brand-navy">
-            My meeting requests
+            My meeting sign-ups
           </h1>
           <p className="mt-1 max-w-3xl text-muted-foreground">
-            Each country&rsquo;s focal point decides whom to meet. You can
-            withdraw a request at any time before the Summit.
+            The countries you signed up to meet and the times you can make.
+            Sign-ups close on {MEETING_SIGNUP.deadlineLabel}; the Summit team
+            then matches investors and delegations, and you will receive a
+            meeting confirmation by email by {MEETING_SIGNUP.confirmationLabel}.
+            Signing up does not guarantee a meeting.
           </p>
         </div>
 
-        {requests.length === 0 ? (
-          <p className="rounded-xl border bg-card p-6 text-muted-foreground">
-            You have not requested any meetings yet. Open a project in the
-            pipeline and choose &ldquo;Request a meeting&rdquo;.
-          </p>
-        ) : (
+        <SignupList
+          rows={signups}
+          mine
+          empty="You have not signed up for any meetings yet. Open a project in the pipeline and tick the times you could meet its country's delegation."
+        />
+
+        {requests.length === 0 ? null : (
+          <h2 className="mt-4 text-lg font-semibold text-brand-navy">
+            Earlier meeting requests
+          </h2>
+        )}
+        {requests.length === 0 ? null : (
           <ul className="flex flex-col gap-4">
             {requests.map((r) => (
               <li
