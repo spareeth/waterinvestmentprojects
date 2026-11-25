@@ -355,7 +355,7 @@ async function notifyNewRequest(row: MailRow, options: RequestOptions) {
 }
 
 /** The country's focal points (to) and WBG coordinators (copy), from the country's contacts. */
-async function countryRecipients(
+export async function countryRecipients(
   countryId: string,
 ): Promise<{ to: string[]; cc: string[] }> {
   const contacts = await db.countryContact.findMany({

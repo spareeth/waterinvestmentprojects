@@ -12,6 +12,7 @@ import {
 } from "@/generated/prisma/enums";
 import type { Viewer } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { MemoryMailer } from "@/lib/mail";
 import { uaeTime } from "@/lib/meetings/schedule";
 import {
   exportSignupsCsv,
@@ -42,7 +43,7 @@ const B1 = uaeTime("2026-12-09", "12:00");
 const BEFORE = new Date("2026-11-25T08:00:00Z");
 const AFTER = new Date("2026-12-02T08:00:00Z");
 
-type Key = "admin" | "focalA" | "focalB" | "coordA" | "i1" | "i2";
+type Key = "admin" | "focalA" | "focalB" | "coordA" | "i1" | "i2" | "i3";
 const v = {} as Record<Key, Viewer>;
 const R: Record<string, string> = {};
 
@@ -118,6 +119,30 @@ beforeAll(async () => {
   await make("coordA", UserRole.WBG_COORDINATOR, MembershipRole.MEMBER, C.a);
   await make("i1", UserRole.INVESTOR);
   await make("i2", UserRole.INVESTOR);
+  await make("i3", UserRole.INVESTOR);
+  // Country A: a focal point and a WBG coordinator; Country B: a coordinator only (never emailed alone).
+  await db.countryContact.createMany({
+    data: [
+      {
+        countryId: C.a,
+        name: "Focal A",
+        email: "focal-a@it.example",
+        role: "FOCAL_POINT",
+      },
+      {
+        countryId: C.a,
+        name: "WB lead A",
+        email: "wb-a@it.example",
+        role: "WBG_COORDINATOR",
+      },
+      {
+        countryId: C.b,
+        name: "WB lead B",
+        email: "wb-b@it.example",
+        role: "WBG_COORDINATOR",
+      },
+    ],
+  });
 });
 
 afterAll(async () => {
@@ -229,7 +254,7 @@ describe("signing up", () => {
     ).toHaveLength(1);
     expect(
       await db.auditEvent.findMany({
-        where: { entityId: id },
+        where: { entityId: id, action: { startsWith: "meeting_signup." } },
         select: { action: true },
         orderBy: { at: "asc" },
       }),
@@ -347,5 +372,107 @@ describe("who sees which sign-ups", () => {
       (await db.meetingSignup.findUniqueOrThrow({ where: { id: R.i1 } }))
         .status,
     ).toBe("ACTIVE");
+  });
+});
+
+// 25 Nov (Sajid): "an email from summit to the govt on each respective sign up and an email to the summit admins on
+// every sign up". Changes and withdrawals are emailed too. Each country hears only of its own sign-ups.
+describe("sign-up emails", () => {
+  const summit = ["summit@it.example"];
+
+  it("tells the Summit mailbox and the country's focal points, coordinators in copy", async () => {
+    const mailer = new MemoryMailer();
+    const { id } = await saveSignup(
+      v.i3,
+      P.a1,
+      values([A2, A1], [P.a1, P.a2], "Cy Third"),
+      { now: BEFORE, mailer, summitRecipients: summit },
+    );
+    R.i3 = id;
+    expect(mailer.sent).toHaveLength(2);
+    const [toSummit, toCountry] = mailer.sent;
+    expect(toSummit.to).toEqual(summit);
+    expect(toSummit.subject).toBe(
+      "New meeting sign-up: IT Signup A (Fictional Fund)",
+    );
+    expect(toSummit.text).toContain("cy.third@it.example");
+    expect(toCountry.to).toEqual(["focal-a@it.example"]);
+    expect(toCountry.cc).toEqual(["wb-a@it.example"]);
+    expect(toCountry.subject).toContain("new meeting sign-up for IT Signup A");
+    // The times in order, both projects, no investor address.
+    expect(toCountry.text).toContain(
+      "- Tuesday 8 December, 09:00–09:20\n- Tuesday 8 December, 09:30–09:50",
+    );
+    expect(toCountry.text).toContain(`IT Signup project ${P.a1}`);
+    expect(toCountry.text).toContain(`IT Signup project ${P.a2}`);
+    expect(toCountry.text).not.toContain("cy.third@it.example");
+    expect(toCountry.text).not.toContain("IT Signup B");
+    expect(
+      await db.auditEvent.count({
+        where: {
+          action: "mail.sent",
+          entityType: "MeetingSignup",
+          entityId: id,
+        },
+      }),
+    ).toBe(2);
+  });
+
+  it("emails a change and a withdrawal, and treats signing up again as new", async () => {
+    const mailer = new MemoryMailer();
+    const opts = { now: BEFORE, mailer, summitRecipients: summit };
+    await saveSignup(v.i3, P.a2, values([A1], [P.a2], "Cy Third"), opts);
+    await withdrawSignup(v.i3, R.i3, opts);
+    await saveSignup(v.i3, P.a1, values([A1], [], "Cy Third"), opts);
+    expect(mailer.sent.map((m) => m.subject)).toEqual([
+      "Meeting sign-up changed: IT Signup A (Fictional Fund)",
+      expect.stringContaining("meeting sign-up changed for IT Signup A"),
+      "Meeting sign-up withdrawn: IT Signup A (Fictional Fund)",
+      expect.stringContaining("meeting sign-up withdrawn for IT Signup A"),
+      "New meeting sign-up: IT Signup A (Fictional Fund)",
+      expect.stringContaining("new meeting sign-up for IT Signup A"),
+    ]);
+  });
+
+  it("never emails a coordinator alone, and the country email can be switched off", async () => {
+    const mailer = new MemoryMailer();
+    // Country B has no focal point: only the Summit mailbox hears of it.
+    await saveSignup(v.i3, P.b1, values([B1], [], "Cy Third"), {
+      now: BEFORE,
+      mailer,
+      summitRecipients: summit,
+    });
+    expect(mailer.sent.map((m) => m.to)).toEqual([summit]);
+    const off = new MemoryMailer();
+    await saveSignup(v.i3, P.a1, values([A2], [], "Cy Third"), {
+      now: BEFORE,
+      mailer: off,
+      summitRecipients: summit,
+      notifyCountries: false,
+    });
+    expect(off.sent.map((m) => m.to)).toEqual([summit]);
+  });
+
+  it("sends nothing when a sign-up is refused", async () => {
+    const mailer = new MemoryMailer();
+    expect(
+      await refusal(
+        saveSignup(v.i3, P.a1, values([B1]), {
+          now: BEFORE,
+          mailer,
+          summitRecipients: summit,
+        }),
+      ),
+    ).toBe("invalid:slots");
+    expect(
+      await refusal(
+        saveSignup(v.i3, P.a1, values([A1]), {
+          now: AFTER,
+          mailer,
+          summitRecipients: summit,
+        }),
+      ),
+    ).toBe("closed");
+    expect(mailer.sent).toEqual([]);
   });
 });

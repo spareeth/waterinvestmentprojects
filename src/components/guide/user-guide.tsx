@@ -295,7 +295,9 @@ export function UserGuide() {
             organisation and role, the projects they are interested in, their
             note and every time they could make within your country&apos;s
             meeting blocks. The list is for information: you do not need to
-            accept or decline anything.
+            accept or decline anything. Your country&apos;s focal points also
+            receive an email for each new, changed or withdrawn sign-up (WBG
+            colleagues in copy).
           </li>
           <li>
             Sign-ups close on {MEETING_SIGNUP.deadlineLabel}. The Summit team
@@ -443,7 +445,9 @@ export function UserGuide() {
             <strong>Sign-ups</strong> lists every investor&apos;s sign-up for
             every country, with their times and projects, and{" "}
             <strong>Download sign-ups (CSV)</strong> for allocating the
-            meetings. <strong>Time blocks and counterparts</strong> sets each
+            meetings. The Summit mailbox receives an email for every new,
+            changed or withdrawn sign-up.{" "}
+            <strong>Time blocks and counterparts</strong> sets each
             country&apos;s meeting blocks ({BLOCK_ROOMS.join(", ")}): under{" "}
             <strong>Load time blocks</strong>, paste one line per block (country
             ISO3 code, date, start, end, room number) and select{" "}

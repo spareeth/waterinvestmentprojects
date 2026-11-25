@@ -138,6 +138,8 @@ const envSchema = z
     REQUEST_NOTIFY_FOCAL_POINTS: flag,
     /** M5: "true" emails the investor when the country accepts or declines their meeting request. Off by default. */
     REQUEST_NOTIFY_INVESTOR: flag,
+    /** 25 Nov: emails the country's focal points (coordinators in copy) on every meeting sign-up. On unless "false". */
+    SIGNUP_NOTIFY_COUNTRIES: flagDefaultOn,
     SMTP_HOST: z
       .string()
       .optional()

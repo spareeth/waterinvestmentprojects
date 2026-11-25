@@ -13,11 +13,14 @@ import {
   type Viewer,
 } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { getEnv } from "@/lib/env";
+import { type Mailer, notifySummitTeam, sendMail } from "@/lib/mail";
 import { toCsv } from "@/lib/requests/csv";
 import {
   parseRequestInput,
   type RequestFormValues,
 } from "@/lib/requests/input";
+import { countryRecipients } from "@/lib/requests/service";
 import {
   BLOCK_ROOMS,
   blockSlotStarts,
@@ -29,6 +32,11 @@ import {
   uaeDateKey,
   uaeTime,
 } from "./schedule";
+import {
+  countrySignupEmail,
+  type SignupMailKind,
+  summitSignupNotice,
+} from "./signup-emails";
 
 // Meeting sign-ups (25 Nov, WBG: Jacob Kim; meeting notes of 23 and 24 Nov). An investor signs up once per country,
 // from any of its projects: who will attend, organisation and role, the projects of interest and every time they
@@ -68,6 +76,78 @@ export const SIGNUP_MESSAGES: Record<SignupErrorCode, string> = {
 interface Options {
   meta?: RequestMeta;
   now?: Date;
+  /** Tests pass a MemoryMailer. */
+  mailer?: Mailer;
+  /** Email the country's focal points (coordinators in copy). Defaults to SIGNUP_NOTIFY_COUNTRIES (on). */
+  notifyCountries?: boolean;
+  /** Defaults to ADMIN_NOTIFY_EMAIL. */
+  summitRecipients?: string[];
+}
+
+/**
+ * After a sign-up is saved or withdrawn (25 Nov, Sajid): the Summit mailbox always hears of it, and the country's
+ * focal points (WBG coordinators in copy) unless SIGNUP_NOTIFY_COUNTRIES is "false". Sent after the transaction
+ * has committed; sendMail never throws, so a mail failure never undoes the sign-up. Each send is audited.
+ */
+async function notifySignup(
+  signupId: string,
+  kind: SignupMailKind,
+  { meta, mailer, notifyCountries, summitRecipients, now }: Options,
+): Promise<void> {
+  const row = await db.meetingSignup.findUnique({
+    where: { id: signupId },
+    select: {
+      id: true,
+      countryId: true,
+      contactName: true,
+      contactEmail: true,
+      organisation: true,
+      role: true,
+      note: true,
+      slotStarts: true,
+      updatedAt: true,
+      country: { select: { name: true } },
+      projects: {
+        select: { project: { select: { title: true } } },
+        orderBy: { project: { title: "asc" } },
+      },
+    },
+  });
+  if (!row) return;
+  const facts = {
+    signupId: row.id,
+    countryName: row.country.name,
+    investorName: row.contactName,
+    investorEmail: row.contactEmail,
+    organisation: row.organisation,
+    role: row.role,
+    note: row.note,
+    projects: row.projects.map((p) => p.project.title),
+    times: [...row.slotStarts]
+      .sort((a, b) => a.getTime() - b.getTime())
+      .map(formatSignupSlotWithDay),
+    at: now ?? row.updatedAt,
+  };
+  const target = {
+    entityType: "MeetingSignup",
+    entityId: row.id,
+    meta,
+    mailer,
+  };
+  await notifySummitTeam(
+    "meeting_signup.summit",
+    summitSignupNotice(facts, kind),
+    { ...target, recipients: summitRecipients },
+  );
+  if (!(notifyCountries ?? getEnv().SIGNUP_NOTIFY_COUNTRIES)) return;
+  const { to, cc } = await countryRecipients(row.countryId);
+  // No focal point yet: the Summit mailbox already has the notice; never send the coordinator alone.
+  if (to.length === 0) return;
+  await sendMail(
+    "meeting_signup.country",
+    { to, cc, ...countrySignupEmail(facts, kind) },
+    target,
+  );
 }
 
 /** Non-empty lines of the country's counterparts text. */
@@ -200,13 +280,14 @@ export async function saveSignup(
   viewer: Viewer,
   projectId: string,
   values: SignupInput,
-  { meta, now = new Date() }: Options = {},
+  options: Options = {},
 ): Promise<{ id: string; created: boolean }> {
+  const { meta, now = new Date() } = options;
   const parsed = parseRequestInput({ ...values, slot: "" });
   const fieldErrors: Record<string, string> = parsed.ok
     ? {}
     : { ...parsed.fieldErrors };
-  return db.$transaction(async (tx) => {
+  const saved = await db.$transaction(async (tx) => {
     const project = await tx.project.findUnique({
       where: { id: projectId },
       select: { id: true, ...PROJECT_POLICY_SELECT },
@@ -267,7 +348,7 @@ export async function saveSignup(
       where: {
         countryId_requesterId: { countryId, requesterId: viewer.id },
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     const data = {
       contactName: contact.contactName,
@@ -310,16 +391,26 @@ export async function saveSignup(
       },
       tx,
     );
-    return { id: signup.id, created: !existing };
+    return {
+      id: signup.id,
+      created: !existing,
+      // Signing up again after withdrawing is news to the country, not a change.
+      kind: (existing?.status === MeetingSignupStatus.ACTIVE
+        ? "updated"
+        : "new") as SignupMailKind,
+    };
   });
+  await notifySignup(saved.id, saved.kind, options);
+  return { id: saved.id, created: saved.created };
 }
 
 /** The investor withdraws their sign-up for a country, before the deadline. */
 export async function withdrawSignup(
   viewer: Viewer,
   signupId: string,
-  { meta, now = new Date() }: Options = {},
+  options: Options = {},
 ): Promise<void> {
+  const { meta, now = new Date() } = options;
   await db.$transaction(async (tx) => {
     const signup = await tx.meetingSignup.findFirst({
       where: { AND: [meetingSignupWhere(viewer), { id: signupId }] },
@@ -346,6 +437,7 @@ export async function withdrawSignup(
       tx,
     );
   });
+  await notifySignup(signupId, "withdrawn", options);
 }
 
 const LIST_SELECT = {

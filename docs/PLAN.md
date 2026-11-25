@@ -339,7 +339,12 @@ Stage 1 (built 25 Nov):
      and note. Other investors may tick the same times;
    - sign-ups close at the end of 1 Dec, UAE time (`MEETING_SIGNUP.deadline`); until then the investor may change or
      withdraw. Confirmations by 4 Dec. "Signing up does not guarantee a meeting" on the form and My sign-ups;
-   - no emails in stage 1 (the Summit team allocates and confirms in stage 2).
+   - emails (Sajid, 25 Nov, after the first deploy): every new, changed or withdrawn sign-up is emailed to the
+     Summit mailbox (`ADMIN_NOTIFY_EMAIL`, with the investor's address) and to the country's focal points with WBG
+     coordinators in copy (without the investor's address; never to a coordinator alone). The country email is on
+     unless `SIGNUP_NOTIFY_COUNTRIES="false"`. Sent after the transaction through `src/lib/mail`, each audited
+     (`mail.sent`, kinds `meeting_signup.summit` and `meeting_signup.country`). No email to the investor yet; the
+     Summit team allocates and confirms in stage 2.
 4. **Who sees sign-ups** (`src/lib/authz/signups.ts`): investors their own (My sign-ups); country users and WBG
    coordinators their own countries' sign-ups, read-only, with CSV (Meeting sign-ups, `/inbox`); admins every
    sign-up, with CSV (Meeting calendar, Sign-ups). Blocks and counterparts: admins only. Every sign-up change, list,
